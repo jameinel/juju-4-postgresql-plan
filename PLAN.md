@@ -54,7 +54,7 @@ Session protocol:
 | 4 | PG schema generation | `pg-poc/04-schemagen` | not started |
 | 5 | Query portability fixes | `pg-poc/05-queries` | not started |
 | 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | not started |
-| 7 | `db-backend` / `db-url` config plumbing | `pg-poc/07-config` | not started |
+| 7 | `db-backend` / `db-url` config plumbing | `pg-poc/07-config` | in review |
 | 8 | PG dbaccessor worker and bootstrap | `pg-poc/08-dbaccessor` | not started |
 | 9 | LXD bootstrap and smoke test | `pg-poc/09-bootstrap` | not started |
 | 10 | enable-ha | `pg-poc/10-ha` | not started |
@@ -118,6 +118,7 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | N2 | Connection details are read through a "connection source" interface (agent.conf backed for now) so a later relation/secret source with credential rotation can replace it. |
 | N3 | Plans live in `docs/implementation-plans/postgresql/`, excluded from the Sphinx build. |
 | N4 | Branching as described under [branching](#branching): integration branch plus stacked `pg-poc/NN-<slug>` branches. |
+| D9 | The PostgreSQL CA is public, so it is carried in a `db-ca-cert` controller config key (PEM) for the PoC; a relation may supply it long term. `db-backend`, `db-url` and `db-ca-cert` are fixed at bootstrap. |
 | N5 | Provisioning tooling lives in `scripts/postgresql-poc/`. |
 | N6 | Opt-in PostgreSQL tests read the DB URL from `JUJU_POSTGRESQL_TEST_URL`. |
 | N7 | The provisioning script is Python using only the standard library (it shells out to `juju ... --format=json`), runnable with plain `python3`. |
@@ -354,8 +355,29 @@ Confirmed (N4):
   `sslmode=verify-full` (D8). `sslrootcert` is a file path, so the CA must
   be carried in config (for example a `db-ca-cert` key) and written out on
   each controller, or the connection source must build the TLS config
-  directly.
-- Restart notes: none yet.
+  directly. **Resolved:** a public `db-ca-cert` config key (PEM); a later
+  relation can replace it.
+- Status: in review. Committed on `pg-poc/07-config` (7ebc21b74a).
+- Restart notes:
+  - Done: controller keys `db-backend`, `db-url`, `db-ca-cert` (immutable,
+    in `ControllerOnlyConfigAttributes` only, validated: `db-url` required
+    iff postgresql); `agent.Config` `DBBackend/DBURL/DBCACert` and
+    `SetDBConfig`, stored in agent.conf (`dbbackend`, `dburl`,
+    `dbcacert`); set from instancecfg (new/HA machines) and in
+    `cmd/jujuagentd/agent/bootstrap.go`; `internal/database/connsource`
+    (`Source`, `Details`, `NewAgentConfigSource`). Agent mocks regenerated.
+  - Not done, by design: `agentconfigupdater` does not propagate the keys
+    because they are fixed at bootstrap (a change must not restart agents);
+    CAAS `podcfg` / `caasapplication` do not set them (out of scope, D1).
+    The sslrootcert file is not written; Stage 8 should write
+    `Details.CACert` to a file under the data dir when building the pgx
+    config (or set the TLS config directly).
+  - Not run: a live dqlite bootstrap; unit tests pass (agent, controller,
+    instancecfg, connsource, jujuagentd/agent). `gci` was not installed, so
+    imports were ordered by hand.
+- Findings: Stage 8 should read connection details only through
+  `connsource.Source`. `db-url` contains the password and is stored in
+  controller config and agent.conf (N1).
 
 ### Stage 8: PG dbaccessor worker and bootstrap
 
@@ -410,7 +432,8 @@ Confirmed (N4):
 ## Open questions
 
 1. Exact Go API for selecting the schema by backend (Stage 4).
-2. How the PostgreSQL CA reaches every controller for TLS (Stage 7, D8).
+2. ~How the PostgreSQL CA reaches every controller for TLS (Stage 7, D8).~
+   Resolved: `db-ca-cert` config key.
 3. Branch base for a stage with several dependencies, such as Stage 4
    (Stages 2 and 3): stack on one and rebase onto the other, or merge.
 
