@@ -48,6 +48,7 @@ Session protocol:
 | # | Stage | Branch | Status |
 |---|---|---|---|
 | 0 | Plan documents | `juju-4-postgresql` | in review |
+| 00 | Base fixes | `pg-poc/00-base-fixes` | done, in review |
 | 1 | PostgreSQL provisioning script | `pg-poc/01-provision` | in review |
 | 2 | Move schema to `domain/schema/dqlite` | `pg-poc/02-schema-move` | in review |
 | 3 | PG driver, placeholder rewriting, errors | `pg-poc/03-driver` | in review |
@@ -63,6 +64,8 @@ Session protocol:
 Dependency graph:
 
 ```
+00 ──> 1, 2, 3, 7 (the stages with no other dependency)
+
 1 ──────────────────────────────────────────┐
 2 ──> 4 ──┐                                 │
 3 ──> 4   ├──> 6 ──> 8 ──> 9 ──> 10         │
@@ -70,7 +73,9 @@ Dependency graph:
 7 ───────────────────┘     └────────────────┘
 ```
 
-Stages 1, 2, 3 and 7 are independent and can proceed in any order.
+Stages 1, 2, 3 and 7 are independent of each other and can proceed in any
+order, but all are based on Stage 00 so that every stage has a clean build
+and gofmt.
 
 ## Goal and scope
 
@@ -159,10 +164,37 @@ Confirmed (N4):
 - Each stage gets a stacked branch `pg-poc/NN-<slug>`, based on the stage
   it depends on in the dependency graph (or on the integration branch if it
   has none). Stages 1, 2, 3 and 7 therefore branch from
-  `juju-4-postgresql`.
+  `pg-poc/00-base-fixes`, which is itself cut from `juju-4-postgresql`.
+- Only the code commit of `pg-poc/00-base-fixes` (`fix(schema): emit
+  gofmt-clean trigger code from triggergen`) is part of the stack. Its
+  `docs:` commit is superseded by the [Base fixes](#base-fixes) section, so
+  stage branches must be rebased with `--onto` to exclude it. Do not
+  rebase `pg-poc/00-base-fixes` from a stage session.
 - Keep the stack current with `git rebase --update-refs`.
 - Stage 2 (schema move) must stay purely mechanical so it can be reviewed,
   and possibly proposed upstream, on its own.
+
+## Base fixes
+
+Branch `pg-poc/00-base-fixes`, cut from `juju-4-postgresql`, fixes
+pre-existing problems unrelated to the PoC. All stages build on it.
+
+- `go.mod` pins `go 1.27.2`, and `domain/removal/service` uses generic
+  methods, which need Go 1.27. `go build ./...` passes. The "method must
+  have no type parameters" errors (seen in several stage sessions) came
+  from an older `gofmt` on `PATH` (snap Go 1.24), not from the build. Use
+  the Go 1.27 `gofmt`.
+- With Go 1.27, `gofmt -l` listed only the generated trigger files; the
+  other files were Go 1.24 `gofmt` artefacts. Fixed: `generate/triggergen`
+  formats its output with `go/format`, and the trigger files are
+  regenerated. `go generate ./domain/schema/...` must leave no diff.
+- `go vet ./generate/...` flags a json tag on an unexported field in
+  `generate/schemagen/jsonschema-gen/reflect_test.go`. It is intentional
+  (the test checks such fields are ignored) and suppressed for
+  golangci-lint with `//nolint:govet`, so it is left as is. Plain
+  `go vet ./...` is not a gate in this repository.
+- `make pre-check` runs static analysis only with `STATIC_ANALYSIS=1`. It
+  needs golangci-lint 2.14 exactly, and `shellcheck` on `PATH`.
 
 ## Stages
 
@@ -259,17 +291,17 @@ Confirmed (N4):
   - `go generate ./domain/schema/...` left no diff; `go test
     ./domain/schema/... ./core/database/... ./domain/agentbinary/...
     ./domain/modelmigration/...` passes (the schema suites cover hashes).
-  - The branch was cut from the integration commit current at session
-    start and not rebased, because Stages 3 and 7 run concurrently.
-  - Next: user review, then rebase onto the integration branch.
+  - The branch is based on `pg-poc/00-base-fixes`, as are all stages.
+  - Next: user review.
 - Findings (for later stages):
   - Stage 4 should add `domain/schema/postgresql/` beside `dqlite/`; the
     `schema` package (`controller.go`, `model.go`, `patch.go`) still owns
     the dqlite embed and `readPatches`, and will need a backend selector
     (open question 1).
   - Historic `.ddl` release files contain stale path comments; left as is.
-  - `go build ./...` and `gofmt -l` report pre-existing issues unrelated to
-    this stage (`domain/removal/service`, generated trigger files).
+  - The build errors and `gofmt` noise seen during this stage were a Go
+    1.24 `gofmt` on `PATH` plus ungofmt-ed generated trigger files; both
+    are resolved by Stage 00 (see [Base fixes](#base-fixes)).
 
 ### Stage 3: PG driver, placeholder rewriting, errors
 
