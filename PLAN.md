@@ -64,18 +64,21 @@ Session protocol:
 Dependency graph:
 
 ```
-00 ──> 1, 2, 3, 7 (the stages with no other dependency)
+00 ──> 02 ──> 03 ──┬──> 04 ──┐
+                   └──> 05 ──┴──> 06 ──> 07 ──> 08 ──> 09 ──> 10
 
-1 ──────────────────────────────────────────┐
-2 ──> 4 ──┐                                 │
-3 ──> 4   ├──> 6 ──> 8 ──> 9 ──> 10         │
-3 ──> 5 ──┘          ^     ^                │
-7 ───────────────────┘     └────────────────┘
+00 ──> 01 (standalone)
 ```
 
-Stages 1, 2, 3 and 7 are independent of each other and can proceed in any
-order, but all are based on Stage 00 so that every stage has a clean build
-and gofmt.
+The stages form one stack (N8), with at most two in flight at once. Each
+stage depends on every stage below it.
+
+- 04 and 05 both branch from 03 and can run in parallel. Before Stage 6
+  starts, 05 is rebased onto 04.
+- Stage 7 was done early on 00. Before Stage 8 starts, it is rebased onto
+  06.
+- Stage 1 only adds a script, so nothing builds on its branch. It
+  provisions the PostgreSQL that Stages 3, 6 and 8 to 10 run against.
 
 ## Goal and scope
 
@@ -128,7 +131,7 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | N5 | Provisioning tooling lives in `scripts/postgresql-poc/`. |
 | N6 | Opt-in PostgreSQL tests read the DB URL from `JUJU_POSTGRESQL_TEST_URL`. |
 | N7 | The provisioning script is Python using only the standard library (it shells out to `juju ... --format=json`), runnable with plain `python3`. |
-| N8 | A stage with several dependencies is stacked linearly rather than merged: `pg-poc/03-driver` was rebased onto `pg-poc/02-schema-move`, so the stack is 00 -> 02 -> 03 -> {04, 05}. |
+| N8 | The stages form one linear stack rather than a merged graph, with at most two stages in flight: 00 -> 02 -> 03 -> {04, 05} -> 06 -> 07 -> 08 -> 09 -> 10. 03 was rebased onto 02 without conflicts; 05 is rebased onto 04 before Stage 6, and 07 (done early on 00) onto 06 before Stage 8. Stage 1 stays a standalone branch on 00. |
 | D11 | Schema selector (open question 1): `domain/schema` has `type Backend string` (`BackendDqlite`, `BackendPostgreSQL`, values matching `db-backend`) and `ControllerDDLForBackend` / `ModelDDLForBackend(Backend) (*schema.Schema, error)`; `ControllerDDL()` / `ModelDDL()` stay dqlite. `core/database/schema` has a `Dialect` carried by `Schema`, so the bookkeeping table is dialect-aware without callers knowing. Stage 8 wires the selector into bootstrap, the dbaccessor tracker and the upgrade worker. |
 | D12 | `pgschemagen` reads the complete dqlite patch list (`ControllerDDL()` / `ModelDDL()`, SQL files plus Go-built triggers) and translates every trigger generically to a PL/pgSQL function and trigger. `triggergen` gets no PostgreSQL mode and the Go-built triggers are not ported by hand (replaces Stage 4 steps 3 and 4). |
 | D13 | change_log ordering (D7): one `BEFORE INSERT` trigger on `change_log` takes `pg_advisory_xact_lock` keyed on the table's schema, then assigns `NEW.id` from the sequence, so ids are drawn after the lock and become visible in commit order for every writer. |
@@ -175,22 +178,27 @@ Confirmed (N4):
 - `pg-poc/00-base-fixes` sits on top of `juju-4-postgresql` and holds only
   code fixes for pre-existing problems; its notes are under
   [Base fixes](#base-fixes). Never commit stage work to it.
-- Each stage gets a stacked branch `pg-poc/NN-<slug>`, based on the stage
-  it depends on in the dependency graph, or on `pg-poc/00-base-fixes` if it
-  has none. Stages 1, 2 and 7 therefore branch from
-  `pg-poc/00-base-fixes`.
-- A stage with several dependencies is stacked linearly on them (N8).
-  `pg-poc/03-driver` sits on `pg-poc/02-schema-move`, and
-  `pg-poc/04-schemagen` and `pg-poc/05-queries` sit on `pg-poc/03-driver`:
-  00 -> 02 -> 03 -> {04, 05}.
+- Each stage gets a branch `pg-poc/NN-<slug>`, stacked on the branch below
+  it in the dependency graph (N8):
+  - `pg-poc/01-provision` and `pg-poc/02-schema-move` branch from
+    `pg-poc/00-base-fixes`; 03 from 02; 04 and 05 from 03.
+  - The Stage 6 session first rebases 05 onto 04 (in the 05 worktree,
+    `git rebase --update-refs pg-poc/04-schemagen`), then branches 06
+    from 05.
+  - The Stage 8 session first rebases 07 onto 06 (in the 07 worktree,
+    `git rebase --update-refs pg-poc/06-test-harness`), then branches 08
+    from 07.
+  - 09 branches from 08, and 10 from 09.
+  - Until then, `pg-poc/07-config` stays on `pg-poc/00-base-fixes`.
 - Restack after every plan commit, in this order:
   1. `git rebase juju-4-postgresql pg-poc/00-base-fixes`, then
      `git switch juju-4-postgresql` (no worktree has the base branch
      checked out).
-  2. In each open stage branch's worktree,
-     `git rebase --update-refs <base>`, where `<base>` is
-     `pg-poc/00-base-fixes` or the stage it depends on. Git skips the
-     superseded copy of the base commit because it is already applied.
+  2. In each open stage branch's worktree, bottom of the stack first,
+     `git rebase --update-refs <base>`, where `<base>` is the branch below
+     it. Git skips the superseded copy of the base commit because it is
+     already applied. Leave a worktree with uncommitted changes to its own
+     session.
 - Stage 2 (schema move) must stay purely mechanical so it can be reviewed,
   and possibly proposed upstream, on its own.
 
@@ -311,7 +319,7 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   - `go generate ./domain/schema/...` left no diff; `go test
     ./domain/schema/... ./core/database/... ./domain/agentbinary/...
     ./domain/modelmigration/...` passes (the schema suites cover hashes).
-  - The branch is based on `pg-poc/00-base-fixes`, as are all stages.
+  - The branch is based on `pg-poc/00-base-fixes`; Stage 3 stacks on it.
   - Next: user review.
 - Findings (for later stages):
   - Stage 4 should add `domain/schema/postgresql/` beside `dqlite/`; the
@@ -343,7 +351,7 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   literals and repeated names); opt-in integration tests against a real PG.
 - Test env var: `JUJU_POSTGRESQL_TEST_URL` (N6).
 - Status: in review. Committed on `pg-poc/03-driver` (one `feat(database)`
-  commit, based on `pg-poc/00-base-fixes`). Unit and opt-in
+  commit, rebased onto `pg-poc/02-schema-move`). Unit and opt-in
   integration tests pass against the Stage 1 PostgreSQL (16.15, plain
   model `pg-poc` on `lxd36-pgtest`) with `-race`.
 - Restart notes:
