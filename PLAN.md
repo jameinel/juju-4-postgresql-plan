@@ -22,7 +22,7 @@ any stage can be picked up cold.
 | # | Stage | Branch | Status |
 |---|---|---|---|
 | 0 | Plan documents | `juju-4-postgresql` | in review |
-| 1 | PostgreSQL provisioning script | `pg-poc/01-provision` | not started |
+| 1 | PostgreSQL provisioning script | `pg-poc/01-provision` | in review |
 | 2 | Move schema to `domain/schema/dqlite` | `pg-poc/02-schema-move` | not started |
 | 3 | PG driver, placeholder rewriting, errors | `pg-poc/03-driver` | not started |
 | 4 | PG schema generation | `pg-poc/04-schemagen` | not started |
@@ -94,6 +94,7 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | N4 | Branching as described under [branching](#branching): integration branch plus stacked `pg-poc/NN-<slug>` branches. |
 | N5 | Provisioning tooling lives in `scripts/postgresql-poc/`. |
 | N6 | Opt-in PostgreSQL tests read the DB URL from `JUJU_POSTGRESQL_TEST_URL`. |
+| N7 | The provisioning script is Python using only the standard library (it shells out to `juju ... --format=json`), runnable with plain `python3`. |
 
 ## Environment
 
@@ -141,9 +142,10 @@ Confirmed (N4):
   controllers can reach.
 - Prerequisites: a Juju 3.6 controller on LXD.
 - Steps:
-  1. Add `scripts/postgresql-poc/deploy-postgresql.sh` with `-c <controller>`
-     and `-m <model>` (both required), an optional `-o <file>` for the
-     URL and an optional `-t <ca-file>` for TLS mode (D8).
+  1. Add `scripts/postgresql-poc/deploy-postgresql.py` (N7) with
+     `-c/--controller` and `-m/--model` (both required), an optional
+     `-o/--output <file>` for the URL and an optional
+     `-t/--tls-ca-file <file>` for TLS mode (D8).
   2. Deploy `postgresql --channel 16/stable` and
      `data-integrator --config database-name=juju`; integrate them; wait for
      active/idle. In TLS mode also deploy `self-signed-certificates` and
@@ -159,8 +161,41 @@ Confirmed (N4):
   - Note whether `pg_hba` admits the LXD subnet; if not, record the
     workaround.
   - Repeat the connection checks in TLS mode with `verify-full`.
-- Open questions: none (resolved by D8 and N5).
-- Restart notes: none yet.
+- Open questions: none (resolved by D8, N5 and N7).
+- Status: in review. The script is committed on `pg-poc/01-provision` and
+  all verification above passed.
+- Restart notes:
+  - Verified on 2026-10-23 against a Juju 3.6.29 LXD controller:
+    postgresql 16/stable rev 1218 (PostgreSQL 16.15), data-integrator
+    latest/stable, self-signed-certificates 1/stable. A fresh deployment
+    settles in about 5 minutes. Re-running the script is a no-op that
+    rewrites the same URL.
+  - Running deployments on `$PG_HOST_CONTROLLER`: model `pg-poc` (plain) and
+    model `pg-poc-tls` (TLS). URL and CA files live outside the repository
+    (the agent used `~/.config/juju-pg-poc/`); re-run the script to
+    regenerate them.
+  - Next: user review of the script, then Stage 2, 3 or 7.
+- Findings that affect later stages:
+  - `pg_hba` has `host juju relation-N 0.0.0.0/0 scram-sha-256` (`hostssl`
+    with TLS). The host (via the `lxdbr0` gateway) and LXD containers on
+    the bridge connect; no workaround is needed.
+  - The login user (`relation-N`; note the hyphen when quoting) is switched
+    to `charmed_juju_owner` at login by the charm's `login_hook` extension.
+    New schemas and tables are owned by `charmed_juju_owner`; the database
+    is owned by `charmed_databases_owner`. `RESET ROLE` and `DISCARD ALL`
+    revert to `relation-N` and lose the owner privileges, so the Stage 3
+    driver and Stage 8 pools must not reset the session role, or must run
+    `SET ROLE charmed_juju_owner` after connecting.
+  - The `juju` database already has `public` and `login_hook` schemas;
+    namespace schema names must not collide with them (Stage 8).
+  - The server default isolation is `read committed`; D7 relies on the
+    connection config (Stage 3, step 5).
+  - Enabling TLS makes `pg_hba` `hostssl` only, so plain and TLS need
+    separate models. Server certificates carry the unit IP as an IP SAN, so
+    `verify-full` against the IP works. The self-signed CA is valid for one
+    year. `sslmode=disable` and a wrong CA are both rejected.
+  - Verification used `psql` with the URL split into `PG*` environment
+    variables, keeping the password out of process arguments.
 
 ### Stage 2: move schema to `domain/schema/dqlite`
 
@@ -191,7 +226,8 @@ Confirmed (N4):
      mapping (23505, 23503, 23502, 23514; retryable 40001, 40P01, 08xxx).
   4. Teach `txn/transaction.go` retries about PG retryable errors.
   5. Set `default_transaction_isolation=serializable` in the connection
-     config (D7).
+     config (D7). Do not reset the session role; see the Stage 1 findings
+     on `login_hook`.
 - Verification: unit tests for the rewriter (table driven, including
   literals and repeated names); opt-in integration tests against a real PG.
 - Test env var: `JUJU_POSTGRESQL_TEST_URL` (N6).
@@ -272,7 +308,8 @@ Confirmed (N4):
      `db-backend=postgresql`. It needs no node lifecycle or handover.
   2. `ensureNamespace`: `CREATE SCHEMA IF NOT EXISTS`, then a pool with
      `search_path`; the tracker applies model DDL lazily (replace the
-     `sqlite_master` check and the `PRAGMA`s).
+     `sqlite_master` check and the `PRAGMA`s). Schema names must not
+     collide with the existing `public` and `login_hook` schemas.
   3. `DeleteDB`: `DROP SCHEMA ... CASCADE`.
   4. `BootstrapPostgres` beside `BootstrapDqlite`; `controller_node` rows
      carry no dqlite IDs.
@@ -320,8 +357,6 @@ Confirmed (N4):
 
 ## Assumptions to verify
 
-- The postgresql charm's `pg_hba` admits connections from the dev host and
-  from LXD containers for the data-integrator user (Stage 1).
 - `enable-ha` copies `db-backend` / `db-url` to new controllers via
   controller config -> instancecfg with no extra work (Stage 10).
 - Domain code tolerates SERIALIZABLE retries; no transaction body has
