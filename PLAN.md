@@ -119,6 +119,7 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | N3 | Plans live in `docs/implementation-plans/postgresql/`, excluded from the Sphinx build. |
 | N4 | Branching as described under [branching](#branching): integration branch plus stacked `pg-poc/NN-<slug>` branches. |
 | D9 | The PostgreSQL CA is public, so it is carried in a `db-ca-cert` controller config key (PEM) for the PoC; a relation may supply it long term. `db-backend`, `db-url` and `db-ca-cert` are fixed at bootstrap. |
+| D10 | The dqlite schema keeps its declaration order. `pgschemagen` resolves forward references (which SQLite accepts and PostgreSQL rejects) with an ordering pass over the generated DDL (Stage 4, step 2). Reordering dqlite patches cannot work alone, because model patches depend on each other cyclically (ANALYSIS.md section 4). |
 | N5 | Provisioning tooling lives in `scripts/postgresql-poc/`. |
 | N6 | Opt-in PostgreSQL tests read the DB URL from `JUJU_POSTGRESQL_TEST_URL`. |
 | N7 | The provisioning script is Python using only the standard library (it shells out to `juju ... --format=json`), runnable with plain `python3`. |
@@ -299,16 +300,37 @@ Confirmed (N4):
   1. `generate/pgschemagen`: translate patch by patch (types, identity
      columns, time defaults, `IIF`, generated columns, quoting `"user"`).
      Per-patch override files hold hand-written translations.
-  2. `triggergen` PG mode: PL/pgSQL trigger functions, `RAISE EXCEPTION`,
+  2. Ordering pass in `pgschemagen` (D10), run over the whole ordered
+     statement list of each namespace after translation and overrides.
+     PostgreSQL resolves `REFERENCES` targets and view sources at `CREATE`
+     time; SQLite does not (ANALYSIS.md section 4).
+     - Strip each `FOREIGN KEY` whose target table, or the unique index it
+       relies on, does not exist yet, and emit it as `ALTER TABLE ... ADD
+       CONSTRAINT ... FOREIGN KEY`.
+     - Move each view whose sources do not exist yet.
+     - Append relocated statements to the end of the patch that creates
+       their last dependency, after that patch's seed rows, so the patch
+       count matches dqlite.
+     - Leave tables, indexes, triggers and seed rows in place. No trigger
+       is defined on a view, and PL/pgSQL bodies are not resolved at
+       `CREATE` time.
+     - Fail generation on dangling references and view cycles.
+     This is safe because `Schema.Ensure` applies all patches in one
+     transaction and PostgreSQL DDL is transactional.
+  3. `triggergen` PG mode: PL/pgSQL trigger functions, `RAISE EXCEPTION`,
      and a per-namespace `pg_advisory_xact_lock` before each change_log
      insert.
-  3. Port the Go-built triggers (`domain/schema/triggers.go`,
+  4. Port the Go-built triggers (`domain/schema/triggers.go`,
      `modeltriggers.go`).
-  4. Make the bookkeeping in `core/database/schema` dialect-aware
+  5. Make the bookkeeping in `core/database/schema` dialect-aware
      (`query.go`: identity column, `extract(epoch ...)`, placeholders).
-  5. Add a backend-aware schema selector used by bootstrap, the tracker and
+  6. Add a backend-aware schema selector used by bootstrap, the tracker and
      the upgrade worker.
 - Verification:
+  - Unit tests for the ordering pass: a forward FK, a forward view, an FK
+    whose target unique index comes later, a two-table FK cycle (both
+    become `ALTER TABLE`), and failures on a dangling reference and a view
+    cycle.
   - Apply controller DDL and model DDL to empty PG schemas.
   - Table, view, index and trigger counts match dqlite (allowing documented
     differences).

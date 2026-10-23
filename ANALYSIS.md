@@ -72,6 +72,22 @@ comments).
 - Release snapshots `*/4.0.15-*-release.ddl` are not loaded at runtime.
 - Seed/reference data with fixed integer IDs (life, edit types, namespace IDs
   >= 10000 for custom triggers, etc.) must be preserved verbatim.
+- Declaration order: SQLite resolves `REFERENCES` targets and view sources
+  only when they are used; PostgreSQL resolves them at `CREATE` time.
+  Captured 2026-10-23 as (referrer, target) pairs whose target is created
+  later:
+  - Controller: 7 (4 FK, 3 view; 2 within one patch).
+  - Model: 70 (34 FK, 36 view; 11 within one patch).
+  - Model patches 0004, 0005, 0010, 0011, 0014, 0015, 0018-0021, 0024 and
+    0027 form one dependency cycle, as do 0008/0009 and 0032/0034, so
+    renumbering patches cannot fix the order. Statements would have to move
+    between patches.
+  - There are no table-level FK cycles and no dangling references.
+  - PostgreSQL also needs an FK's target columns to be a primary key, a
+    unique constraint or a non-partial unique index when the FK is
+    created. Four FKs rely on a unique index: `permission_object_access`
+    (controller), and `space(name)`, `machine(name)` and
+    `resource(uuid, charm_resource_name)` (model).
 
 | SQLite construct | Count | PG translation |
 |---|---:|---|
