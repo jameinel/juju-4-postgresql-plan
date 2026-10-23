@@ -40,8 +40,8 @@ Session protocol:
 7. Before ending the session, update the stage's **Status**, **Restart
    notes** (what is done, what is next, gotchas) and **Findings** for later
    stages, and the [status table](#status). Commit plan changes only on the
-   integration branch, then rebase each open stage branch onto it with
-   `git rebase --update-refs`.
+   integration branch, then restack as described under
+   [branching](#branching).
 
 ## Status
 
@@ -148,6 +148,11 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
   `canonical/postgresql-single-kernel-library` (the charm's logic) and
   `canonical/data-integrator`. Go module sources are in the module cache.
 - `psql` is installed on the host.
+- Agent sessions see `~/.local/bin` on `PATH`, but not `~/go/bin`. The lint
+  tools for `STATIC_ANALYSIS=1 make pre-check` (golangci-lint 2.14.0,
+  `gci`, `govulncheck`, `go-licenses`) are in `~/.local/bin`; `shellcheck`
+  is in `/usr/bin`. The `go` snap provides Go 1.27, so its `gofmt` matches
+  the `go.mod` toolchain.
 
 ## Secrets
 
@@ -161,16 +166,21 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 Confirmed (N4):
 
 - `juju-4-postgresql` is the integration branch and holds this plan.
+- `pg-poc/00-base-fixes` sits on top of `juju-4-postgresql` and holds only
+  code fixes for pre-existing problems; its notes are under
+  [Base fixes](#base-fixes). Never commit stage work to it.
 - Each stage gets a stacked branch `pg-poc/NN-<slug>`, based on the stage
-  it depends on in the dependency graph (or on the integration branch if it
-  has none). Stages 1, 2, 3 and 7 therefore branch from
-  `pg-poc/00-base-fixes`, which is itself cut from `juju-4-postgresql`.
-- Only the code commit of `pg-poc/00-base-fixes` (`fix(schema): emit
-  gofmt-clean trigger code from triggergen`) is part of the stack. Its
-  `docs:` commit is superseded by the [Base fixes](#base-fixes) section, so
-  stage branches must be rebased with `--onto` to exclude it. Do not
-  rebase `pg-poc/00-base-fixes` from a stage session.
-- Keep the stack current with `git rebase --update-refs`.
+  it depends on in the dependency graph, or on `pg-poc/00-base-fixes` if it
+  has none. Stages 1, 2, 3 and 7 therefore branch from
+  `pg-poc/00-base-fixes`.
+- Restack after every plan commit, in this order:
+  1. `git rebase juju-4-postgresql pg-poc/00-base-fixes`, then
+     `git switch juju-4-postgresql` (no worktree has the base branch
+     checked out).
+  2. In each open stage branch's worktree,
+     `git rebase --update-refs <base>`, where `<base>` is
+     `pg-poc/00-base-fixes` or the stage it depends on. Git skips the
+     superseded copy of the base commit because it is already applied.
 - Stage 2 (schema move) must stay purely mechanical so it can be reviewed,
   and possibly proposed upstream, on its own.
 
@@ -323,7 +333,7 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   literals and repeated names); opt-in integration tests against a real PG.
 - Test env var: `JUJU_POSTGRESQL_TEST_URL` (N6).
 - Status: in review. Committed on `pg-poc/03-driver` (one `feat(database)`
-  commit, based on the integration branch as of Stage 1). Unit and opt-in
+  commit, based on `pg-poc/00-base-fixes`). Unit and opt-in
   integration tests pass against the Stage 1 PostgreSQL (16.15, plain
   model `pg-poc` on `lxd36-pgtest`) with `-race`.
 - Restart notes:
