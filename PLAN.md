@@ -49,7 +49,7 @@ Session protocol:
 |---|---|---|---|
 | 0 | Plan documents | `juju-4-postgresql` | in review |
 | 1 | PostgreSQL provisioning script | `pg-poc/01-provision` | in review |
-| 2 | Move schema to `domain/schema/dqlite` | `pg-poc/02-schema-move` | not started |
+| 2 | Move schema to `domain/schema/dqlite` | `pg-poc/02-schema-move` | in review |
 | 3 | PG driver, placeholder rewriting, errors | `pg-poc/03-driver` | not started |
 | 4 | PG schema generation | `pg-poc/04-schemagen` | not started |
 | 5 | Query portability fixes | `pg-poc/05-queries` | not started |
@@ -245,7 +245,29 @@ Confirmed (N4):
 - Verification: `go generate ./domain/schema/...` produces no diff;
   `go test ./domain/schema/... ./core/database/...` passes; schema hashes are
   unchanged.
-- Restart notes: none yet.
+- Status: in review. Committed on `pg-poc/02-schema-move` (one `refactor`
+  commit); verification passed.
+- Restart notes:
+  - Done 2026-10-23: `git mv` of `domain/schema/{controller,model}` to
+    `domain/schema/dqlite/`; embed paths, `go:generate` destinations,
+    trigger package imports, `generate/ddlgen`, `.github/workflows/ddl.yml`
+    and `context-tests.yml`, comments and `domain/schema/AGENTS.md` updated.
+    The Go package stays `domain/schema` with `ControllerDDL()` and
+    `ModelDDL()` unchanged, so no callers changed.
+  - `go generate ./domain/schema/...` left no diff; `go test
+    ./domain/schema/... ./core/database/... ./domain/agentbinary/...
+    ./domain/modelmigration/...` passes (the schema suites cover hashes).
+  - The branch was cut from the integration commit current at session
+    start and not rebased, because Stages 3 and 7 run concurrently.
+  - Next: user review, then rebase onto the integration branch.
+- Findings (for later stages):
+  - Stage 4 should add `domain/schema/postgresql/` beside `dqlite/`; the
+    `schema` package (`controller.go`, `model.go`, `patch.go`) still owns
+    the dqlite embed and `readPatches`, and will need a backend selector
+    (open question 1).
+  - Historic `.ddl` release files contain stale path comments; left as is.
+  - `go build ./...` and `gofmt -l` report pre-existing issues unrelated to
+    this stage (`domain/removal/service`, generated trigger files).
 
 ### Stage 3: PG driver, placeholder rewriting, errors
 
