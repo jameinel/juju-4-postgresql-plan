@@ -3,19 +3,45 @@
 Status: **DRAFT, awaiting review**. Background and evidence are in
 [ANALYSIS.md](ANALYSIS.md).
 
-This plan spans many working sessions and agent contexts. It is written so
-any stage can be picked up cold.
+This plan spans many working sessions. It is written so any stage can be
+picked up cold.
 
 ## How to use this document
 
-1. Read the [status table](#status). Find the first stage that is not `done`.
-2. Read that stage's **Restart notes** before touching code.
-3. Check out the stage's branch (see [branching](#branching)).
-4. When stopping, update the stage's **Status** and **Restart notes**
-   (what is done, what is next, gotchas) and commit the plan change on the
-   integration branch.
-5. Record new decisions in the [decision log](#decision-log) only after the
-   user has confirmed them.
+Each stage runs in its own agent session with a fresh context. Nothing
+carries over between sessions except this plan, ANALYSIS.md, the
+repository (branches and commits) and the local environment. Each session
+must leave in this plan everything the next one needs.
+
+Kick-off prompt for a new session (replace `N`; name the PostgreSQL host
+controller only for stages that need a live PostgreSQL, such as 1, 3, 6 and
+8 to 10):
+
+```
+Read docs/implementation-plans/postgresql/PLAN.md and run Stage N
+following its session protocol. Use the <controller> controller.
+```
+
+Session protocol:
+
+1. Start on the integration branch, `juju-4-postgresql`, which holds the
+   latest plan. Read this plan, the ANALYSIS.md sections the stage cites,
+   and the `AGENTS.md` files that apply to the code the stage touches.
+2. Work only on the stage named in the prompt. If any stage it depends on
+   (see the dependency graph) is not `done`, ask the user before starting.
+3. Read the stage's **Status**, **Restart notes** and **Findings**, and the
+   findings of the stages it depends on.
+4. Confirm the stage's open questions, and any new design choice, with the
+   user before writing code. Record decisions in the
+   [decision log](#decision-log) only after the user has confirmed them.
+5. Create or check out the stage's branch (see [branching](#branching)) and
+   commit code only there.
+6. Do not start another stage, even if this one finishes early.
+7. Before ending the session, update the stage's **Status**, **Restart
+   notes** (what is done, what is next, gotchas) and **Findings** for later
+   stages, and the [status table](#status). Commit plan changes only on the
+   integration branch, then rebase each open stage branch onto it with
+   `git rebase --update-refs`.
 
 ## Status
 
@@ -108,6 +134,13 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
   `PG_HOST_CONTROLLER`). Never hardcode controller names in scripts or docs.
 - Juju 3.6 and Juju 4 clients may share `~/.local/share/juju`; take care when
   switching controllers.
+- Read third-party source (charms, libraries) from local clones under
+  `~/dev/go/src/github.com/<owner>/<repo>`, beside this repository, rather
+  than through the GitHub API. Clone there if missing. Already cloned:
+  `canonical/postgresql-operator` (16 charm on branch `16/edge`),
+  `canonical/postgresql-single-kernel-library` (the charm's logic) and
+  `canonical/data-integrator`. Go module sources are in the module cache.
+- `psql` is installed on the host.
 
 ## Secrets
 
@@ -121,8 +154,10 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 Confirmed (N4):
 
 - `juju-4-postgresql` is the integration branch and holds this plan.
-- Each stage gets a stacked branch `pg-poc/NN-<slug>`, based on its
-  predecessor (or on the integration branch if it has none).
+- Each stage gets a stacked branch `pg-poc/NN-<slug>`, based on the stage
+  it depends on in the dependency graph (or on the integration branch if it
+  has none). Stages 1, 2, 3 and 7 therefore branch from
+  `juju-4-postgresql`.
 - Keep the stack current with `git rebase --update-refs`.
 - Stage 2 (schema move) must stay purely mechanical so it can be reviewed,
   and possibly proposed upstream, on its own.
@@ -175,7 +210,7 @@ Confirmed (N4):
     (the agent used `~/.config/juju-pg-poc/`); re-run the script to
     regenerate them.
   - Next: user review of the script, then Stage 2, 3 or 7.
-- Findings that affect later stages:
+- Findings (for later stages):
   - `pg_hba` has `host juju relation-N 0.0.0.0/0 scram-sha-256` (`hostssl`
     with TLS). The host (via the `lxdbr0` gateway) and LXD containers on
     the bridge connect; no workaround is needed.
@@ -354,6 +389,8 @@ Confirmed (N4):
 
 1. Exact Go API for selecting the schema by backend (Stage 4).
 2. How the PostgreSQL CA reaches every controller for TLS (Stage 7, D8).
+3. Branch base for a stage with several dependencies, such as Stage 4
+   (Stages 2 and 3): stack on one and rebase onto the other, or merge.
 
 ## Assumptions to verify
 
