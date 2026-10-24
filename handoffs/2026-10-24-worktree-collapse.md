@@ -1,5 +1,10 @@
 # PostgreSQL PoC: handoff at the worktree collapse (2026-10-24)
 
+> Historical record. Superseded by [PLAN.md](../PLAN.md) and the stage
+> files. Its section 3 proposal was adopted with changes: the plan moved to
+> this repository, 01 joined the line, and the `juju-4-postgresql`
+> integration branch was deleted.
+
 The authoritative plan is
 `docs/implementation-plans/postgresql/PLAN.md` on `juju-4-postgresql`. It
 was updated in this session; this note summarises it and proposes the
