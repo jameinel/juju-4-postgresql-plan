@@ -36,8 +36,21 @@ Session protocol:
    [decision log](#decision-log) only after the user has confirmed them.
 5. Create or check out the stage's branch (see [branching](#branching)) and
    commit code only there.
-6. Do not start another stage, even if this one finishes early.
-7. Before ending the session, update the stage's **Status**, **Restart
+6. Classify every change made to get PostgreSQL working, whether in code,
+   tests or schema:
+   - `bug`: the dqlite behaviour is wrong today.
+   - `latent`: dqlite is right today only because of SQLite leniency (type
+     affinity, coercion, double-quoted strings) or a test that ignores an
+     error.
+   - `portability`: valid on dqlite and only invalid on PostgreSQL.
+
+   Add every `bug` and `latent` change to the
+   [upstream fix register](#upstream-fix-register), and put it in its own
+   commit, apart from PoC-only changes, so it can be proposed upstream on
+   its own. Record `portability` changes in the stage's findings. Also
+   register defects that are found but not fixed.
+7. Do not start another stage, even if this one finishes early.
+8. Before ending the session, update the stage's **Status**, **Restart
    notes** (what is done, what is next, gotchas) and **Findings** for later
    stages, and the [status table](#status). Commit plan changes only on the
    integration branch, then restack as described under
@@ -54,7 +67,7 @@ Session protocol:
 | 3 | PG driver, placeholder rewriting, errors | `pg-poc/03-driver` | in review |
 | 4 | PG schema generation | `pg-poc/04-schemagen` | done, in review |
 | 5 | Query portability fixes | `pg-poc/05-queries` | in review |
-| 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | done, in review |
+| 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | reopened, in progress |
 | 7 | `db-backend` / `db-url` config plumbing | `pg-poc/07-config` | in review |
 | 8 | PG dbaccessor worker and bootstrap | `pg-poc/08-dbaccessor` | not started |
 | 9 | LXD bootstrap and smoke test | `pg-poc/09-bootstrap` | not started |
@@ -226,6 +239,36 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   `go vet ./...` is not a gate in this repository.
 - `make pre-check` runs static analysis only with `STATIC_ANALYSIS=1`. It
   needs golangci-lint 2.14 exactly, and `shellcheck` on `PATH`.
+
+## Upstream fix register
+
+These are dqlite-side defects that the PostgreSQL work exposed. Each one
+should be fixed in Juju whatever happens to the PoC. Classes are as in
+session protocol step 6. A fixed entry names the commit holding the fix,
+which can be proposed upstream on its own.
+
+| ID | Class | Location | Defect on dqlite | Status |
+|---|---|---|---|---|
+| U1 | bug | `v_revision_updater_application_unit` (model schema) | Grouped by `u.uuid`, so it returned one row per unit instead of one unit count per application (D18). | Fixed, Stage 4, `fix(schema): correct lookup types and revision unit counts`. |
+| U2 | latent | Model and controller schema, eleven lookup FK columns | Declared `TEXT` while referencing integer lookup IDs. SQLite coercion hid the mismatch, and exports carried the IDs as strings. | Fixed, Stage 4, same commit as U1. |
+| U3 | latent | `internal/database/bootstrap.go` `InsertControllerNodeID` | Bound a `uint64` to the `TEXT` `dqlite_node_id` column. It worked only because the bootstrap node always uses go-dqlite's `BootstrapID` (high bit clear); `database/sql` rejects a `uint64` with the high bit set. | Fixed, Stage 6, `fix(database): bind controller node id as text`. |
+| U4 | latent (test) | `domain/lease/state/migration_test.go` | Seeded leases with `date('now')` and discarded the `StdTxn` error, so a failed seed went unnoticed and the tests checked an empty table. | Fixed, Stage 6, `fix(lease): make lease pinning and tests valid on postgresql`. |
+| U5 | latent (test) | `domain/changestream/state/state_test.go` `insertControllerNodes`; `domain/upgrade/state/state_test.go` | Insert integer `dqlite_node_id` values into the `TEXT` column, relying on SQLite type affinity. | Open, Stage 6. |
+| U6 | latent (test) | `domain/model/state/testing/model.go` (lines 122, 240) | Uses `""` as an empty string literal. SQLite accepts double-quoted strings only as a legacy misfeature; standard SQL reads `""` as an identifier. | Open, from the Stage 5 findings. |
+
+Reviewed and not a dqlite defect (recorded so they are not re-examined):
+
+- `PinLease` ignored a unique violation inside its transaction. SQLite
+  rolls back only the failing statement, so this was correct on dqlite;
+  PostgreSQL aborts the whole transaction. Fixed as portability, in the
+  same Stage 6 lease commit, with `ON CONFLICT DO NOTHING`.
+- `TestSetAPIAddressesSharedPeerRollsBack` violates
+  `controller_peer_address.controller_id NOT NULL` on purpose to force a
+  rollback. The service never builds a shared peer projection. Only the
+  SQLite-specific error text in the assertion was changed.
+- Unqualified columns in `ON CONFLICT ... DO UPDATE` `SET` / `WHERE`
+  clauses, and `ON CONFLICT DO UPDATE` with no conflict target
+  (`domain/sequence`), are ambiguous or invalid only on PostgreSQL.
 
 ## Stages
 
@@ -609,8 +652,12 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   by the test env var. Start with lease, changestream, controllernode,
   model, application and machine.
 - Verification: the chosen suites pass on both backends; known failures are
-  listed here.
-- Status: done, in review. Harness committed on `pg-poc/06-test-harness`.
+  listed here. Verify a PostgreSQL run really reached PostgreSQL, for
+  example by pointing `JUJU_POSTGRESQL_TEST_URL` at an unreachable host and
+  checking that the suite fails to connect.
+- Status: reopened, in progress, on `pg-poc/06-test-harness`. The first
+  pass claimed the suites passed on PostgreSQL, but they had silently run
+  on SQLite (see findings).
 - Restart notes:
   - `JUJU_POSTGRESQL_TEST_URL` selects PostgreSQL; each namespace opened by
     the test suite gets a uniquely named throwaway schema which is dropped
@@ -620,11 +667,32 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   - PostgreSQL test connections set `TimeZone=UTC` with
     `postgresql.WithTimeZoneUTC`; Stage 8 must retain this for lease
     timestamp semantics.
-  - The lease, changestream, controllernode, model, application and machine
-    state suites passed with `-race` on dqlite and PostgreSQL. The schema
-    and PostgreSQL driver suites also passed on PostgreSQL.
-- Findings: no known failures in the selected state suites on either
-  backend. PostgreSQL verification used the non-TLS test URL.
+  - Work one suite at a time, with a short `-timeout` (for example 3m). A
+    harness failure in `SetUpTest` repeats for every test.
+  - The snap `go` cannot write to a redirected file (the output is empty).
+    Pipe instead: `go test ... 2>&1 | cat > log`.
+  - Passing on PostgreSQL (verified): `domain/lease/state`,
+    `domain/controllernode/state`.
+  - Next: `domain/changestream/state` (U5), then model, application and
+    machine.
+- Findings:
+  - `internal/testhelpers` `OsEnvSuite` (part of `IsolationSuite`) clears
+    environment variables that are not in its `testingVariables` list.
+    `JUJU_POSTGRESQL_TEST_URL` was missing from it, so `DqliteSuite` and
+    `BackendForTest` never saw it. Suites built on
+    `coretesting.BaseSuite` kept the variable. Fixed in
+    `fix(testing): keep postgresql test url through env isolation`.
+  - Failure injection uses `schematesting.FailingTriggerSQL`, which emits
+    SQLite or plpgsql trigger DDL. PostgreSQL does not allow subqueries in
+    a trigger `WHEN`, so the condition is evaluated in the function body.
+    Other suites still using `RAISE(ABORT, ...)` directly:
+    `domain/removal/state/model` (two), `domain/application/state`,
+    `domain/machine/state`.
+  - Domain errors are masked from driver errors, so tests cannot use
+    `database.IsErrConstraint*` on errors returned by state methods; match
+    message text that both backends share.
+  - Dqlite defects found here are in the
+    [upstream fix register](#upstream-fix-register).
 
 ### Stage 7: config plumbing
 
