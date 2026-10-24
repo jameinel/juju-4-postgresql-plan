@@ -34,24 +34,26 @@ Handling states:
 | X7 | `IFNULL`, `GROUP_CONCAT`, `INSERT OR IGNORE`, `IIF`, `datetime('now', ...)` | Built in | Missing | Shared fix (Stage 5, D16): `COALESCE`, aggregate in Go, `ON CONFLICT DO NOTHING`, `CASE`, bind times or `CURRENT_TIMESTAMP`. Test SQL in `domain/model/state/controller` still uses `datetime` and `iif`. |
 | X8 | `user` as an identifier | Allowed | Reserved, and silent in some positions: `FROM user` reads the `current_user` function as a one-row table, and `u.uuid` on that alias is the cast `uuid(u)` ("operator does not exist: uuid = text") | Shared fix (Stage 5): quote as `"user"`. Fourteen test files still use it bare (Stage 6 suites). |
 | X9 | Parameter with no type context, such as `$1 IS NULL` | Allowed | "could not determine data type of parameter $N" | Open (Stage 6 suites): cast the parameter. |
+| X24 | `x IN name` where `name` is a table or CTE, with no parentheses | Allowed, same as `x IN (SELECT * FROM name)` | Syntax error | Open (Stage 5): write `x IN (SELECT col FROM name)`. Production sites: `domain/application/state` (`application_endpoint.go`, `k8sservice.go` `NOT IN`), `domain/removal/state/model` (`unit.go`, `application.go`, `storage.go`), `domain/operation/state` (`task.go`, `prune.go`) and `domain/relation/state/relation.go`. Seen as `ep_names` errors in the Stage 6 suites. |
 
 ## 2. Types and values
 
 | Id | Behaviour | SQLite | PostgreSQL | Handling |
 |---|---|---|---|---|
 | X10 | Type affinity | Stores any type in any column and compares across types without error | Assignment casts untyped literals; `text = integer` is "operator does not exist" | Shared fix per site: U5 (node ids as text), Stage 4 FK type corrections. More expected from the Stage 6 suites. |
-| X11 | Invalid UTF-8 in `TEXT` | Stored as given | "invalid byte sequence for encoding UTF8" (22021) | Open (seen in `domain/access/state` tests). |
+| X11 | Invalid UTF-8 in `TEXT` | Stored as given | "invalid byte sequence for encoding UTF8" (22021) | Open, fix agreed: `generateActivationKey` stores 32 raw random bytes in the `TEXT` `user_activation_key.activation_key`, so `add-user` fails on PostgreSQL (5 `domain/access/state` failures). The dqlite column becomes `BLOB`, which generates `bytea` (Stage 6, U8). |
 | X12 | `BOOLEAN` | Integer 0 / 1 | `boolean` | Generator (D14). `= false` / `= true` works on both. |
 | X13 | `DATETIME` / `TIMESTAMP` | Text in whatever format was bound | `timestamptz`; zone-less text is read in the session `TimeZone` | Generator (D14); connections set `TimeZone=UTC` (Stage 5 findings, `WithTimeZoneUTC`). |
-| X14 | Decoded `time.Time` location | UTC (tests expect it) | pgx returns `timestamptz` in `time.Local` | Open (seen in `modelmigration` `TestSetLastLogTransferTimeMonotonic`). |
-| X23 | Go value bound to a parameter of another type | Stored with affinity | pgx will not encode a Go integer for a `TEXT` parameter | Shared fix per site: bind the declared type (PLAN.md, testing notes). |
+| X14 | Decoded `time.Time` location | UTC (go-dqlite parses in UTC; tests compare locations) | pgx returns `timestamptz` in `time.Local` | Driver (Stage 3): every connection registers a `timestamptz` codec with `ScanLocation: time.UTC`. Seen in `modelmigration` `TestSetLastLogTransferTimeMonotonic`. |
+| X23 | Go value bound to a parameter of another type | Stored with affinity | pgx will not encode a Go integer for a `TEXT` parameter | Shared fix per site: bind the declared type (PLAN.md, testing notes). Open: `schematesting.SeedControllerTable` binds the integer `controller.DefaultAPIPort` to the `TEXT` `api_port` (56 failures in `domain/model/state/controller`). |
+| X25 | Boolean values in `INT` columns | `TRUE` / `FALSE` are 1 / 0, and Go bools bind as integers | A boolean expression cannot be assigned to `bigint` (42804), and pgx will not encode a Go bool for `int8` or an integer for `boolean` | Per column. `constraint.allocate_public_ip` is `INT` in dqlite to avoid the go-dqlite nullable-bool bug and its table is `STRICT`, so a PostgreSQL override makes it `BOOLEAN` (Stage 4) and status reads it as `sql.Null[bool]` (Stage 5). `removal.force` is `NOT NULL` in a non-`STRICT` table, so the dqlite column becomes `BOOLEAN` (Stage 6, U9). Test SQL that binds `1` to `allocate_public_ip` (`domain/provisioner/state/model`) must bind `true`. |
 
 ## 3. Unspecified behaviour SQLite makes look deterministic
 
 | Id | Behaviour | SQLite | PostgreSQL | Handling |
 |---|---|---|---|---|
-| X15 | `UNION` row order | Sorted, as a side effect of de-duplication | Any order (hashing) | Open: `v_model_config` returns two `agent-stream` rows when `model_config` also has the key, and `ModelConfig` keeps the last. Wrong on dqlite too when the config value sorts last. |
-| X16 | Bare columns with `GROUP BY` | Allowed. With a single `MIN` / `MAX` aggregate, bare columns come from the row holding the min / max; otherwise from an arbitrary row | Error 42803 | Shared fix per site (D18). Open: the change stream `selectQuery` (`internal/changestream/stream/stream.go`) relies on the `MAX` rule, so on PostgreSQL the stream worker dies and watchers never go idle. |
+| X15 | `UNION` row order | Sorted, as a side effect of de-duplication | Any order (hashing) | Open, fix agreed (U7, Stage 6): `v_model_config` returns two `agent-stream` rows when `model_config` also has the key, and `ModelConfig` keeps the last. Wrong on dqlite too when the config value sorts last. The view will exclude `agent-stream` and `agent-version` from its `model_config` branch and use `UNION ALL`. |
+| X16 | Bare columns with `GROUP BY` | Allowed. With a single `MIN` / `MAX` aggregate, bare columns come from the row holding the min / max; otherwise from an arbitrary row | Error 42803 | Shared fix per site (D18). In progress (Stage 5): the change stream `selectQuery` (`internal/changestream/stream/stream.go`) relies on the `MAX` rule, so on PostgreSQL the stream worker dies and watchers never go idle (5 `domain/controllernode` failures). It becomes a CTE of `MAX(id)` per namespace and changed value, joined back to `change_log`. `internal/worker/dbrepl/worker.go` has the same query (out of scope). |
 | X17 | Order of rows without `ORDER BY` | Usually insertion or index order | Any order | Shared fix per site when found (D17 for constraint tags, spaces and zones). |
 
 ## 4. Schema and DDL (generator)
@@ -77,8 +79,9 @@ ANALYSIS.md section 4.
 
 | Id | Behaviour | SQLite / dqlite | PostgreSQL | Handling |
 |---|---|---|---|---|
-| X18 | Error inside a transaction | Only the failing statement is undone | The whole transaction is aborted | Shared fix per site: avoid the error in SQL (`PinLease` uses `ON CONFLICT DO NOTHING`, Stage 5). |
+| X18 | Error inside a transaction | Only the failing statement is undone | The whole transaction is aborted | Shared fix per site: avoid the error in SQL (`PinLease` uses `ON CONFLICT DO NOTHING`, Stage 5). Open: `RequireMachineReboot` (`domain/machine/state/reboot.go`) ignores a primary-key error and then commits ("commit unexpectedly resulted in rollback"); the `domain/access/state` "ensuring external user" failure looks the same. |
 | X19 | Isolation | One writer at a time | SERIALIZABLE; 40001 / 40P01 at any statement or `COMMIT` | D7; retried by `drivererrors.IsErrRetryable` (Stage 3). |
 | X20 | Constraint errors | SQLite extended codes | SQLSTATE 23xxx; unique and primary key share 23505 | Mapped in `drivererrors` (Stage 3). |
 | X21 | Foreign keys | Off unless `PRAGMA foreign_keys`; `PRAGMA defer_foreign_keys` | Always on; deferral needs `DEFERRABLE` keys and `SET CONSTRAINTS` | Harness requires foreign keys on (Stage 6). Deferral open (Stage 5 findings). |
 | X22 | Connections | In-process, cheap | Server `max_connections` (100 on the PoC server); an unbounded `database/sql` pool can exhaust it | `dbaccessor` `applyDBLimits` caps dqlite pools at 3 per database. The Stage 6 harness applies the same cap to PostgreSQL; the Stage 8 `pgWorker` must too. |
+| X26 | Error text | The message alone, such as `model table is immutable, only insertions are allowed` | pgconn adds a prefix and suffix: `ERROR: <message> (SQLSTATE P0001)` | Anchored `ErrorMatches` patterns in tests need `.*` around the message (`domain/model/state/model` immutable-model tests, Stage 6). Production code matches errors by type, not text. |
