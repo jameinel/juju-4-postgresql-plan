@@ -32,7 +32,7 @@ Handling states:
 | X5 | Two-argument scalar `max(a, b)` / `min(a, b)` | Scalar | Aggregate only; scalar is `GREATEST` / `LEAST`, which SQLite lacks | Shared fix (Stage 5): `CASE`. |
 | X6 | Double-quoted string, `""` or `"abc"` | String literal when no column matches (legacy misfeature) | Identifier; `""` is "zero-length delimited identifier" | Shared fix: single quotes. Test SQL still has sites (U6, Stage 6 suites). |
 | X7 | `IFNULL`, `GROUP_CONCAT`, `INSERT OR IGNORE`, `datetime('now', ...)` | Built in | Missing | Shared fix (Stage 5, D16): `COALESCE`, aggregate in Go, `ON CONFLICT DO NOTHING`, bind times or `CURRENT_TIMESTAMP`. |
-| X8 | `user` as an identifier | Allowed | Reserved | Shared fix (Stage 5): quote as `"user"`. |
+| X8 | `user` as an identifier | Allowed | Reserved, and silent in some positions: `FROM user` reads the `current_user` function as a one-row table, and `u.uuid` on that alias is the cast `uuid(u)` ("operator does not exist: uuid = text") | Shared fix (Stage 5): quote as `"user"`. Fourteen test files still use it bare (Stage 6 suites). |
 | X9 | Parameter with no type context, such as `$1 IS NULL` | Allowed | "could not determine data type of parameter $N" | Open (Stage 6 suites): cast the parameter. |
 
 ## 2. Types and values
