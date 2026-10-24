@@ -113,10 +113,10 @@ Stage N following its session protocol. Use the <controller> controller.
 | 10 | [enable-ha](stages/10-ha.md) | `pg-poc/10-ha` | not started |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: Stages 6 and 8 are both open. The order is not decided, so ask the
-user. The choice is between qualifying the Stage 8 seed `ON CONFLICT`
-queries, which unblocks the PostgreSQL bootstrap test, and finishing the
-Stage 6 suites (model, application, machine).
+Next: Stage 6 cleanup is paused while the PoC PostgreSQL server, whose
+disk filled, is redeployed. Resume from
+[handoffs/2026-10-24-stage-6-cleanup.md](handoffs/2026-10-24-stage-6-cleanup.md)
+(next steps and owed documentation), then continue Stage 8.
 
 ## Stack workflow
 

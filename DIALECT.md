@@ -31,7 +31,7 @@ Handling states:
 | X4 | Unqualified column in `ON CONFLICT ... DO UPDATE` `SET` expression or `WHERE` | Means the target table | "column reference is ambiguous" (target or `excluded`) | Shared fix (Stage 5): qualify with the table name. |
 | X5 | Two-argument scalar `max(a, b)` / `min(a, b)` | Scalar | Aggregate only; scalar is `GREATEST` / `LEAST`, which SQLite lacks | Shared fix (Stage 5): `CASE`. |
 | X6 | Double-quoted string, `""` or `"abc"` | String literal when no column matches (legacy misfeature) | Identifier; `""` is "zero-length delimited identifier" | Shared fix: single quotes. Test SQL still has sites (U6, Stage 6 suites). |
-| X7 | `IFNULL`, `GROUP_CONCAT`, `INSERT OR IGNORE`, `datetime('now', ...)` | Built in | Missing | Shared fix (Stage 5, D16): `COALESCE`, aggregate in Go, `ON CONFLICT DO NOTHING`, bind times or `CURRENT_TIMESTAMP`. |
+| X7 | `IFNULL`, `GROUP_CONCAT`, `INSERT OR IGNORE`, `IIF`, `datetime('now', ...)` | Built in | Missing | Shared fix (Stage 5, D16): `COALESCE`, aggregate in Go, `ON CONFLICT DO NOTHING`, `CASE`, bind times or `CURRENT_TIMESTAMP`. Test SQL in `domain/model/state/controller` still uses `datetime` and `iif`. |
 | X8 | `user` as an identifier | Allowed | Reserved, and silent in some positions: `FROM user` reads the `current_user` function as a one-row table, and `u.uuid` on that alias is the cast `uuid(u)` ("operator does not exist: uuid = text") | Shared fix (Stage 5): quote as `"user"`. Fourteen test files still use it bare (Stage 6 suites). |
 | X9 | Parameter with no type context, such as `$1 IS NULL` | Allowed | "could not determine data type of parameter $N" | Open (Stage 6 suites): cast the parameter. |
 
@@ -51,7 +51,7 @@ Handling states:
 | Id | Behaviour | SQLite | PostgreSQL | Handling |
 |---|---|---|---|---|
 | X15 | `UNION` row order | Sorted, as a side effect of de-duplication | Any order (hashing) | Open: `v_model_config` returns two `agent-stream` rows when `model_config` also has the key, and `ModelConfig` keeps the last. Wrong on dqlite too when the config value sorts last. |
-| X16 | Bare columns with `GROUP BY` | Allowed, value from an arbitrary row | Error | Shared fix per site (D18). |
+| X16 | Bare columns with `GROUP BY` | Allowed. With a single `MIN` / `MAX` aggregate, bare columns come from the row holding the min / max; otherwise from an arbitrary row | Error 42803 | Shared fix per site (D18). Open: the change stream `selectQuery` (`internal/changestream/stream/stream.go`) relies on the `MAX` rule, so on PostgreSQL the stream worker dies and watchers never go idle. |
 | X17 | Order of rows without `ORDER BY` | Usually insertion or index order | Any order | Shared fix per site when found (D17 for constraint tags, spaces and zones). |
 
 ## 4. Schema and DDL (generator)
