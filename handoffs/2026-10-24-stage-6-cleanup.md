@@ -10,6 +10,11 @@ so that Stage 8 can continue.
 
 ## 1. What is pushed
 
+> Superseded 2026-10-24: the stack was restacked onto a new Stage 1
+> commit (disk-use limits for the PoC server), so every tip below from
+> `pg-poc/01-provision` up has changed. The trees from Stage 2 up are
+> unchanged apart from the script.
+
 The code working tree is clean on `pg-poc/08-dbaccessor`. Every branch
 matches `origin` (`jameinel/juju`), and the plan repository is pushed.
 
@@ -67,6 +72,11 @@ On PostgreSQL, `agent/agentbootstrap` `TestPostgresBootstrapSuite` now
 passes; it failed at bootstrap operations 4 and 5 before.
 
 ## 3. PostgreSQL server: disk full
+
+> Done 2026-10-24: redeployed with a 20 GB root disk, pgaudit and
+> connection logging off and `wal_keep_size` 128 MB. Folded into
+> [stages/01-provision.md](../stages/01-provision.md) (restart notes and
+> findings). `db-url` is updated; `db-url-tls` was not recreated.
 
 - The PoC server is LXD container `juju-404012-0` (10.158.110.68), from
   the Stage 1 script. Its 4.9 GB root filesystem is 100% used, and

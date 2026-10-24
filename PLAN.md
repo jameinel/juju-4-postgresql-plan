@@ -113,10 +113,12 @@ Stage N following its session protocol. Use the <controller> controller.
 | 10 | [enable-ha](stages/10-ha.md) | `pg-poc/10-ha` | not started |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: Stage 6 cleanup is paused while the PoC PostgreSQL server, whose
-disk filled, is redeployed. Resume from
+Next: the PoC PostgreSQL server was redeployed with disk-use limits (see
+[Stage 1](stages/01-provision.md) restart notes). Resume the Stage 6
+cleanup from
 [handoffs/2026-10-24-stage-6-cleanup.md](handoffs/2026-10-24-stage-6-cleanup.md)
-(next steps and owed documentation), then continue Stage 8.
+(next steps and owed documentation), rerunning suites one package at a
+time, then continue Stage 8.
 
 ## Stack workflow
 

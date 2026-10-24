@@ -27,17 +27,33 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
   - Repeat the connection checks in TLS mode with `verify-full`.
 - Open questions: none (resolved by D8, N5 and N7).
 - Status: in review. The script is committed on `pg-poc/01-provision` and
-  all verification above passed.
+  all verification above passed. A second commit,
+  `feat(scripts): limit disk use of the postgresql poc server`, sizes the
+  disk and turns down logging and WAL retention (see findings).
 - Restart notes:
   - Verified on 2026-10-23 against a Juju 3.6.29 LXD controller:
     postgresql 16/stable rev 1218 (PostgreSQL 16.15), data-integrator
     latest/stable, self-signed-certificates 1/stable. A fresh deployment
-    settles in about 5 minutes. Re-running the script is a no-op that
-    rewrites the same URL.
-  - Running deployments on `$PG_HOST_CONTROLLER`: model `pg-poc` (plain) and
-    model `pg-poc-tls` (TLS). URL and CA files live outside the repository
-    (the agent used `~/.config/juju-pg-poc/`); re-run the script to
-    regenerate them.
+    settles in about 3 to 5 minutes. Re-running the script re-applies the
+    postgresql configuration and rewrites the same URL.
+  - On 2026-10-24 the first server filled its 5 GB root disk during Stage 6
+    test runs. It was redeployed with the disk-use commit:
+
+    ```sh
+    scripts/postgresql-poc/deploy-postgresql.py -c "$PG_HOST_CONTROLLER" \
+      -m pg-poc --root-disk-source juju-zfs -o ~/.config/juju-pg-poc/db-url
+    ```
+
+    The host controller is `lxd36-pgtest`; the server is container
+    `juju-089db6-0` (10.158.110.70), login user `relation-4`. Only the
+    plain model `pg-poc` exists. The TLS model `pg-poc-tls` and
+    `db-url-tls` were not recreated; re-run with `-m pg-poc-tls -t <ca>`
+    when TLS is needed.
+  - URL and CA files live outside the repository in
+    `~/.config/juju-pg-poc/`; re-run the script to regenerate them.
+  - Watch disk use with `lxc exec <container> -- df -h /`. If it grows,
+    check `/var/snap/charmed-postgresql/common/var/log/postgresql` (server
+    logs) and `.../common/data/logs` (WAL) first.
   - Next: user review of the script. Since 2026-10-24 the branch sits in
     the line between 00 and 02, so every later stage carries the script.
 - Findings (for later stages):
@@ -61,3 +77,43 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
     year. `sslmode=disable` and a wrong CA are both rejected.
   - Verification used `psql` with the URL split into `PG*` environment
     variables, keeping the password out of process arguments.
+  - Disk use (2026-10-24). The first server's 4.9 GB root filled with
+    about 1.8 GB of server logs and 1.9 GB of WAL:
+    - Server logs: pgaudit (`ROLE,DDL,MISC,MISC_SET`) and
+      `log_statement = ddl` both logged the full DDL of every test schema.
+      The logs also record each connection and disconnection. Files rotate
+      every minute (`postgresql-%w_%H%M.log`) and are overwritten only a
+      week later.
+    - WAL: the charm sets `wal_keep_size` to 4096 MB. That keeps up to 4 GB
+      for replicas, and this single unit has none. `archive_command` is
+      `/bin/true`, so archiving holds nothing back, and there are no
+      replication slots.
+  - The script now deploys with `root-disk=20G`
+    (`--root-disk`) and an optional `root-disk-source` (`--root-disk-source`,
+    the LXD pool). It puts the `archive`, `data`, `logs` (WAL) and `temp`
+    storage on `rootfs`, so one disk quota bounds the server logs, WAL and
+    data. Without directives, charm storage goes to the model's
+    `storage-default-filesystem-source`, which is `lxd`. On this host that
+    is the LXD `default` pool, shared with other instances such as
+    `apt-cache`. Juju's own `juju-zfs` and `juju-btrfs` LXD pools (30 GiB
+    each, otherwise unused) back the `lxd-zfs` and `lxd-btrfs` storage
+    pools.
+  - Configuration set by the script, all from charm options:
+    `plugin-audit-enable=false` (resets `pgaudit.log` to `none`),
+    `logging-log-connections=false`, `logging-log-disconnections=false`
+    and `durability-wal-keep-size=128`. With no replica nothing reads the
+    kept WAL. 128 MB is Patroni's default. Patroni rejects values below
+    16 MB (its validator is `IntValidator(min=16)`) and silently uses
+    128 MB instead, so `0` has no effect.
+  - Charm defect, rev 1218: `build_postgresql_parameters` reads the raw
+    config, which holds both the new hyphenated option and the deprecated
+    underscored one. Juju returns keys sorted and `-` sorts before `_`, so
+    the deprecated option's default wins: `logging-log-connections=false`
+    alone leaves `log_connections` on. Options read through the typed
+    `CharmConfig` (pgaudit, the Patroni-managed `wal_keep_size`) prefer the
+    hyphenated name. The script sets both spellings.
+  - Not configurable through the charm, left as is by user choice:
+    `log_statement = ddl` (hard-coded in the Patroni template, so DDL is
+    still logged once) and `max_wal_size` (1 GB default). Both can only be
+    changed with the `operator` superuser on the unit. Expect `pg_wal` to
+    stay near `max_wal_size` plus `wal_keep_size`, about 1.1 GB.
