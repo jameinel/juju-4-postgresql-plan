@@ -69,7 +69,7 @@ Session protocol:
 | 5 | Query portability fixes | `pg-poc/05-queries` | in review |
 | 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | reopened, in progress |
 | 7 | `db-backend` / `db-url` config plumbing | `pg-poc/07-config` | in review |
-| 8 | PG dbaccessor worker and bootstrap | `pg-poc/08-dbaccessor` | not started |
+| 8 | PG dbaccessor worker and bootstrap | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
 | 9 | LXD bootstrap and smoke test | `pg-poc/09-bootstrap` | not started |
 | 10 | enable-ha | `pg-poc/10-ha` | not started |
 | 11 | Future work | n/a | not planned |
@@ -153,6 +153,11 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | D16 | Stage 5 query fixes: lease and lease-expiry times are computed in Go and bound as `YYYY-MM-DD HH:MM:SS` UTC text (the values SQLite stored before); plain "now" columns use `CURRENT_TIMESTAMP`; `GROUP_CONCAT` in `GetUnitsK8sPodInfo` is replaced by aggregating rows in Go, with no dialect hook; `PRAGMA defer_foreign_keys` is left for Stage 4 / 6 (recorded in Stage 5 findings). |
 | D17 | PostgreSQL constraint tag, space and zone tables get explicit identity `rowid` columns, preserving the insertion order used by `v_application_constraint`. Keep inserts column-qualified. The dqlite definitions are unchanged. |
 | D18 | `v_revision_updater_application_unit` groups by `a.uuid`, returning one actual unit count per application. This initially required a PostgreSQL override for the dqlite `GROUP BY u.uuid` bug. At the user's request, Stage 4 subsequently incorporated the shared schema fix and removed the obsolete override. The current 4.1 beta base schema changes in place; supported 4.0-to-4.1 moves use a fresh controller and model migration, not an in-place controller upgrade. |
+| D19 | Stage 8 worker shape: a separate `pgWorker` in `internal/worker/dbaccessor`, selected in the manifold from `connsource` details and reusing `trackedDBWorker`. It has no node lifecycle, HA or handover logic; `ClusterDescriber` is a no-op. |
+| D20 | Each namespace lives in schema `"juju_" + namespace` (`juju_controller`, `juju_<model-uuid>`), always with the underscore, built by one function (`postgresql.Placement.SchemaName`). Tests may override the prefix so they never touch `juju_controller`. |
+| D21 | Bootstrap takes one `agentbootstrap.DatabaseInitialiser` interface. The jujud bootstrap command, as composition root, selects the dqlite or PostgreSQL implementation from `connsource`. |
+| D22 | The PostgreSQL CA (`db-ca-cert`) is applied in memory with `postgresql.WithRootCAs`, which errors unless the URL uses `sslmode=verify-ca` or `verify-full`. No `sslrootcert` file is written. |
+| D23 | One PostgreSQL database per controller. Bootstrap fails fast if the controller or controller model schema already exists; restore is future work. A script to drop `juju_*` schemas supports repeated PoC bootstraps. |
 
 ## Environment
 
@@ -187,6 +192,12 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 - Scripts print credentials only to stdout or a file the user names.
 
 ## Branching
+
+Worktrees retired (2026-10-24): the per-stage worktrees are collapsed into a
+single working tree for the integration phase. The stacked branches below
+are kept as pushed to `origin`. Until the workflow after the collapse is
+confirmed and recorded here, the per-worktree restack steps below do not
+apply.
 
 Confirmed (N4):
 
@@ -673,6 +684,12 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
     Pipe instead: `go test ... 2>&1 | cat > log`.
   - Passing on PostgreSQL (verified): `domain/lease/state`,
     `domain/controllernode/state`, `domain/changestream/state`.
+  - Every suite built on `DqliteSuite` switches to PostgreSQL when the
+    variable is set, not only the domain suites. Known failure:
+    `internal/database` `TestMigrationSuite` builds its patches with
+    `schema.New` (SQLite bookkeeping DDL, `AUTOINCREMENT`). The harness
+    needs a dialect accessor so such tests can use
+    `schema.NewForDialect`.
   - Next: model (controller and model state), application and machine.
 - Findings:
   - `internal/testhelpers` `OsEnvSuite` (part of `IsolationSuite`) clears
@@ -715,7 +732,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   each controller, or the connection source must build the TLS config
   directly. **Resolved:** a public `db-ca-cert` config key (PEM); a later
   relation can replace it.
-- Status: in review. Committed on `pg-poc/07-config` (7ebc21b74a).
+- Status: in review. Committed on `pg-poc/07-config`, rebased onto
+  `pg-poc/06-test-harness`.
 - Restart notes:
   - Done: controller keys `db-backend`, `db-url`, `db-ca-cert` (immutable,
     in `ControllerOnlyConfigAttributes` only, validated: `db-url` required
@@ -753,7 +771,37 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   5. Leave `ClusterDescriber` and the HA hooks as no-ops for PG.
 - Verification: a bootstrap-only integration test against PG; the
   controller namespace and the first model namespace are created.
-- Restart notes: none yet.
+- Decisions: D19 to D23.
+- Status: in progress on `pg-poc/08-dbaccessor`. The bootstrap layer is
+  committed; the worker is not started. Stage 8 was paused to reopen
+  Stage 6, because its PostgreSQL suites had silently run on SQLite.
+- Restart notes:
+  - Done: `postgresql.Option` returns an error; `WithRootCAs`;
+    `postgresql.Placement` (`SchemaName`, `OpenAdmin`, `OpenNamespace`)
+    and `CreateSchema`/`EnsureSchema`/`DropSchema`/`SchemaExists`;
+    `database.DqliteInitialiser` and `PostgresInitialiser`
+    (`BootstrapPostgres`); `agentbootstrap.DatabaseInitialiser`;
+    selection in `cmd/jujuagentd/agent/bootstrap.go`
+    (`newDatabaseInitialiser`). Unit tests pass on SQLite; the database
+    and placement tests pass on PostgreSQL.
+  - Failing: the opt-in `TestPostgresBootstrapSuite`
+    (`agent/agentbootstrap/fresh_state_postgresql_test.go`) stops at
+    bootstrap operation 4. `ON CONFLICT ... DO UPDATE` seed queries use
+    unqualified columns, which PostgreSQL rejects as ambiguous:
+    `domain/access/state/user.go` (~1061),
+    `domain/modeldefaults/state/state.go` (~510, ~599),
+    `domain/modelconfig/state/state.go` (~291),
+    `domain/relation/state/remoterelation.go` (~181, ~530),
+    `domain/status/state/model/modelstate.go` (~589) and
+    `domain/sequence/state/sequence.go` (~30, ~96, which also needs an
+    `ON CONFLICT (namespace)` target). Qualify them with the table name
+    (portability).
+  - Next: the tracker `WithBackend` option (skip the foreign keys pragma,
+    detect an initialised model through `information_schema`, use
+    `ModelDDLForBackend`); `pgWorker` and manifold selection
+    (`ControllerStartupValues.DBConnection`, `NewPGWorker` in the machine
+    and safemode manifolds, `dbAccessorOutput`); `upgradedatabase` DDL
+    selection by backend; `scripts/postgresql-poc/drop-juju-schemas.py`.
 
 ### Stage 9: LXD bootstrap and smoke test
 
