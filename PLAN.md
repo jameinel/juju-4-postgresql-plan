@@ -598,7 +598,9 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   - Sites that look portable but are only checked on SQLite: SQLite lets
     `GROUP BY` leave columns bare and compares int to text freely; Stage 6
     will surface more.
-  - Next: user review, then Stage 6 (needs Stages 4 and 5).: PG test harness for domain state tests
+  - Next: user review, then Stage 6 (needs Stages 4 and 5).
+
+### Stage 6: PG test harness for domain state tests
 
 - Goal: run selected domain state suites against PostgreSQL to flush out
   type-affinity and dialect bugs early.
