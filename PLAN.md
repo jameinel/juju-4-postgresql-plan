@@ -610,8 +610,7 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   model, application and machine.
 - Verification: the chosen suites pass on both backends; known failures are
   listed here.
-- Status: done, in review. Harness committed as `ddfb0f814d` on
-  `pg-poc/06-test-harness`.
+- Status: done, in review. Harness committed on `pg-poc/06-test-harness`.
 - Restart notes:
   - `JUJU_POSTGRESQL_TEST_URL` selects PostgreSQL; each namespace opened by
     the test suite gets a uniquely named throwaway schema which is dropped
