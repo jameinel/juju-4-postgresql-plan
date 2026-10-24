@@ -139,7 +139,7 @@ All confirmed with the user. Rationale and alternatives are in ANALYSIS.md.
 | D15 | Generated, checked-in `domain/schema/postgresql/<ns>/sql/NNNN-<slug>.sql`, one per dqlite patch, embedded by `domain/schema`. A hand tweak lives in `<ns>/overrides/` as `NNNN-<slug>-auto.sql` (raw translator output, rewritten every run) plus a hand-maintained `NNNN-<slug>.diff` (unified diff, auto -> desired) applied before the ordering pass. A hunk that no longer applies, or a diff with no patch, fails generation. A test checks the generated files are up to date. |
 | D16 | Stage 5 query fixes: lease and lease-expiry times are computed in Go and bound as `YYYY-MM-DD HH:MM:SS` UTC text (the values SQLite stored before); plain "now" columns use `CURRENT_TIMESTAMP`; `GROUP_CONCAT` in `GetUnitsK8sPodInfo` is replaced by aggregating rows in Go, with no dialect hook; `PRAGMA defer_foreign_keys` is left for Stage 4 / 6 (recorded in Stage 5 findings). |
 | D17 | PostgreSQL constraint tag, space and zone tables get explicit identity `rowid` columns, preserving the insertion order used by `v_application_constraint`. Keep inserts column-qualified. The dqlite definitions are unchanged. |
-| D18 | The PostgreSQL `v_revision_updater_application_unit` override groups by `a.uuid`, returning one actual unit count per application. The existing dqlite `GROUP BY u.uuid` is a separate correctness bug; the user is handling the shared fix and any required upgrade patch in another context. |
+| D18 | `v_revision_updater_application_unit` groups by `a.uuid`, returning one actual unit count per application. This initially required a PostgreSQL override for the dqlite `GROUP BY u.uuid` bug. At the user's request, Stage 4 subsequently incorporated the shared schema fix and removed the obsolete override. The current 4.1 beta base schema changes in place; supported 4.0-to-4.1 moves use a fresh controller and model migration, not an in-place controller upgrade. |
 
 ## Environment
 
@@ -460,6 +460,9 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   `7d29675904` (`feat(database): support postgresql schema bookkeeping`)
   and `ca68f6d602` (`feat(schema): generate and embed postgresql ddl`).
   These replace the WIP commit; no branch was rebased or restacked.
+  Follow-up commits are `57d29726a2` (`fix(schema): correct lookup types
+  and revision unit counts`) and `fe5d42334e` (`refactor(schema): remove
+  redundant postgresql overrides`).
 - Restart notes:
   - Done: generic translator, trigger functions, forward-FK/view ordering,
     checked-in unified-diff overrides, freshness checks, embedded backend
@@ -477,20 +480,34 @@ pre-existing problems unrelated to the PoC. All stages build on it.
     ordering. Seed timestamps are checked against the application interval
     rather than compared literally across separately applied databases.
   - `go test -race ./core/database/schema ./domain/schema/...
-    ./generate/pgschemagen` passes with `JUJU_POSTGRESQL_TEST_URL` set.
+    ./generate/pgschemagen ./domain/modelimport/... ./domain/export/...`
+    passes with `JUJU_POSTGRESQL_TEST_URL` set.
     Bounded stress with two processes completed six runs without failures;
     the two schemas left by termination of the final active runs were
     explicitly removed. Tests otherwise drop their throwaway schemas.
-  - `go generate ./domain/schema/...` leaves no diff. Changed-package
-    `golangci-lint` reports zero issues; `make pre-check` passes (its
-    repository-wide static analysis is opt-in and was not enabled).
+  - `go generate ./domain/schema/...` and
+    `go generate ./generate/export ./generate/modelimport` leave no diff.
+    Changed-package `golangci-lint` reports zero issues; `make pre-check`
+    passes (its repository-wide static analysis is opt-in and was not
+    enabled).
   - Next: user review. No Stage 5 changes were made. The branch remains on
     its original Stage 3 base, `5135f22d3e`, by explicit instruction not to
     rebase or restack. Coordinate subsequent integration separately.
-  - Dqlite schema cleanup runs in another context. When those fixes reach
-    this branch, remove obsolete `.diff` files and regenerate; do not edit
-    generated SQL. The generator intentionally fails on `.PATCH.sql`
-    files, so support for any new shared upgrade patches needs explicit
+  - At the user's request, incorporated the shared dqlite cleanup from
+    the other context: eleven lookup-column type corrections, regenerated
+    export types, explicit legacy numeric-string import conversions and
+    revision-updater grouping by application. Regression coverage checks
+    integer persistence and import/export, nullable IDs, invalid input and
+    zero/multiple-unit application counts.
+  - Removed obsolete PostgreSQL override pairs and the redundant hunks
+    in retained overrides. Regeneration leaves the final PostgreSQL SQL
+    unchanged; remaining overrides still handle dialect-specific cases.
+  - These corrections edit the current 4.1 beta base schema. The supported
+    4.0-to-4.1 path bootstraps a new controller and migrates models through
+    the versioned import transform; historic 4.0 payload types are
+    unchanged. Recreate existing beta PoC databases because dqlite patch
+    hashes change. The generator intentionally fails on `.PATCH.sql`
+    files, so support for future shared upgrade patches needs explicit
     follow-up rather than silently omitting them.
 - Findings (for later stages):
   - Object counts, including the bookkeeping table/index and excluding
@@ -508,18 +525,19 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   - `ANALYSIS.md` section 4 describes an older source tree: all 380 triggers
     here are Go-built (not SQL-file declarations); there are no generated
     columns, REAL columns, GLOB or GROUP_CONCAT in the source DDL. Declared
-    types include 247 INT, 8 INTEGER, 38 DATETIME, 24 TIMESTAMP, 42 BOOLEAN
+    types include 258 INT, 8 INTEGER, 38 DATETIME, 24 TIMESTAMP, 42 BOOLEAN
     and 2 BLOB columns. Some trigger names exceed PostgreSQL's 63-byte
     limit; the generator adds a stable hash suffix.
-  - Eleven TEXT-to-integer foreign-key mismatches in dqlite are masked by
-    SQLite coercion. PostgreSQL overrides correct `cloud_credential.auth_type_id`,
+  - Eleven TEXT-to-integer foreign-key mismatches in dqlite were masked by
+    SQLite coercion. The shared schema now corrects `cloud_credential.auth_type_id`,
     `controller_node_password.password_hash_algorithm_id`, `autocert_cache.encoding`,
     `model_life.life_id`, `secret_permission.scope_type_id`, `charm_config.type_id`,
     `machine.password_hash_algorithm_id`, `machine_platform.os_id`,
     `application_platform.os_id`, `application_agent.password_hash_algorithm_id`
-    and `unit.password_hash_algorithm_id`. Shared fixes are outside Stage 4.
+    and `unit.password_hash_algorithm_id`. PostgreSQL translates these
+    directly to BIGINT; no type-correction overrides remain.
   - Other overrides make predicate-free singleton joins explicit, aggregate
-    the latest-login timestamp, implement D17/D18, compare the TEXT relation
+    the latest-login timestamp, implement D17, compare the TEXT relation
     status to `'1'`, and disambiguate duplicate foreign-key constraint names
     on `application_remote_consumer`. `relation_status_type.id` and
     `relation_status.relation_status_type_id` both remain TEXT, matching
