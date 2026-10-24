@@ -33,6 +33,7 @@ relation, production hardening and performance work.
 | [stages/](stages/) `NN-<slug>.md` | Goal, steps, status, restart notes and findings of one stage | The stage being run; findings of earlier stages it cites |
 | [DECISIONS.md](DECISIONS.md) | Confirmed decisions (D*, N*) | Entries the stage cites; before proposing a design |
 | [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) | dqlite defects the port exposed | When classifying a `bug` or `latent` change |
+| [DIALECT.md](DIALECT.md) | SQLite and PostgreSQL differences (X*) and how each is handled | Before writing or fixing SQL; when a test fails only on PostgreSQL |
 | [ANALYSIS.md](ANALYSIS.md) | dqlite coupling analysis and trade-offs | Sections the stage cites |
 | [handoffs/](handoffs/) | Point-in-time handoff notes, superseded by the above | Only when asked |
 
@@ -85,7 +86,9 @@ Stage N following its session protocol. Use the <controller> controller.
    Put each `bug` and `latent` change in its own commit, apart from
    PoC-only changes, so it can be proposed upstream on its own. Add it to
    UPSTREAM-FIXES.md, together with defects found but not fixed. Record
-   `portability` changes in the stage's findings.
+   `portability` changes in the stage's findings. Record every SQLite /
+   PostgreSQL difference behind a change, or found and not yet handled,
+   in DIALECT.md, including driver workarounds.
 7. Before ending the session:
    - Update the stage file's **Status**, **Restart notes** (what is done,
      what is next, gotchas) and **Findings**, and the status table below.
@@ -201,8 +204,9 @@ highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
 - The snap `go` writes nothing when stdout is redirected to a file. Pipe
   instead: `go test ... 2>&1 | cat > log`.
 - PostgreSQL aborts the whole transaction on any statement error. Resolve
-  conflicts in SQL (`ON CONFLICT`) rather than catching the error.
-- pgx will not bind Go integers to TEXT parameters.
+  conflicts in SQL (`ON CONFLICT`) rather than catching the error (X18).
+- pgx will not bind Go integers to TEXT parameters (X23).
+- Other SQL that only PostgreSQL rejects is listed in DIALECT.md.
 - Domain errors mask driver errors, so tests match message text that both
   backends share.
 - After changing dqlite DDL or overrides, regenerate with
