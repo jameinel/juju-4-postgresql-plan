@@ -54,7 +54,7 @@ Session protocol:
 | 3 | PG driver, placeholder rewriting, errors | `pg-poc/03-driver` | in review |
 | 4 | PG schema generation | `pg-poc/04-schemagen` | done, in review |
 | 5 | Query portability fixes | `pg-poc/05-queries` | in review |
-| 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | not started |
+| 6 | PG test harness for domain state tests | `pg-poc/06-test-harness` | done, in review |
 | 7 | `db-backend` / `db-url` config plumbing | `pg-poc/07-config` | in review |
 | 8 | PG dbaccessor worker and bootstrap | `pg-poc/08-dbaccessor` | not started |
 | 9 | LXD bootstrap and smoke test | `pg-poc/09-bootstrap` | not started |
@@ -610,7 +610,22 @@ pre-existing problems unrelated to the PoC. All stages build on it.
   model, application and machine.
 - Verification: the chosen suites pass on both backends; known failures are
   listed here.
-- Restart notes: none yet.
+- Status: done, in review. Harness committed as `ddfb0f814d` on
+  `pg-poc/06-test-harness`.
+- Restart notes:
+  - `JUJU_POSTGRESQL_TEST_URL` selects PostgreSQL; each namespace opened by
+    the test suite gets a uniquely named throwaway schema which is dropped
+    after the test. Without the variable, tests continue to use dqlite.
+  - Controller and model test suites select the matching generated DDL.
+    The controller-node state suite uses the same backend selector.
+  - PostgreSQL test connections set `TimeZone=UTC` with
+    `postgresql.WithTimeZoneUTC`; Stage 8 must retain this for lease
+    timestamp semantics.
+  - The lease, changestream, controllernode, model, application and machine
+    state suites passed with `-race` on dqlite and PostgreSQL. The schema
+    and PostgreSQL driver suites also passed on PostgreSQL.
+- Findings: no known failures in the selected state suites on either
+  backend. PostgreSQL verification used the non-TLS test URL.
 
 ### Stage 7: config plumbing
 
