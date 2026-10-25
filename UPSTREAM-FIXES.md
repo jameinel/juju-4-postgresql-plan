@@ -30,7 +30,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 - `PinLease` ignored a unique violation inside its transaction. SQLite
   rolls back only the failing statement, so this was correct on dqlite;
   PostgreSQL aborts the whole transaction. Fixed as portability on
-  Stage 5, `fix(lease): resolve lease pin conflicts in sql`, with
+  Stage 5, `fix(lease): 
+resolve lease pin conflicts in sql`, with
   `ON CONFLICT DO NOTHING` (DIALECT.md X18).
 - `TestSetAPIAddressesSharedPeerRollsBack` violates
   `controller_peer_address.controller_id NOT NULL` on purpose to force a

@@ -18,7 +18,7 @@ Stage 8 can continue. Follow the PLAN.md session protocol:
 
 The code tree is clean on `pg-poc/06-test-harness`. The stack is linear
 and builds (`go build ./...` on 08), and the generated PostgreSQL DDL is
-current. Push state is in section 8.
+current. All `pg-poc/*` branches and the plan repo are pushed.
 
 | Branch | Tip |
 |---|---|
