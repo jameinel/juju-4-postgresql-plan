@@ -1,218 +1,187 @@
-# Upstream 4.1 review branches
+# Stock upstream Juju 4.1 changes
 
-Status: branch proposal ready for dispatch planning. The user approved
-upstream-only worktrees (N11) and adding U12 to the existing integer branch
-(N12). Other branch names and the initial batch below are recommendations.
-No branches/worktrees or code changes were made by this planning session.
-Scope is patches suitable for upstream 4.1, not a second PG stack. The
-coordinator uses the whole map; an executor needs only the shared rules,
-assigned branch row/task requirements and its U*/X* entries. Do not load
-every defect or historical handoff into each extraction task.
+This is a standalone implementation plan for a stock upstream 4.1
+checkout. Read this guide's shared rules, the assigned task, and the target
+repository's root/nested AGENTS.md and contribution guidance. No other
+planning document or project's checkout, configuration or tests is required.
 
-## Principles
+These issues were discovered during a portability proof of concept;
+that explains their origin, not how to implement or validate these changes.
+Describe each fix in terms of upstream behaviour and its regression tests.
 
-- Start each independent branch from the same refreshed, pinned upstream
-  4.1 revision (`B`). Do not base release branches on `pg-poc/*`.
-- One review concern per branch; multiple commits are fine when they serve
-  that concern. Do not add unrelated fixes merely because they share a
-  PoC source commit.
-- Upstream-only worktrees are allowed; the PoC retains its single working
-  tree. One owner per branch/worktree. No concurrent checkout, rebase or
-  reset in another owner's tree. All work remains local until explicitly
-  dispatched for implementation/publication.
-- Prefer a small active set: one schema owner plus two independent leaf
-  fixes is the proposed starting batch. This is not a requirement to
-  launch every listed branch at once.
-- Distinguish semantic prerequisites from integration conflicts. Shared
-  generated files justify sequencing their owners, not automatically
-  stacking otherwise independent PRs.
+## Working agreement
 
-## Baseline and existing branch
+- Refresh and record the upstream 4.1 base (`B`). Check current code and
+  existing reviews for completed work before implementing anything.
+- Start each independent branch from `B`. Use the existing
+  `4.1-sqlite-integers` branch for its assigned extension, preserving its
+  current commits and review history; coordinate changes with its owner.
+- Dedicated worktrees are allowed. Assign one branch/worktree per owner;
+  never switch, reset or rebase another owner's checkout. A worktree's
+  presence does not imply permission to modify it.
+- Keep one review concern per branch. Multiple commits are fine when they
+  serve that concern. Shared generated files are an integration conflict,
+  not automatically a reason to stack independent reviews.
+- Implement using the APIs, schema layout, helpers and test infrastructure
+  present in the target branch. Missing helpers require a small local
+  solution or clarification, not dependencies on another project.
+- Stop for unresolved behaviour, unexpected dependencies or ownership
+  conflicts. Do not weaken tests to make a patch pass.
 
-Observed during planning:
+## Existing integer branch
 
-- PoC base/local `4.1`: `a8591fe1b8`.
-- Cached `upstream/4.1`: `04bc64ef54`, 57 commits ahead of that base;
-  this is not a freshly fetched upstream-head claim.
-- `4.1-sqlite-integers`: `7c96d020d5`, based on the PoC's old upstream base.
-  It already contains `6b0f24d11c` (integer FK types, U2) and
-  `7c96d020d5` (revision-updater unit counts, U1).
-
-The integer branch already has a worktree at
-`~/dev/go/src/github.com/juju/4.1-sqlite-integers`; coordinate its owner
-before edits, rather than creating another checkout or force-moving it.
-Keep U1/U2 and add U12 as a separate commit (N12); no duplicate U1 branch.
-Refresh upstream and check landed equivalents before choosing `B`.
-
-The map below uses commit metadata and targeted leaf diffs, plus a
-schema-path/representation inspection. It is not validation of extracted
-patches on the eventual upstream base. Confirm each source diff and path
-inventory when the task is dispatched.
+`4.1-sqlite-integers` already contained integer FK corrections and the
+revision-updater application unit-count fix when this plan was written.
+Check its current state; do not duplicate those changes. Add the
+relation-status integer correction as a separate commit if still missing,
+reusing its legacy-ID parsing helpers and extending its import fixtures.
+The user chose this grouping rather than a separate relation-status branch.
 
 ## Candidate branch map
 
-Names below are proposals except the existing integer branch. Sources are
-pinned PoC commits at planning time; use them as evidence, not unquestioned
-cherry-pick instructions. Record replacements after PoC restacks.
+Names are proposals except the existing integer branch. Each row defines
+an upstream problem to solve, not a patch to copy from another branch.
 
-| Branch | Scope | Source / readiness |
+| Branch | Change and entry points | Required result |
 |---|---|---|
-| `4.1-sqlite-integers` (existing) | U1/U2 already extracted; add U12 relation-status IDs as a separate commit (N12). | Existing commits above + `ad9d3928c1`; U12 uses U2's parsing helpers. |
-| `4.1-binary-key-columns` | U8: raw key material stored as BLOB with matching representations. | `e987e3df60`; schema lane. |
-| `4.1-removal-force-boolean` | U9: boolean declaration and 4.0.12 import conversion. | `1513cf1b97`; schema lane. |
-| `4.1-model-config-precedence` | U7: authoritative agent stream/version, no duplicate config rows. | `63f0bb3a68`; focused schema/view + modelconfig regression. |
-| `4.1-keymanager-insert-id` | U13: return the inserted key ID; reject unknown algorithms without stale-ID reuse. | `0f7d28ec1d`; small independent production fix + regression. |
-| `4.1-controller-node-id-text` | U3 and U5: bind unsigned node IDs as decimal text, including fixtures. | `e8ef9d307b`, `03743f82ff`; upgrade fixture half of U5 remains to implement. |
-| `4.1-lease-migration-tests` | U4: assert seed success and genuinely exercise held/expired leases. | `bae6008b6e`; adapt missing helper dependency, not the production lease rewrite. |
-| `4.1-crossmodel-secret-revisions` | U11: correct multi-unit revision selection with portable SQL. | No finished patch. Dedicated semantic design/regressions first. |
+| `4.1-sqlite-integers` (existing) | `relation_status_type.id` and `relation_status.relation_status_type_id`: TEXT declarations disagree with integer writers and lookup values. | INT declarations, matching export types and legacy string-ID conversion; preserve existing unit-count fixes. |
+| `4.1-binary-key-columns` | `user_activation_key.activation_key`, eight `bakery_config` key columns and `macaroon_root_key.root_key`: raw bytes declared TEXT. | BLOB declarations and consistent storage/export/recovery representations, including legacy compatibility. |
+| `4.1-removal-force-boolean` | `removal.force`: INT declaration despite boolean writers/readers. | BOOLEAN declaration, boolean export type and validated 4.0.12 integer conversion. |
+| `4.1-model-config-precedence` | `v_model_config` and `domain/modelconfig/state`: duplicate agent stream/version rows let row ordering choose the winner. | Authoritative `agent_version` values win regardless of config contents or row order. |
+| `4.1-keymanager-insert-id` | `domain/keymanager/state`, `ensureUserPublicKey`: a zero-row insert can leave `LastInsertId` referring to an earlier key. | Use the inserted row's returned ID; reject unknown algorithms without linking an unrelated key. |
+| `4.1-controller-node-id-text` | `internal/database/bootstrap.go`, `InsertControllerNodeID`, and changestream/upgrade fixtures: uint64 values bound to a TEXT column. | Bind decimal strings and support the full unsigned range. |
+| `4.1-lease-migration-tests` | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
+| `4.1-crossmodel-secret-revisions` | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | Defined, tested multi-unit revision semantics; design approval required before implementation. |
 
 ### Schema lane
 
-Use one schema owner to prepare U12, U8 and U9 in sequence, but keep their
-reviews independent where possible. U12 genuinely uses U2's `parseID`
-helpers and extends its legacy-import fixtures, so it belongs on the
-existing integer branch. U8/U9 can each start from `B`; neither needs the
-other's behaviour. U7's view-only fix can proceed independently.
+Use one owner to prepare the integer extension, binary-key and removal
+boolean branches sequentially; their reviews can proceed concurrently.
+The relation-status extension uses parsing helpers on the existing integer
+branch. Binary-key and removal-boolean branches can each start from `B`;
+neither requires the other's behaviour. The model-config view fix can
+proceed independently.
 
-Main conflict surfaces to inspect on the selected base:
+Inspect schema SQL under `domain/schema/{model,controller}/`, generated
+export types under `domain/export/types/`, and the legacy conversion code
+under `domain/modelimport/transformer/transforms/to_v4_1_0/`. Integer and
+boolean work overlaps model export/transform/recovery output; key columns
+also affect controller exports, `domain/schema/storage.go` and controller
+recovery decoding. Assign shared handwritten changes explicitly.
 
-- U2/U9/U12: `domain/export/types/v4_1_0/model.go`, transformer
-  `transforms/to_v4_1_0/{transform.go,deltas.go,deltas_test.go}`, legacy
-  import fixtures and model recovery generation.
-- U2/U8: `domain/export/types/controller/v4_1_0/controller.go`; U8 also
-  changes `domain/schema/storage.go` and controller recovery decoding.
-- Remap PoC `domain/schema/dqlite/{model,controller}/...` back to upstream
-  `domain/schema/{model,controller}/...`. U7 changes the agent-version
-  view patch; U12 relation SQL; U9 cleanup SQL; U8 user/macaroon SQL.
+Regenerate from each branch's own schema using its export/import/recovery
+tooling (currently `make rebuild-export`). After a merge conflict,
+regenerate from the combined schema rather than selecting one branch's
+entire generated file. Confirm the target release's schema-change policy:
+edit beta-only declarations where permitted, otherwise use its incremental
+patch mechanism and test supported upgrades.
 
-Regenerate from each branch's own schema using the upstream export/import/
-recovery tooling (currently `make rebuild-export`). Never copy cumulative
-PoC generated outputs containing other fixes. If two reviewed branches
-conflict after landing, regenerate on the updated base; do not resolve by
-keeping one branch's entire generated file and losing the other change.
+Required checks:
 
-Required schema checks: U12 valid/nullable/invalid legacy IDs through
-transform/import/export; U8 arbitrary bytes and supported historical
-encodings through export/recovery; U9 0/1 conversion, invalid-value rejection
-and round trips. Confirm that direct edits still target beta-only schema;
-otherwise use the release's incremental patch mechanism, not the PoC's
-fresh-database assumption.
+- Integer IDs: valid, nullable where supported, and invalid legacy string
+  representations through transform/import/export and persistence.
+- Key columns: arbitrary bytes, including NUL/non-UTF-8, through storage,
+  export and recovery; preserve supported historical encodings.
+- Removal flag: 0/1 to false/true conversion, rejection of other values,
+  and persistence/round-trip behaviour.
 
 ### Leaf task requirements
 
-- **Keymanager:** keep this separate from general SQL quotation/equality
-  cleanup. Test existing/new keys, unknown algorithms after a prior insert,
-  and unchanged associations. No pgx or harness dependency is needed.
-- **Node IDs:** add a production regression for a uint64 with the high bit
-  set, including max uint64 round-trip as decimal text. U3's source commit
-  contains no test. Include the matching changestream/upgrade fixture fixes;
-  do not convert the column to signed INT with the integer-schema branch.
-- **Lease tests:** `formatTimestamp` was introduced by `f474710187`, the
-  broad PoC SQL rewrite. The U4 commit therefore is not standalone. Use an
-  upstream-compatible local fixture/helper or approved existing time seam;
-  preserve boundary semantics without importing production clock changes.
-- **Model config:** carry the shared view fix and regression, remapping the
-  schema path back to upstream. No PostgreSQL output or override is needed.
-- **Cross-model secrets:** use the
-  [dedicated investigation](investigations/crossmodel-secrets.md). Approve
-  any/all-consumer and revision-filter semantics before implementing. Keep
-  general crossmodel test quotation cleanup out of this branch.
+- **Keymanager:** test existing/new keys, unknown algorithms after a prior
+  insert and unchanged associations. Keep general SQL quotation/equality
+  cleanup out of this fix.
+- **Node IDs:** exercise high-bit and max-uint64 values through the actual
+  production insert/read path as decimal text. Include matching fixture
+  fixes; do not change the column to signed INT.
+- **Lease tests:** use the target branch's time seams/helpers or a small
+  test-local fixture. Preserve held/expired and boundary semantics without
+  changing production lease timing as part of this test-only task.
+- **Model config:** exclude authoritative keys from the competing config
+  rows. Test values that sort before and after the authoritative values,
+  and assert one effective value for each key.
+- **Cross-model secrets:** trace both query results to their consumers.
+  Decide whether any/all consuming units being behind should trigger an
+  update, which revision is returned and how optional revision filtering
+  interacts with that rule. Obtain approval before changing semantics.
+  Cover no consumers, current/behind consumers, mixed multi-unit revisions,
+  multiple secrets/revisions, application-name prefix collisions and
+  optional filtering. Assert membership, chosen revisions and duplicates;
+  a single-unit test does not establish the contract.
 
 ## Suggested first batch
 
-1. **Schema owner:** extend the existing integer branch with U12; then
-   prepare key-BLOB and removal-boolean branches one at a time.
+1. **Schema owner:** extend the existing integer branch with relation-status
+   IDs; then prepare binary-key and removal-boolean branches one at a time.
 2. **Leaf owner A:** keymanager insert-ID correctness.
 3. **Leaf owner B:** unsigned controller-node ID binding and fixtures.
 
-When a leaf slot frees, model-config precedence or lease-test reliability
-is ready for focused extraction. Cross-model secrets design may proceed
-in parallel, but implementation waits for semantic approval. Each new
-assignment gets its own branch/worktree and bounded context; do not let
-owners sweep unrelated portability fixes into these branches.
+Model-config precedence and lease-test reliability can follow as capacity
+frees. Cross-model design can proceed concurrently, but implementation
+waits for semantic approval. Broad test-literal cleanup follows overlapping
+functional work, or uses explicitly reserved files. This keeps reviews
+small without creating a dependency chain between unrelated fixes.
 
-This limits simultaneous integration surfaces without forcing reviewers
-to wait for one monolithic schema/SQL PR. Broad test-literal cleanup comes
-later because its 49-file footprint intersects many functional owners.
+## Follow-on SQL improvements
 
-## Follow-on portability reviews
+Assign these separately after confirming the upstream benefit and behaviour
+contract. Portability is a valid rationale, but not permission to combine
+unrelated changes or label observable behaviour changes as mechanical.
 
-Do not bundle these with concrete correctness fixes merely to reduce PR
-count. They can land in 4.1 if independently justified, but are not all
-behaviour-neutral or ready to extract.
-
-| Proposed branch | Scope / source | Review requirement |
+| Proposed branch | Change / entry point | Review requirement |
 |---|---|---|
-| `4.1-changestream-latest-row` | X16, `48f0c5e1a9` | Prove the full returned row comes from the latest ID; high-water marks, coalescing and pruning remain correct. Source commit adds no tests; add focused regressions and race/stress evidence. |
-| `4.1-blockcommand-order` | U10/X31, `a8301140de` | Explicit approval of insertion-order to type-order change; regression is included. |
-| `4.1-operation-query-portability` | X34/X33, `18886acfdf`, `e2258798fe` | Separate commits for boolean filtering and size estimates; preserve filtering and pruning thresholds. Coordinate X24 edits in the same package. |
-| `4.1-objectstore-conflicts` | X36, `d658b402a6` | Review the reused-UUID error change, not just SQL syntax; source includes a regression. |
-| `4.1-sql-test-literals` | U6/X6, `8a60208176` | Broad 49-file cleanup: apply after overlapping functional fixes, or reserve explicit files for their owners. Revalidate fixture meaning. |
+| `4.1-changestream-latest-row` | `internal/changestream/stream/stream.go`: replace bare-column `MAX(id)` grouping with explicit latest-ID selection and a join to its row. | Preserve full-row consistency, high-water marks, coalescing and pruning; add regressions and required concurrency coverage. |
+| `4.1-blockcommand-order` | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Approve the observable ordering change and test it. |
+| `4.1-operation-query-portability` | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
+| `4.1-objectstore-conflicts` | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Agree reused-UUID error semantics; test hashes, size mismatches, duplicate UUIDs and unchanged existing metadata. |
+| `4.1-sql-test-literals` | SQL test helpers: single-quoted strings instead of SQLite's double-quoted-string fallback. | Bound the file set; preserve fixture meaning and coordinate overlapping owners. |
 
-Other shared fixes need narrow task scopes before dispatch: X3/X4 upsert
-qualification (`ff382936b3`), X24 CTE membership (`fda7add768`), X7 model
-IIF (`9499d95ca6`), X37 equality and X38 removal join scope (not yet fixed).
-The initial `f474710187` combines syntax, aggregation and lease time changes;
-never export it wholesale as a mechanical cleanup.
+Further candidates need named files and tests before dispatch: explicit
+upsert targets/qualification, explicit CTE membership subqueries, `CASE`
+in model connection queries, standard equality and unambiguous join scope.
+Conflict-handling changes must be split by operation and preserve
+idempotency, retries and errors. Do not mix a production time-calculation
+or aggregation rewrite into a syntax-only cleanup.
 
-Likewise, X18 (`01316d98fe`, `bccb8d37b4`) changes conflict handling across
-several domains. Split by operation and preserve retry/idempotency/error
-contracts, especially the external-user existence-check path. No blanket
-assumption that SERIALIZABLE turns every unique conflict into a retry.
+## Dispatch
 
-Test-only user quoting/date/upsert conversions can be later portability
-patches; coordinate their files with active functional owners. PostgreSQL
-helper APIs, driver rewrites, harness skips, config/workers, schema selector,
-PG overrides and benchmark tooling are not part of these 4.1 branches.
+Supply the upstream base, one named branch/worktree, allowed paths,
+expected behaviour, prerequisites and required regression cases. The
+executor reads this guide and the target repository's instructions; task
+selection does not authorise work on other branches.
 
-## Dispatch and validation
+Example assignment:
 
-Each assignment supplies `B`, one named branch/worktree, allowed paths,
-source commit(s), required adaptation, regression cases and test commands.
-Stop on unplanned dependencies or shared-file ownership conflicts.
+> In stock upstream Juju 4.1 at <base>, implement the keymanager insert-ID
+> task from UPSTREAM-PLAN.md on <branch> in <worktree>. Use only that
+> checkout's code and test infrastructure. Add the specified regressions,
+> run its normal validation, and report the diff and results. Stop for
+> unapproved semantics or dependencies.
 
-Starting package scopes: keymanager `domain/keymanager/state`; node IDs
-`internal/database`, `domain/changestream/state`, `domain/upgrade/state`;
-lease fixtures `domain/lease/state`; model config `domain/modelconfig/state`
-and relevant schema tests; cross-model secrets
-`domain/crossmodelrelation/state/model` plus the consumers identified by
-its design task. Run only affected selectors initially, then the package
-suite before submission. Schema-lane tasks additionally need the relevant
-export/import/round-trip suites, not just successful DDL generation.
+## Upstream validation and review
 
-Acceptance is against upstream without PostgreSQL: unset
-`JUJU_POSTGRESQL_TEST_URL`; run affected package tests, real dqlite checks
-where needed, and required race/stress coverage. Schema changes must trace
-writers -> storage -> export -> legacy import -> consumers, exercising
-supported representations in both directions. Regenerate only with the
-upstream tools and verify no unrelated generated changes. Follow target
-repository formatting/lint rules and PR template.
+- Reproduce the upstream defect where applicable, then add the regression
+  alongside the fix. For a behaviour-preserving SQL improvement, assert the
+  existing contract across relevant edge cases.
+- Run focused tests first, then the affected package suites. Starting
+  scopes: `domain/keymanager/state`; `internal/database` plus
+  `domain/changestream/state` and `domain/upgrade/state`; `domain/lease/state`;
+  `domain/modelconfig/state` plus schema tests; and
+  `domain/crossmodelrelation/state/model` plus affected consumers.
+- Use the target checkout's standard test commands, dependencies and
+  database fixtures. Include actual dqlite checks where required, and its
+  prescribed race/stress, watcher-readiness, formatting and lint checks.
+- For schema changes, exercise writers -> storage -> export -> legacy
+  import -> consumers. Cover supported representations in both directions,
+  relevant recovery paths and the release's supported upgrade mechanism.
+  Generation alone is not acceptance; generated output must be limited to
+  the intended changes.
+- Record the base, final commit, exact commands/build tags and results.
+  State tests not run and unresolved risks; do not claim broader coverage.
+  Explain the upstream defect/benefit and any behaviour change in the PR,
+  following the target repository's template.
 
-One coordinator updates the plan/register and source-to-upstream mapping;
-parallel agents return reports rather than editing shared planning files.
-Concurrent tests still need a host resource budget. They must not overlap
-shared PostgreSQL runs or modify shared Juju/controller state.
-
-## Landing and PoC reintegration
-
-1. Review/land independent branches normally into upstream 4.1. Do not
-   merge them into each other just to create a new release mega-stack.
-2. Track each U*/X* item through PoC source, extraction commit, upstream
-   PR/merge commit and any intentional semantic difference. Splits or
-   squashes mean patch-ID equality is insufficient.
-3. At an agreed checkpoint, freeze PoC edits, preserve the old stack tips
-   and refresh/pin the new upstream 4.1 base containing landed changes.
-4. Rebase/reconcile the PoC stack as one controlled operation. Remove
-   duplicate shared hunks, not entire mixed commits that still contain PG
-   work. Preserve stage refs and investigate conflicts or skipped commits.
-5. Reapply/regenerate the PoC schema move, PG output and overrides against
-   the new shared schema. Recheck export/import adjustments and remove only
-   overrides whose purpose really disappeared. Verify adjacent ancestry.
-6. Build the top and rerun affected dqlite/PG tests plus D42's runtime-entry
-   gate. Update base/status/mapping only with recorded evidence.
-
-Do not rebase the PoC after every leaf commit. Prefer one reconciliation
-per coherent landed batch; the first batch should include the existing
-integer work and a small set of independent fixes. An optional integration
-branch for unmerged PRs is not the upstream baseline and needs a separate
-decision if wanted.
+Return the branch, commits, test evidence and review link to the coordinator.
+The coordinator updates shared planning records; parallel agents need not
+edit them. Respect the host's test resource budget and other owners' state.
+Each independent review targets upstream 4.1; rebase/regenerate when needed
+after related changes land, without combining unrelated reviews.

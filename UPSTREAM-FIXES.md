@@ -5,8 +5,25 @@ Their release value does not depend on finishing PostgreSQL support or HA.
 Classes are defined in [PLAN.md](PLAN.md#session-protocol). "Fixed" below
 means implemented in the PoC, not reviewed, independently extractable or
 merged upstream. Record upstream PR/revision and validation when available.
-[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) maps fixes to proposed review branches,
-concurrency boundaries and the later PoC rebase.
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) gives standalone stock-4.1 tasks.
+This is the evolving record of findings, provenance and upstream status.
+[UPSTREAM-INTEGRATION.md](UPSTREAM-INTEGRATION.md) contains only the reusable
+procedure for bringing landed fixes back into the PoC. Neither is required
+setup or QA for stock-upstream implementation agents.
+
+## Keeping the register current
+
+Record new findings here even when no implementation task exists yet.
+For each finding, maintain the defect/rationale, affected paths, source
+revision if available, upstream branch/PR/merge status, and eventual PoC
+reconciliation revision/evidence. Distinguish found, implemented, reviewed,
+landed and reintegrated; one does not imply the next.
+
+When a finding is ready to assign, give UPSTREAM-PLAN.md a self-contained
+upstream task describing the problem and required behaviour. Do not make
+that task depend on this register's source commits or PoC test setup.
+The integration procedure should not change merely because a new finding
+or source mapping is added here.
 
 ## Extraction gate
 
@@ -88,3 +105,42 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   clauses, and `ON CONFLICT DO UPDATE` with no conflict target
   (`domain/sequence`), are ambiguous or invalid only on PostgreSQL
   (DIALECT.md X3, X4). Fixed as portability on Stage 5.
+
+## Source provenance
+
+Snapshot recorded during 2026-10-25 branch planning. These hashes identify
+historical implementations, not current branch tips or proof of upstream
+landing. Keep subsequent upstream/reintegration results with the finding.
+Upstream tasks are specified by behaviour in UPSTREAM-PLAN.md, not by
+requiring these commits to be available.
+
+| Finding | Historical source / extraction |
+|---|---|
+| U1/U2 | PoC `367c35c243`; separate review commits `7c96d020d5` / `6b0f24d11c` on `4.1-sqlite-integers`. |
+| U12 | `ad9d3928c1`; approved addition to the existing integer branch. |
+| U8 | `e987e3df60` |
+| U9 | `1513cf1b97` |
+| U7 | `63f0bb3a68` |
+| U13 | `0f7d28ec1d` |
+| U3/U5 | `e8ef9d307b` / `03743f82ff` (the latter covers changestream fixtures). |
+| U4 | `bae6008b6e` |
+| U11 | No completed source patch at that point; candidate design in the linked investigation. |
+| X16 change-stream query | `48f0c5e1a9` |
+| U10/X31 | `a8301140de` |
+| X34/X33 | `18886acfdf` / `e2258798fe` |
+| X36 | `d658b402a6` |
+| U6/X6 | `8a60208176` |
+| X3/X4, X24, model IIF | `ff382936b3`, `fda7add768`, `9499d95ca6` |
+| X18 | `01316d98fe`, `bccb8d37b4` |
+
+Source-specific cautions:
+
+- `f474710187` mixes syntax, aggregation and lease timing changes. U4's
+  `formatTimestamp` depends on it; that does not make the broad rewrite
+  an upstream prerequisite. Use upstream-native helpers for the task.
+- U1/U2 share a PoC commit but were split in their review branch; do not
+  duplicate the unit-count fix while adding later integer corrections.
+- U3 and the X16 latest-row source patches lacked dedicated regressions.
+  Existing code is evidence, not proof of upstream acceptance.
+- Cumulative generated files can contain other findings' changes. Inspect
+  the assigned source rather than treating its entire tree as the fix.

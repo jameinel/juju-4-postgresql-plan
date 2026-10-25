@@ -1,5 +1,10 @@
 # Cross-model secrets: U11 / X16 / X30
 
+PoC investigation and historical candidate design, not an upstream task
+prerequisite. Stock-4.1 agents use the self-contained cross-model task in
+[UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md); the stage/harness instructions
+below apply only when integrating or validating in the PoC.
+
 Status: dedicated work required before the functional milestone (D40).
 No implementation is authorised by the candidate query shape below.
 Owner: Stage 5 for the shared production fix and its regression tests;

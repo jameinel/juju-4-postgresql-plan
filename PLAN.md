@@ -2,9 +2,11 @@
 
 Status: **active PoC; milestone contracts being refined**.
 
-Read this file every session, then only the named stage/task and its
-required references. Current instructions take precedence over historical
-handoffs; unresolved design choices are not implementation instructions.
+For PoC sessions, read this file and the named stage/task's references.
+For upstream-only 4.1 work, start at [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
+and use the target repository's guidance instead; this file's session,
+environment and validation instructions do not apply to that work.
+Current instructions supersede handoffs; open choices are not instructions.
 
 ## Goal and scope
 
@@ -58,7 +60,9 @@ before their corresponding execution tasks begin.
 | This file + named [stage](stages/) | Every session; current task, branch and stop conditions. |
 | [DECISIONS.md](DECISIONS.md) | Only cited D*/N* entries; before proposing a change to them. |
 | [DIALECT.md](DIALECT.md) | Relevant X* entries when changing SQL or diagnosing backend differences. |
-| [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md), [review branches](UPSTREAM-PLAN.md) | Classifying/extracting 4.1 fixes; branch ownership and upstream reintegration. |
+| [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) | Evolving findings, provenance, upstream and PoC reconciliation status. |
+| [UPSTREAM-INTEGRATION.md](UPSTREAM-INTEGRATION.md) | Integration agent: reusable procedure for bringing landed fixes into the PoC. |
+| [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) | Standalone stock-4.1 tasks; upstream agents do not need this PoC plan. |
 | [OPERATIONS.md](OPERATIONS.md) | Building, testing, regenerating or operating the PoC. |
 | [Stage 6 task/results detail](stages/06-compatibility.md) | Selected compatibility task or validation run. |
 | [BENCHMARKS.md](BENCHMARKS.md) | Designing or executing the three-way comparison. |
