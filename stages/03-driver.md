@@ -9,20 +9,24 @@ Branch `pg-poc/03-driver`, on `pg-poc/02-schema-move`.
      `internal/database/postgresql`).
   2. Placeholder rewriter: `@sqlair_N` and `?` to `$N`. It must skip string
      literals, quoted identifiers, comments and dollar-quoted strings, and
-     must map a repeated `@name` to a single `$k`.
+     must map repeated `@sqlair_<digits>` to a single `$k`. Arbitrary
+     `@name` is not supported; PostgreSQL operators must pass through.
   3. Extend `internal/database/errors.go` / `drivererrors` with PG SQLSTATE
      mapping (23505, 23503, 23502, 23514; retryable 40001, 40P01, 08xxx).
-  4. Teach `txn/transaction.go` retries about PG retryable errors.
+  4. Verify retries through `RetryingTxnRunner.Retry` and
+     `drivererrors.IsErrRetryable`, including COMMIT-time failures.
+     No `txn/transaction.go` change was needed; do not add duplicate retry
+     logic based on the original implementation outline.
   5. Set `default_transaction_isolation=serializable` in the connection
      config (D7). Do not reset the session role; see the Stage 1 findings
      on `login_hook`.
 - Verification: unit tests for the rewriter (table driven, including
   literals and repeated names); opt-in integration tests against a real PG.
 - Test env var: `JUJU_POSTGRESQL_TEST_URL` (N6).
-- Status: in review. Committed on `pg-poc/03-driver` (one `feat(database)`
-  commit). Unit and opt-in
-  integration tests pass against the Stage 1 PostgreSQL (16.15, plain
-  model `pg-poc` on `lxd36-pgtest`) with `-race`.
+- Status: implemented, in review. The initial unit/integration run passed
+  on PostgreSQL 16.15 with `-race`; later driver fixes are recorded in
+  DIALECT.md (including X2 and X14). This is historical evidence, not a
+  current-tip pass. Verify the owning branch in Git after restacks.
 - Restart notes:
   - Code: `internal/database/postgresql` (`driver.go`, `rewrite.go`, tests),
     `internal/database/drivererrors/postgresql.go` and edits to
@@ -39,7 +43,9 @@ Branch `pg-poc/03-driver`, on `pg-poc/02-schema-move`.
     and a `-tags dqlite` build (no `dqlite.h` on this host). The
     `errors_linux.go` edits are two one-line changes mirroring
     `errors_other.go`, which is built and tested.
-  - Next: user review.
+  - Next: review current driver contracts and targeted tests, not a repeat
+    of initial implementation. Read OPERATIONS.md for backend proof and
+    revision-specific evidence requirements.
 - Findings (for later stages):
   - Rewriting only recognises `@sqlair_<digits>` (not arbitrary `@name`),
     so `@>`, `@@` and other operators pass through. Positional `?` and

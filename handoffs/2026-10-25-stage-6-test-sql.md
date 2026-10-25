@@ -1,11 +1,11 @@
 # PostgreSQL PoC: handoff, Stage 6 test SQL (2026-10-25)
 
-> **Superseded** by `2026-10-25-stage-6-remaining.md`. Section 6
-> (crossmodelrelation secrets design) is still referenced from there.
-
-> Point-in-time note. It supersedes
-> `2026-10-24-stage-6-cleanup.md`. Fold the items below into the stage
-> files and DECISIONS.md, then mark this note superseded.
+> Historical snapshot, superseded by current Stages 5/6 and
+> [task/results detail](../stages/06-compatibility.md). Section 6's candidate
+> cross-model secrets design is preserved in the dedicated
+> [investigation](../investigations/crossmodel-secrets.md). D40 requires
+> that fix before functionality; the old deferral below is not current.
+> Do not execute this handoff as a task list.
 
 Goal: finish Stage 6 (PostgreSQL test harness and suites) so that
 Stage 8 can continue. Follow the PLAN.md session protocol:

@@ -7,10 +7,14 @@ Branch `pg-poc/07-config`, on `pg-poc/06-test-harness`.
   1. Controller config keys and validation (`controller/config.go`).
   2. instancecfg / agent.conf fields (`agent/agent.go`,
      `agent/format-2.0.go`).
-  3. Bootstrap and `agentconfigupdater` propagation.
+  3. Bootstrap and newly provisioned controller propagation, including
+     HA machines. No `agentconfigupdater` propagation: keys are immutable
+     after bootstrap (D9).
   4. Connection-source interface (N2).
-- Verification: bootstrap a dqlite controller with the keys unset (no
-  change); unit tests round-trip the keys through agent.conf.
+- Verification: unit tests round-trip all three keys through instancecfg
+  and agent.conf; Stage 9 performs the same-tree default-dqlite bootstrap.
+  Stage 10 validates live HA-node propagation. Earlier unit passes do not
+  replace those runtime checks.
 - Open questions: none. The PostgreSQL CA reaches every controller through
   a public `db-ca-cert` config key (PEM), D9; a later relation can replace
   it.

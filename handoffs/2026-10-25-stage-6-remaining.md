@@ -1,8 +1,10 @@
 # PostgreSQL PoC: handoff, Stage 6 remaining failures (2026-10-25)
 
-> Point-in-time note. It supersedes `2026-10-25-stage-6-test-sql.md`.
-> Fold the items below into the stage files, then mark this note
-> superseded.
+> Historical snapshot, superseded by current Stages 5/6/8,
+> [task/results detail](../stages/06-compatibility.md),
+> [operations](../OPERATIONS.md) and [history](../history/compatibility.md).
+> Do not execute this note as a task list. D40 subsequently deferred
+> PostgreSQL import/export and made U11 required before functionality.
 
 Goal: finish Stage 6 (PostgreSQL test harness and suites) so that
 Stage 8 can continue. Follow the PLAN.md session protocol:

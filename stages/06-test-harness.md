@@ -1,94 +1,61 @@
-# Stage 06: PG test harness for domain state tests
+# Stage 06: compatibility harness and acceptance
 
 Branch `pg-poc/06-test-harness`, on `pg-poc/05-queries`.
 
-- Goal: run selected domain state suites against PostgreSQL to flush out
-  type-affinity and dialect bugs early.
-- Steps: a PG-backed equivalent of `internal/database/testing` and
-  `domain/schema/testing` that creates a throwaway schema per test, enabled
-  by the test env var. Start with lease, changestream, controllernode,
-  model, application and machine.
-- Verification: the chosen suites pass on both backends; known failures are
-  listed here. Verify a PostgreSQL run really reached PostgreSQL, for
-  example by pointing `JUJU_POSTGRESQL_TEST_URL` at an unreachable host and
-  checking that the suite fails to connect.
-- Status: in progress. The harness works and the dialect refactor removed
-  the `core/database/schema` import cycle. Several suites pass on both
-  backends; the others have known PostgreSQL failures, listed in the
-  [current handoff](../handoffs/2026-10-25-stage-6-remaining.md).
-- Restart notes:
-  - `JUJU_POSTGRESQL_TEST_URL` selects PostgreSQL; each namespace opened by
-    the test suite gets a uniquely named throwaway schema which is dropped
-    after the test (N9). Without the variable, tests continue to use dqlite.
-  - Controller and model test suites select the matching generated DDL.
-    The suite exposes `SchemaDialect()` (a `core/database/dialect`
-    value, D11) for tests that build their own schemas or catalog queries.
-  - PostgreSQL test connections set `TimeZone=UTC` with
-    `postgresql.WithTimeZoneUTC`; Stage 8 must retain this for lease
-    timestamp semantics.
-  - Commits after the harness commit, all on this branch (oldest first):
+## Status and purpose
 
-    | Commit | Kind |
-    |---|---|
-    | `feat(testing): add PostgreSQL domain test harness` | harness |
-    | `fix(database): bind controller node id as text` | latent (U3) |
-    | `test(lease): seed migration test leases with bound timestamps` | latent test (U4) |
-    | `test(schema): add backend-aware failing trigger helper` | portability |
-    | `test(controllernode): make address projection tests backend neutral` | portability |
-    | `test(changestream): insert controller node ids as text` | latent test (U5) |
-    | `fix(schema): store random key bytes in blob columns` | latent (U8, X11) |
-    | `fix(schema): prefer agent_version values in v_model_config` | bug (U7, X15) |
-    | `fix(schema): declare the removal force flag as boolean` | latent (U9, X25) |
-    | `test(database): skip txn query logging test on postgresql` | harness (D25) |
-    | `test(schema): seed controller api port as text` | latent test (X23) |
-    | `test(domain): quote the user table in test sql` | latent test (X8) |
-    | `test(domain): use single-quoted string literals in test sql` | latent test (X6, U6) |
-    | `test(domain): replace sqlite date functions in test sql` | latent test (X7) |
-    | `fix(schema): declare relation status type ids as integers` | latent (U12, X23, D30) |
-    | `test(crossmodelrelation): match secret consumer units without instr` | latent test (X30) |
-    | `fix(database): move schema dialects to a leaf package` | harness (D11 amended) |
-    | `test(domain): replace insert or ignore and replace in test sql` | latent test (X7) |
+The harness is implemented; the leaf-dialect refactor resolved its schema
+import cycle. Remaining work is test repair, diagnosis and verification,
+not building another harness. PostgreSQL bootstrap is reported passing;
+this does not establish that all suites or the runtime worker work.
 
-    The earlier env-isolation fix is folded into the harness commit, and
-    the explicit `change_log` id fix (D13) into Stage 4's
-    `feat(schema): generate and embed postgresql ddl`.
+Stage 6 discovers compatibility defects; fixes can belong on Stages 3–5.
+It supports bounded milestone gates rather than becoming a requirement to
+make every Juju package pass before any runtime work resumes.
 
-  - Passing on PostgreSQL in their latest runs: `domain/lease/state`,
-    `domain/controllernode/state`, `domain/changestream/state`,
-    `domain/objectstore/state`, `domain/provisioner`,
-    `domain/modelmigration/state/controller`, `core/database/schema`,
-    `core/database/dialect`, `internal/database`,
-    `core/watcher/eventsource`, `domain/schema`.
-  - `RAISE(ABORT, ...)` sites still to convert to `FailingTriggerSQL`:
-    `domain/removal/state/model/relation_test.go`,
-    `domain/removal/state/model/relationwithremoteofferer_test.go`,
-    `domain/application/state/application_refresh_test.go` and
-    `domain/machine/state/reprovision_test.go`. `internal/migration`
-    `abort_test.go` creates an SQLite `BEGIN ... END` trigger too.
-- Findings:
-  - `internal/testhelpers` `OsEnvSuite` (part of `IsolationSuite`) clears
-    environment variables that are not in its `testingVariables` list.
-    `JUJU_POSTGRESQL_TEST_URL` was missing from it, so `DqliteSuite` and
-    `BackendForTest` never saw it. Suites built on
-    `coretesting.BaseSuite` kept the variable. Fixed in
-    `fix(testing): keep postgresql test url through env isolation`.
-  - Failure injection uses `schematesting.FailingTriggerSQL`, which emits
-    SQLite or plpgsql trigger DDL. PostgreSQL does not allow subqueries in
-    a trigger `WHEN`, so the condition is evaluated in the function body.
-    The remaining direct `RAISE(ABORT, ...)` sites are listed under
-    restart notes.
-  - Domain errors are masked from driver errors, so tests cannot use
-    `database.IsErrConstraint*` on errors returned by state methods; match
-    message text that both backends share.
-  - Portability (Stage 4 generator): the `change_log` serialising trigger
-    replaced explicit ids, so the changestream prune tests, which insert
-    ids from 1000, pruned the wrong rows. Fixed in pgschemagen (D13
-    amendment) in `fix(schema): keep explicit change_log ids on
-    postgresql`; the PostgreSQL schemas were regenerated.
-  - Dqlite defects found here are in the
-    [upstream fix register](../UPSTREAM-FIXES.md).
-- Assumptions to verify:
-  - Domain code tolerates SERIALIZABLE retries; no transaction body has
-    non-idempotent side effects outside the DB.
-  - SQLite type affinity hides a bounded number of type mismatches that
-    this harness will surface.
+## Required context
+
+Read the selected task and relevant rows in
+[06-compatibility.md](06-compatibility.md), its X*/D* references, and
+[OPERATIONS.md](../OPERATIONS.md) for running tests. Read N6, N9, N10 and
+D11 if changing the harness. Commit inventories and past failures are in
+[history](../history/compatibility.md), not mandatory setup reading.
+
+## Existing contracts
+
+- `internal/database/testing` and `domain/schema/testing` select PG via
+  `JUJU_POSTGRESQL_TEST_URL`; absent the variable, existing SQLite/dqlite
+  behaviour remains. Prove selection after environment/harness changes.
+- Each test namespace has a unique throwaway schema (N9), with the
+  matching controller/model DDL, deterministic closure and cleanup.
+- `SchemaDialect()` returns the leaf `core/database/dialect` interface.
+  Do not import the schema engine back into the harness and recreate the
+  cycle. Use dialect-aware helpers for unavoidable backend-specific DDL.
+- PG connections use UTC, SERIALIZABLE and bounded pools (cap 3 per
+  namespace, X22). Stage 8 must preserve these runtime requirements.
+- Failure injection must still test the intended operation and rollback.
+  A different SQL error during setup is not equivalent coverage.
+
+## Next tasks and completion
+
+1. Repair one named issue from the task table or diagnose the status
+   failures. Route production-query work to Stage 5; do not combine it
+   silently with fixture changes.
+2. Use D42's runtime-entry package list in the detail file. Confirm test
+   selectors/budgets and classify status failures before dispatching runs.
+   Keep deferred PostgreSQL import/export (D40) distinct from blockers.
+3. Run the approved gate sequentially on both backends at the restacked
+   revision; record selectors, tags, skips and evidence. A fixed issue
+   remains "awaiting rerun" until tested.
+4. Stage 8 can proceed after that entry gate is satisfied. The functional
+   milestone also requires the dedicated cross-model secrets fix and
+   Stage 9 runtime evidence; passing this gate alone is not "functional".
+
+## Stop conditions
+
+Ask before changing production semantics, adding skips, weakening an
+assertion, broadening the gate, or choosing a new driver/schema workaround.
+For transaction changes, test retry behaviour and inspect the affected
+callback for non-repeatable side effects; do not claim a repository-wide
+retry audit from a small passing suite. Concurrency tests must obey the
+repository's race, stress and watcher-readiness rules.

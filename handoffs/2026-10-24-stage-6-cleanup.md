@@ -1,12 +1,13 @@
 # PostgreSQL PoC: handoff, Stage 6 cleanup paused (2026-10-24)
 
-> Superseded 2026-10-25 by `2026-10-25-stage-6-test-sql.md`. Items 1-5
-> of section 5 are done; the remaining work is listed there.
-
-> Point-in-time note. The work stopped because the PoC PostgreSQL server
-> ran out of disk. It is being cleaned up or redeployed with more disk in
-> another session. Fold the items below into the stage files, then mark
-> this note superseded.
+> Historical snapshot. Current work is in [Stage 5](../stages/05-queries.md)
+> and [Stage 6](../stages/06-test-harness.md). The former blanket claim that
+> section 5 items 1–5 were done was too broad; some subitems remained.
+> Use the current task/results detail, not this note, for completion state.
+>
+> This session stopped when the PG server filled its disk. The subsequent
+> redeployment and mitigations are recorded in Stage 1; the incident below
+> is historical, not an instruction to redeploy again.
 
 Goal of the session: finish Stage 6 (PostgreSQL test harness and suites)
 so that Stage 8 can continue.

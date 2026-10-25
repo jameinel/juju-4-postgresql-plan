@@ -1,8 +1,10 @@
 # Juju 4 on PostgreSQL: dqlite coupling analysis
 
-Status: reference document for [PLAN.md](PLAN.md). Captured against
-`a8591fe1b8` (Juju 4.1 development). Line numbers drift; re-grep before
-relying on them.
+Status: historical exploration for [PLAN.md](PLAN.md), captured against
+`a8591fe1b8` (Juju 4.1 development). Not current implementation guidance.
+Read only the section a task needs. Current DECISIONS.md and stage files
+supersede proposals here; counts, paths and line numbers need rechecking.
+Later schema observations are in [history](history/schema-generation.md).
 
 ## Summary
 

@@ -1,0 +1,133 @@
+# Build and validation reference
+
+Read the relevant section when building, testing, regenerating schemas or
+operating the PoC. PLAN.md keeps the always-needed safety and stack rules.
+Follow the code repository's AGENTS.md and nested guidance as well.
+
+## Exceptional stack operations
+
+Routine new-stage/fix/restack/push commands stay in PLAN.md. For an
+approved amendment, create `git commit --fixup=<sha>` from the top, then
+run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash --update-refs <base>`.
+Use the current base from PLAN.md, not a historical hash.
+
+For a new upstream base, only when the user asks:
+`git rebase --update-refs --onto <new-base> <old-base> <top>`, then update
+PLAN.md. Inspect the graph and verify adjacent branch ancestry after any
+restack. Stop on conflicts or unexpected duplicated/skipped commits;
+[earlier recovery history](history/compatibility.md#historical-runs-and-restacking)
+is diagnostic context, not a command to repeat blindly.
+
+## Local tools
+
+- `juju` on PATH is Juju 3.6. Use it only for the PostgreSQL hosting
+  controller. Use the explicit built client path for PoC controllers.
+- `juju_4` is a reference snap, not proof that the modified tree still
+  works with dqlite. Benchmark baselines must identify an exact revision.
+- Build with `make juju jujuagentd`; `bootstrap --build-agent` runs
+  `make jujuagentd` in the code tree. `make install` includes schema
+  regeneration; `make go-build` does not.
+- Agent sessions see `~/.local/bin`, not `~/go/bin`, on PATH. The lint
+  tools (`golangci-lint`, `gci`, `govulncheck`, `go-licenses`) were installed
+  in `~/.local/bin`; `shellcheck` is in `/usr/bin`. Use the Go snap's
+  `gofmt`, not an older system copy. Check versions when recording results.
+- Run the repository-prescribed gci command on touched, non-generated Go
+  files. Run `make pre-check`; report whether `STATIC_ANALYSIS=1` was
+  enabled rather than treating the default target as full static analysis.
+- Read third-party source from local clones under
+  `~/dev/go/src/github.com/<owner>/<repo>` rather than the GitHub API.
+  Existing clones: `canonical/postgresql-operator` (16 charm on `16/edge`),
+  `canonical/postgresql-single-kernel-library`, `canonical/data-integrator`.
+  Go module sources are in the module cache.
+
+## PostgreSQL test runs
+
+`JUJU_POSTGRESQL_TEST_URL` opts the harness into PostgreSQL (N6). Without
+it, tests use the existing SQLite/dqlite path. With it, every suite built
+on `DqliteSuite` is redirected, not just previously verified suites.
+
+- Run one PostgreSQL package at a time. Do not overlap suites, stress
+  workers or benchmarking on the shared server.
+- Prove backend selection after harness/environment changes: run the
+  selected suite with
+  `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and require a
+  connection failure. A previous Stage 6 run silently used SQLite.
+- Use `-count=1`. Use `-race` for mutex/goroutine code and bounded stress
+  for goroutine, tomb or catacomb code, as required by AGENTS.md.
+- Set a Go timeout and a longer outer timeout per package. Application
+  and removal-model suites have taken 16–17 minutes on PostgreSQL;
+  a three-minute example is not their acceptance budget. Agree the budget
+  before a long run; timeout is not evidence of a functional regression.
+- Do not print the database URL. Obtain it from the private file or the
+  environment. The snap Go command has been observed to produce no output
+  with direct file redirection: use a pipe, preserving the test exit code.
+
+Example for one small package; substitute the task's package and budgets:
+
+```bash
+set -o pipefail
+export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
+timeout 200s go test -count=1 -race -timeout 3m -v ./internal/database/postgresql/ \
+  2>&1 | tee "$LOG_FILE"
+```
+
+`LOG_FILE` must name a file outside both repositories. Capture the pipeline
+exit status immediately in automation. For the default-backend run, unset
+`JUJU_POSTGRESQL_TEST_URL` explicitly. Record build tags: an untagged
+SQLite test run does not prove the actual dqlite runtime works.
+
+For stress, compile the target package with `-race` and run the selected
+suite through a bounded `stress` invocation. Use one process for PG (for
+example `stress -p 1`); terminate only the specific run and account for
+leftover test schemas. Do not infer a stall solely from an interval with
+no log output. Inspect progress and resources before stopping a run.
+
+## Required evidence
+
+For each required run, record: source revision, package/suite selector,
+backend and build tags, command/budget, exit status, failures and skips,
+and a redacted log location. Keep three states distinct: passed at the
+recorded revision, fixed but not rerun, and not run/failed.
+
+A run interrupted by disk exhaustion or timeout is inconclusive. After a
+restack, earlier passes are historical evidence, not passes of the new
+revision. A skip must have an approved backend-specific reason (N10), not
+merely an outstanding portability failure. Retain typed error assertions
+where exposed; where state-layer masking hides driver errors, assert the
+intended domain error or specific message, not just any failure.
+
+Current Stage 6 results and remaining tasks live in
+[06-compatibility.md](stages/06-compatibility.md). Session-local helper
+scripts and historical logs are optional evidence, not prerequisites to
+reproduce the commands.
+
+## Schema changes
+
+After changing shared DDL or overrides:
+
+```sh
+go generate ./domain/schema/...
+```
+
+This regenerates triggers and PostgreSQL DDL. For only PostgreSQL output,
+use `go generate ./domain/schema/postgresql.go`. Freshness tests must pass.
+Changes to shared column types also require the applicable export/import
+regeneration and legacy-format regression tests (D30), even though running
+model import/export on PostgreSQL is deferred.
+
+Never silently recreate a live database after a schema mismatch. Current
+4.1 beta schema edits require explicit recreation of disposable PoC
+instances; inspect the target and get approval for destructive operations.
+
+## Server and credentials
+
+[Stage 1](stages/01-provision.md) owns provisioning, TLS recreation and
+disk-use details. It records a prior disk-full incident and the mitigations.
+The existing server has a limited connection budget; test-pool limits do
+not prove enough capacity for arbitrary model counts or controller HA.
+
+Use explicit controller/model targets because the Juju clients share local
+state. Test schemas must not overlap live controller/model schemas (N9,
+D20). Inspect owned schemas before cleanup; never drop all `juju_*` schemas
+on an unverified target. Do not expose credentials in logs, benchmark
+artifacts or process arguments.

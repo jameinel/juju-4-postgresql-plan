@@ -1,21 +1,25 @@
 # Juju 4 on PostgreSQL: proof-of-concept plan
 
-Status: **DRAFT, awaiting review**.
+Status: **active PoC; milestone contracts being refined**.
 
-This file holds only what every session needs. Detail for one stage lives
-in that stage's file under [stages/](stages/).
+Read this file every session, then only the named stage/task and its
+required references. Current instructions take precedence over historical
+handoffs; unresolved design choices are not implementation instructions.
 
 ## Goal and scope
 
-Bootstrap a Juju 4 controller, built from the code tree, whose controller
-and model databases live in an external PostgreSQL. Controller config
-selects the backend:
+This proof of concept has three outcomes:
 
-```sh
-$(go env GOPATH)/bin/juju bootstrap lxd pg-poc --build-agent \
-  --config db-backend=postgresql \
-  --config db-url="$JUJU_PG_POC_DB_URL"
-```
+1. A functioning PostgreSQL-backed controller suitable for benchmarking
+   and comparative testing.
+2. SQL portability findings that expose accidental dqlite dependencies
+   and incomplete architectural assumptions.
+3. Concrete, independently reviewable fixes for upstream Juju 4.1.
+
+Compare three cases (D38): a pinned stock upstream Juju build, the PoC
+build using dqlite, and the same PoC build using PostgreSQL. Record the
+source revisions and deployment configurations. Upstream fixes as they
+become ready; their release value does not depend on finishing the PoC.
 
 In scope (D1): LXD machine controllers including `enable-ha`, fresh
 bootstrap only, and an external PostgreSQL reached via a URL. dqlite
@@ -23,58 +27,79 @@ remains the default and keeps working.
 
 Out of scope: Kubernetes controllers, migrating a dqlite controller,
 `dbrepl` / `dbreplaccessor`, credential rotation, the controller-charm
-relation, production hardening and performance work.
+relation, production hardening and performance optimisation. Benchmarking
+and comparative testing are in scope; workload-specific acceptance still
+needs agreement.
 
-## Documents
+## Milestones
 
-| Document | Contents | When to read |
+| Milestone | Completion | Main stages |
 |---|---|---|
-| `PLAN.md` | Workflow, status and rules | Every session |
-| [stages/](stages/) `NN-<slug>.md` | Goal, steps, status, restart notes and findings of one stage | The stage being run; findings of earlier stages it cites |
-| [DECISIONS.md](DECISIONS.md) | Confirmed decisions (D*, N*) | Entries the stage cites; before proposing a design |
-| [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) | dqlite defects the port exposed | When classifying a `bug` or `latent` change |
-| [DIALECT.md](DIALECT.md) | SQLite and PostgreSQL differences (X*) and how each is handled | Before writing or fixing SQL; when a test fails only on PostgreSQL |
-| [ANALYSIS.md](ANALYSIS.md) | dqlite coupling analysis and trade-offs | Sections the stage cites |
-| [handoffs/](handoffs/) | Point-in-time handoff notes, superseded by the above | Only when asked |
+| Runtime integrated | Bootstrap and namespace/worker lifecycle work; required compatibility checks pass. | 5–8 |
+| Functional single controller | End-to-end lifecycle passes on PoC dqlite and PostgreSQL, including the dedicated cross-model secrets fix (D40). | 5-CMR, 6, 9 |
+| First comparison | Run the agreed workload on stock upstream, PoC dqlite and PoC PostgreSQL; record correctness and performance evidence. | 9, [comparison contract](BENCHMARKS.md) |
+| Juju controller HA | Three Juju controllers share one writable PostgreSQL primary; controller loss/rejoin preserves operation. | 10 |
+
+The first comparison precedes HA (D39). Read-replica routing and PostgreSQL
+primary failover experiments are not part of Stage 10. PostgreSQL model
+import/export is deferred (D40); shared fixes must still preserve upstream
+import/export compatibility.
+
+Portability findings and upstream 4.1 fixes are continuing deliverables,
+not a final stage after HA. Record unfixed findings as well as fixes.
+D42 defines the Stage 8 entry gate separately from functional acceptance.
+Benchmark workloads and unresolved worker contracts still require approval
+before their corresponding execution tasks begin.
+
+## Context map
+
+| Read | When |
+|---|---|
+| This file + named [stage](stages/) | Every session; current task, branch and stop conditions. |
+| [DECISIONS.md](DECISIONS.md) | Only cited D*/N* entries; before proposing a change to them. |
+| [DIALECT.md](DIALECT.md) | Relevant X* entries when changing SQL or diagnosing backend differences. |
+| [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md), [review branches](UPSTREAM-PLAN.md) | Classifying/extracting 4.1 fixes; branch ownership and upstream reintegration. |
+| [OPERATIONS.md](OPERATIONS.md) | Building, testing, regenerating or operating the PoC. |
+| [Stage 6 task/results detail](stages/06-compatibility.md) | Selected compatibility task or validation run. |
+| [BENCHMARKS.md](BENCHMARKS.md) | Designing or executing the three-way comparison. |
+| [Cross-model secrets](investigations/crossmodel-secrets.md) | Dedicated U11 design/fix task. |
+| [ANALYSIS.md](ANALYSIS.md), [history/](history/), [handoffs/](handoffs/) | Exploration rationale or historical evidence only; not prerequisite reading unless a task cites a section. |
 
 ## Repositories
 
-- **Code**: `~/dev/go/src/github.com/juju/juju-4-postgresql`, remote
-  `origin` = `jameinel/juju`. One working tree; switch branches in it. Do
-  not add worktrees.
-- **Plan**: `~/dev/go/src/github.com/juju/juju-4-postgresql-plan`, remote
-  `origin` = `jameinel/juju-4-postgresql-plan`, branch `main`. Never commit
-  plan documents to the code repository.
-
-Sessions run in the code repository. The plan repository is a sibling
-directory, so the session needs access to it (for example `/add-dir` in
-the Copilot CLI).
+Sessions run in `~/dev/go/src/github.com/juju/juju-4-postgresql`
+(`origin=jameinel/juju`). Keep PoC work in one tree. Dedicated worktrees
+are allowed for upstream-only review branches (N11), not extra PoC trees.
+Plans live in sibling `../juju-4-postgresql-plan`
+(`origin=jameinel/juju-4-postgresql-plan`, branch `main`); grant session
+access if needed. Never commit plan documents to the code repository.
 
 ## Starting a session
 
-Kick-off prompt. Replace `N`, and name the PostgreSQL host controller only
-for stages that need a live PostgreSQL (such as 3, 4, 6 and 8 to 10):
+Prompt: "Read ../juju-4-postgresql-plan/PLAN.md and run task <id> in
+Stage <N>. Use <controller> to host PostgreSQL if needed. Stop after that
+task."
 
-```
-Read ~/dev/go/src/github.com/juju/juju-4-postgresql-plan/PLAN.md and run
-Stage N following its session protocol. Use the <controller> controller.
-```
+A dispatchable task needs a branch, prerequisites, code entry points,
+approved behaviour, bounded changes, checks and stop conditions. Clarify
+missing inputs; do not ask an executor to design and implement a backlog.
 
 ## Session protocol
 
-1. Read this plan, the stage file, the DECISIONS.md and ANALYSIS.md
-   entries it cites, and the `AGENTS.md` files that apply to the code it
-   touches.
-2. Work only on the named stage, plus any fix to an earlier stage that it
-   needs (see [stack workflow](#stack-workflow)). Do not start another
-   stage, even if this one finishes early.
-3. Read the stage's **Status**, **Restart notes** and **Findings**, and the
-   findings of the earlier stages it cites.
-4. Confirm the stage's open questions, and any new design choice, with the
-   user before writing code. Add a decision to DECISIONS.md only after the
-   user has confirmed it.
-5. Commit code only on the stage's branch, or on the earlier stage a fix
-   belongs to.
+1. Read this plan, the named task and its required references, plus the
+   code repository's root and applicable nested `AGENTS.md` guidance.
+2. Check both repositories' status and branch tips. Do not overwrite
+   another session's changes or infer current state from an old commit log.
+3. Work on one task. Route necessary earlier-stage fixes to their owning
+   branch; stop for new scope or design choices rather than expanding the
+   task. Do not weaken assertions or add skips merely to get a green run.
+4. Confirm open choices with the user before implementation; record only
+   confirmed decisions in DECISIONS.md. Distinguish a proposed fix from an
+   approved one, and implemented work from verified work.
+5. Keep one PoC implementation/restack stream. Upstream-only fixes may
+   run concurrently in dedicated worktrees under [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
+   (N11); do not switch or restack another owner's tree. PostgreSQL package
+   tests and benchmarks must not overlap.
 6. Classify every change made to get PostgreSQL working, whether in code,
    tests or schema:
    - `bug`: the dqlite behaviour is wrong today.
@@ -89,11 +114,14 @@ Stage N following its session protocol. Use the <controller> controller.
    `portability` changes in the stage's findings. Record every SQLite /
    PostgreSQL difference behind a change, or found and not yet handled,
    in DIALECT.md, including driver workarounds.
-7. Before ending the session:
-   - Update the stage file's **Status**, **Restart notes** (what is done,
-     what is next, gotchas) and **Findings**, and the status table below.
-   - Commit and push the plan repository.
-   - Push the code branches (see [stack workflow](#stack-workflow)).
+7. Before ending an implementation session:
+   - Update current task status, blockers and revision-specific evidence,
+     and this status table. Fold actionable handoff items into current
+     documents; history must not be the only place the next task is defined.
+   - Keep useful exploration history in a linked reference, not the next
+     task's mandatory context. Avoid duplicating commit inventories.
+   - Commit and push the plan repository and code branches under the stack
+     workflow. Documentation/design sessions do not restack code.
 
 ## Status
 
@@ -105,18 +133,21 @@ Stage N following its session protocol. Use the <controller> controller.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | in progress (X37, X38 open) |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 open; U11 dedicated design/fix |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | in progress (test SQL fixes) |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
-| 09 | [LXD bootstrap and smoke test](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started |
-| 10 | [enable-ha](stages/10-ha.md) | `pg-poc/10-ha` | not started |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
+| 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: resume from
-[handoffs/2026-10-25-stage-6-remaining.md](handoffs/2026-10-25-stage-6-remaining.md):
-the open Stage 5 fixes (X37, X38), then the Stage 6 test SQL commits and
-a full rerun one package at a time, then continue Stage 8.
+Next: use [Stage 5](stages/05-queries.md) for X37/X38 and the dedicated
+cross-model secrets task; [Stage 6](stages/06-test-harness.md) owns the
+remaining test repairs and acceptance gate. The latest handoff reports
+PostgreSQL bootstrap passing; Stage 8's runtime worker remains unimplemented.
+Do not repeat the old bootstrap-query fixes. Satisfy the bounded D42 entry
+gate before Stage 8 implementation; broader portability findings and U11
+still gate functionality rather than disappearing from scope.
 
 ## Stack workflow
 
@@ -130,12 +161,9 @@ highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
   1. `git switch pg-poc/NN-<slug>` and commit the fix there.
   2. `git switch <top> && git rebase --update-refs pg-poc/NN-<slug>`. This
      replays the later stages on the fix and moves every branch between.
-- **Amend an existing commit**: from the top, commit with
-  `git commit --fixup=<sha>`, then run
-  `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash --update-refs a8591fe1b8`.
-- **New upstream base** (only when the user asks): run
-  `git rebase --update-refs --onto <new-base> a8591fe1b8 <top>`, then
-  update the base commit here.
+- Amendments and upstream-base changes: use
+  [the exceptional procedures](OPERATIONS.md#exceptional-stack-operations).
+  Change the upstream base only when the user asks.
 - After any restack, run `go build ./...` on the top and the tests of the
   packages the fix touched.
 - **Push** every stage branch together:
@@ -153,33 +181,19 @@ highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
   are unrelated to the PoC. Stage 2 stays purely mechanical so it can be
   reviewed, and possibly proposed upstream, on its own.
 
-## Environment
+## Environment and safety
 
-- `juju` on `PATH` is Juju 3.6. `juju_4` (snap) is a Juju 4 reference, for
-  comparing behaviour with dqlite only.
-- Build PoC binaries from the code tree with `make juju jujuagentd`.
-  Always invoke the client by explicit path, `$(go env GOPATH)/bin/juju`,
-  to avoid collisions with the snaps. `bootstrap --build-agent` runs
-  `make jujuagentd` in the tree.
-- The Juju 3.6 controller hosting PostgreSQL is a parameter (for example
-  `PG_HOST_CONTROLLER`). Never hardcode controller names in scripts.
-  Stage 1 describes the deployed models.
-- Juju 3.6 and Juju 4 clients may share `~/.local/share/juju`; take care
-  when switching controllers.
-- Read third-party source (charms, libraries) from local clones under
-  `~/dev/go/src/github.com/<owner>/<repo>`, beside the code repository,
-  rather than through the GitHub API. Clone there if missing. Already
-  cloned: `canonical/postgresql-operator` (16 charm on branch `16/edge`),
-  `canonical/postgresql-single-kernel-library` (the charm's logic) and
-  `canonical/data-integrator`. Go module sources are in the module cache.
-- `psql` is installed on the host.
-- Agent sessions see `~/.local/bin` on `PATH`, but not `~/go/bin`. The lint
-  tools for `STATIC_ANALYSIS=1 make pre-check` (golangci-lint 2.14.0,
-  `gci`, `govulncheck`, `go-licenses`) are in `~/.local/bin`; `shellcheck`
-  is in `/usr/bin`. The `go` snap provides Go 1.27; use its `gofmt`, not an
-  older one.
-- gci:
-  `gci write --section standard --section default --section "Prefix(github.com/juju/juju)" <files>`.
+- The default `juju` is Juju 3.6, used to host PostgreSQL. Invoke the PoC
+  client explicitly as `$(go env GOPATH)/bin/juju`; build from the code
+  tree. A reference snap is not validation of modified dqlite code.
+- Pass the hosting controller as a parameter (`PG_HOST_CONTROLLER`), not
+  a hardcoded name. Clients share local Juju state: target controller and
+  model explicitly, especially for teardown or fault injection.
+- Test and cleanup operations must not touch unrelated schemas, models or
+  controllers. Confirm destructive targets; never clean up the PG host as
+  part of a Juju controller-failure test.
+- Read [OPERATIONS.md](OPERATIONS.md) for build/test commands, backend
+  proof, timeouts, schema regeneration, tool locations and server limits.
 
 ## Secrets
 
@@ -188,28 +202,3 @@ highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
   outside the repositories with mode 0600 (the Stage 1 script writes
   `~/.config/juju-pg-poc/db-url`).
 - Scripts print credentials only to stdout or a file the user names.
-
-## Testing on PostgreSQL
-
-- Opt-in PostgreSQL tests read the URL from `JUJU_POSTGRESQL_TEST_URL`
-  (N6): `JUJU_POSTGRESQL_TEST_URL=$(cat ~/.config/juju-pg-poc/db-url)`.
-  With it set, every suite built on `DqliteSuite` runs on PostgreSQL, not
-  only the verified ones.
-- Prove a run reached PostgreSQL: point the variable at
-  `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and expect
-  "connection refused". A Stage 6 run once silently used SQLite.
-- Run one package at a time, with
-  `timeout 200 go test -count=1 -timeout 3m -v ./pkg/`. A `SetUpTest`
-  failure repeats for every test.
-- The snap `go` writes nothing when stdout is redirected to a file. Pipe
-  instead: `go test ... 2>&1 | cat > log`.
-- PostgreSQL aborts the whole transaction on any statement error. Resolve
-  conflicts in SQL (`ON CONFLICT`) rather than catching the error (X18).
-- pgx will not bind Go integers to TEXT parameters (X23).
-- Other SQL that only PostgreSQL rejects is listed in DIALECT.md.
-- Domain errors mask driver errors, so tests match message text that both
-  backends share.
-- After changing dqlite DDL or overrides, regenerate with
-  `go generate ./domain/schema/...` (triggers, then PostgreSQL DDL), or
-  `go generate ./domain/schema/postgresql.go` for the PostgreSQL DDL only.
-  The `pgschemagen` tests fail if the generated files are stale.

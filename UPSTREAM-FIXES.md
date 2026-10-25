@@ -1,10 +1,31 @@
 # Upstream fix register
 
-These are dqlite-side defects that the PostgreSQL work exposed. Each one
-should be fixed in Juju whatever happens to the PoC. Classes are as in
-[PLAN.md](PLAN.md#session-protocol), session protocol step 6. A fixed
-entry names the commit holding the fix, which can be proposed upstream on
-its own.
+Concrete 4.1 fixes and shared portability improvements exposed by the PoC.
+Their release value does not depend on finishing PostgreSQL support or HA.
+Classes are defined in [PLAN.md](PLAN.md#session-protocol). "Fixed" below
+means implemented in the PoC, not reviewed, independently extractable or
+merged upstream. Record upstream PR/revision and validation when available.
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) maps fixes to proposed review branches,
+concurrency boundaries and the later PoC rebase.
+
+## Extraction gate
+
+For each proposed 4.1 change:
+
+- Identify the dqlite defect or portability benefit and any behaviour delta.
+- Isolate a coherent patch with no PostgreSQL-only/generated dependencies.
+  U1/U2 share a PoC commit but are separate commits on the existing
+  `4.1-sqlite-integers` review branch. U8/U9 include PG output to omit.
+  Verify the extracted patch; do not assume PoC commits are self-contained.
+- Carry a regression test and default/dqlite evidence on the target 4.1
+  revision; preserve legacy import/export representations for schema fixes.
+- Record the PoC commit, extraction adjustments, validation and upstream
+  disposition (not proposed / in review / merged / deferred).
+
+Existing entries have not been revalidated or assigned upstream PRs during
+this plan refinement. Prioritise concrete bugs and schema-correctness fixes
+for release review; do not wait for all portability suites to be green.
+
 
 | ID | Class | Location | Defect on dqlite | Status |
 |---|---|---|---|---|
@@ -18,13 +39,13 @@ its own.
 | U8 | latent | Controller schema: `user_activation_key.activation_key`, the eight `bakery_config` key columns, `macaroon_root_key.root_key` | Declared `TEXT` but bound as raw random bytes (activation key, bakery key pairs, `dbrootkeystore` root keys). SQLite stores them as BLOBs regardless; `domain/schema/storage.go` `binaryTextColumns` and recovery carried the mismatch, and exports typed them as strings. PostgreSQL rejects them (DIALECT.md X11), breaking `add-user`, the bootstrap worker's bakery initialisation and macaroon minting. | Fixed, Stage 6, `fix(schema): store random key bytes in blob columns`. The columns become `BLOB` in place; the 4.1 controller export types become `[]byte`. Upstream, drop the `domain/schema/postgresql/` paths from the commit. |
 | U9 | latent | Model schema `removal.force` | Declared `INT` while every writer binds a Go bool or `FALSE` and every reader scans a bool. SQLite stores booleans as integers, so the mismatch was hidden, and exports carried the flag as an integer. PostgreSQL rejects a boolean for `bigint` (DIALECT.md X25). | Fixed, Stage 6, `fix(schema): declare the removal force flag as boolean`. `BOOLEAN NOT NULL DEFAULT FALSE` in place; the 4.1 export type becomes `bool` and the 4.0.12 import delta converts 0 / 1 and rejects other values. Upstream, drop the `domain/schema/postgresql/` paths from the commit. |
 | U10 | portability | `domain/blockcommand/state` `GetBlocks` | Ordered by `rowid`, an implicit SQLite column that PostgreSQL lacks (DIALECT.md X31). On dqlite the order was insertion order. | Fixed, Stage 5, `fix(blockcommand): order blocks by type instead of rowid` (D31). dqlite order changes to type order; `TestGetBlocksOrderedByType` fails with `rowid`. |
-| U11 | latent | `domain/crossmodelrelation/state/model/secrets.go` (two queries) | Group by `sruc.secret_id` but select `sr.uuid` and test `sruc.current_revision` in `HAVING`, so with several consuming units SQLite picks an arbitrary unit row (DIALECT.md X16). Also uses `instr` (X30). | Open (D35). Portable design in `handoffs/2026-10-25-stage-6-test-sql.md` section 6. |
+| U11 | latent | `domain/crossmodelrelation/state/model/secrets.go` (two queries) | Group by `sruc.secret_id` but select `sr.uuid` and test `sruc.current_revision` in `HAVING`, so with several consuming units SQLite picks an arbitrary unit row (DIALECT.md X16). Also uses `instr` (X30). | Open; dedicated [design/fix task](investigations/crossmodel-secrets.md), required before functionality (D40 supersedes deferral in D35). Candidate semantics need approval and multi-unit tests. |
 | U12 | latent | Model schema `relation_status_type.id`, `relation_status.relation_status_type_id` | Declared `TEXT` while the seed rows, `EncodeRelationStatus` and every writer use integers and the offer view compares with `1`. SQLite coercion hid it, and exports carried the ids as strings. pgx will not encode a Go int for `TEXT` (DIALECT.md X23). | Fixed, Stage 6, `fix(schema): declare relation status type ids as integers` (D30). 4.1 export types become `int64`; the 4.0.12 import delta parses the legacy strings. |
 | U13 | bug | `domain/keymanager/state` `ensureUserPublicKey` | Read the new key id with `LastInsertId`. When the `INSERT ... SELECT` inserted nothing because the fingerprint hash algorithm was unknown, SQLite returned the connection's previous rowid, so the model could be linked to an unrelated key. | Fixed, Stage 5, `fix(keymanager): return new public key ids from the insert` (D36, DIALECT.md X35). An unknown algorithm returns an error; new test. |
 
-Portability cleanups (valid on dqlite, invalid on PostgreSQL; no dqlite
-behaviour change). Each is on Stage 5 and can be proposed upstream on its
-own:
+Shared portability improvements on Stage 5. Review each for behaviour
+deltas and extraction readiness; "portability" is not a guarantee of no
+observable dqlite change (notably X36's reused-UUID error):
 
 - X16: change stream latest-change query (`fix(changestream): select
   latest changes without bare columns`).
@@ -57,8 +78,7 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 - `PinLease` ignored a unique violation inside its transaction. SQLite
   rolls back only the failing statement, so this was correct on dqlite;
   PostgreSQL aborts the whole transaction. Fixed as portability on
-  Stage 5, `fix(lease): 
-resolve lease pin conflicts in sql`, with
+  Stage 5, `fix(lease): resolve lease pin conflicts in sql`, with
   `ON CONFLICT DO NOTHING` (DIALECT.md X18).
 - `TestSetAPIAddressesSharedPeerRollsBack` violates
   `controller_peer_address.controller_id NOT NULL` on purpose to force a
