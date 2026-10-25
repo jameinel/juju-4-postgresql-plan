@@ -1,5 +1,8 @@
 # PostgreSQL PoC: handoff, Stage 6 test SQL (2026-10-25)
 
+> **Superseded** by `2026-10-25-stage-6-remaining.md`. Section 6
+> (crossmodelrelation secrets design) is still referenced from there.
+
 > Point-in-time note. It supersedes
 > `2026-10-24-stage-6-cleanup.md`. Fold the items below into the stage
 > files and DECISIONS.md, then mark this note superseded.

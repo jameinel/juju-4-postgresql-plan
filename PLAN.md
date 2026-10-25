@@ -105,20 +105,18 @@ Stage N following its session protocol. Use the <controller> controller.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | in review |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | reopened, in progress |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | in progress (X37, X38 open) |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | in progress (test SQL fixes) |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
 | 09 | [LXD bootstrap and smoke test](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started |
 | 10 | [enable-ha](stages/10-ha.md) | `pg-poc/10-ha` | not started |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: the PoC PostgreSQL server was redeployed with disk-use limits (see
-[Stage 1](stages/01-provision.md) restart notes). Resume the Stage 6
-cleanup from
-[handoffs/2026-10-24-stage-6-cleanup.md](handoffs/2026-10-24-stage-6-cleanup.md)
-(next steps and owed documentation), rerunning suites one package at a
-time, then continue Stage 8.
+Next: resume from
+[handoffs/2026-10-25-stage-6-remaining.md](handoffs/2026-10-25-stage-6-remaining.md):
+the open Stage 5 fixes (X37, X38), then the Stage 6 test SQL commits and
+a full rerun one package at a time, then continue Stage 8.
 
 ## Stack workflow
 

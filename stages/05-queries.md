@@ -11,10 +11,27 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
   5. Quote `"user"` in queries.
 - Verification: existing dqlite tests still pass; the same tests pass on PG
   once Stage 6 lands.
-- Status: in review. One `fix(domain)` commit on `pg-poc/05-queries`.
-  Affected domain, changestream and
-  leaseexpiry suites pass on dqlite/SQLite; nothing was run on PG (needs
-  Stages 4 and 6). `golangci-lint` not run.
+- Status: in review. Thirteen commits on `pg-poc/05-queries`. The early
+  commits were checked on dqlite only; the later ones were found and
+  verified with the Stage 6 PostgreSQL harness after restacking. X37 and
+  X38 (DIALECT.md) are open Stage 5 work. `golangci-lint` not run.
+- Commits (oldest first):
+
+  | Commit | DIALECT | Class |
+  |---|---|---|
+  | `fix(domain): make shared sql queries valid on sqlite and postgresql` | X7, X8 | portability |
+  | `fix(lease): resolve lease pin conflicts in sql` | X18 | portability |
+  | `fix(domain): qualify on conflict upserts for postgresql` | X3, X4 | portability |
+  | `fix(changestream): select latest changes without bare columns` | X16 | portability (D24) |
+  | `fix(status): read allocate_public_ip as a nullable bool` | X25 | portability (D29) |
+  | `fix(domain): select from ctes in in-list subqueries` | X24 | portability |
+  | `fix(domain): avoid ignoring constraint errors inside transactions` | X18 | portability |
+  | `fix(model): replace iif in the model connection info query` | X7 | portability (D32) |
+  | `fix(blockcommand): order blocks by type instead of rowid` | X31 | portability (U10, D31) |
+  | `fix(operation): compare operation query flags with booleans` | X34 | portability (D34) |
+  | `fix(operation): measure pruned operation sizes as text` | X33 | portability (D33) |
+  | `fix(keymanager): return new public key ids from the insert` | X35 | portability, plus bug U13 (D36) |
+  | `fix(objectstore): use a single conflict clause when putting metadata` | X36 | portability (D37) |
 - Restart notes:
   - Done: `IFNULL` -> `COALESCE` (5 sites); `INSERT OR IGNORE` -> `ON
     CONFLICT DO NOTHING`; `"user"` quoted in every query and test helper
@@ -49,4 +66,6 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
   - Sites that look portable but are only checked on SQLite: SQLite lets
     `GROUP BY` leave columns bare and compares int to text freely; Stage 6
     will surface more.
-  - Next: user review.
+  - Next: X37 and X38 (see the
+    [current handoff](../handoffs/2026-10-25-stage-6-remaining.md)), then
+    user review.
