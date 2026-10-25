@@ -1,5 +1,8 @@
 # PostgreSQL PoC: handoff, Stage 6 cleanup paused (2026-10-24)
 
+> Superseded 2026-10-25 by `2026-10-25-stage-6-test-sql.md`. Items 1-5
+> of section 5 are done; the remaining work is listed there.
+
 > Point-in-time note. The work stopped because the PoC PostgreSQL server
 > ran out of disk. It is being cleaned up or redeployed with more disk in
 > another session. Fold the items below into the stage files, then mark
