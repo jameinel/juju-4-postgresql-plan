@@ -4,8 +4,10 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
 
 ## Status and scope
 
-Implemented baseline; remaining production tasks below. X33–X38 are
-finished; U11 remains open.
+Implemented baseline; remaining production tasks below. X33–X38 and U11
+are finished (U11 is cherry-picked from the open upstream PR). The
+`domain/secret/state` X16 sites found while verifying U11 are open
+(DIALECT.md X16).
 The [commit inventory](../history/compatibility.md#stage-5-inventory) is
 historical. Stage 6 supplies the existing PostgreSQL harness; do not
 reimplement it. Latest failures are in [its evidence table](06-compatibility.md#latest-recorded-evidence).
@@ -31,15 +33,14 @@ aggregate, so the join is a deliberate cross join and cardinality is
 unchanged. Added a zero-fulfilment test. The detach-info tests pass on both
 backends; the full removal package rerun is part of the D42 gate.
 
-### 05-CMR: cross-model secrets
+### 05-CMR: cross-model secrets (done)
 
-Required before the functional milestone (D40), not incidental syntax
-cleanup. Read [the dedicated design/fix task](../investigations/crossmodel-secrets.md).
-Approve the consumer/revision semantics first, then implement multi-unit
-regressions and dual-backend verification. Keep the fix independently
-extractable for 4.1 (U11). Design analysis can be parallel; N11 permits an
-upstream-only implementation worktree ([branch plan](../UPSTREAM-PLAN.md)).
-Shared PoC edits/restacks and PostgreSQL runs remain serial.
+Implemented upstream as juju/juju#23688 (open). Both commits were
+cherry-picked unchanged onto this branch as `8f2c49c355` and `79f2e66049`,
+so that the PoC can continue before review finishes. Keep them unmodified,
+so that reconciliation after landing drops them cleanly. The semantics and
+evidence are in [the task](../investigations/crossmodel-secrets.md) and in
+U11 in [UPSTREAM-FIXES.md](../UPSTREAM-FIXES.md).
 
 ## Contracts consumers must preserve
 

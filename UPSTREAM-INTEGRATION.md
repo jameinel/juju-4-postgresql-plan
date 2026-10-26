@@ -19,7 +19,10 @@ permanent instructions in this file.
 
 Prefer one reconciliation per coherent landed batch, not per leaf commit.
 Unmerged PRs are not the upstream baseline; testing a combined integration
-branch before landing needs a separate scope decision.
+branch before landing needs a separate scope decision. Under D43, a PR may
+already be cherry-picked unchanged into the PoC. When it lands, compare it
+with the landed result, drop the duplicate commits and keep any residual
+work.
 
 ## Procedure
 

@@ -62,6 +62,14 @@ Verify the regression on SQLite/dqlite and the fixed behaviour on both
 backends; follow repository watcher/race rules where the path needs them.
 
 **Completion:** record the decision, commit, test evidence and U11 status.
+
+**Outcome (2026-10-26):** implemented upstream as juju/juju#23688 (open).
+Semantics: report a secret when any remote consuming unit is behind, return
+its latest revision once, and with a revision filter report it only if a
+filtered revision is newer than some unit's consumed revision. Both commits
+were cherry-picked unchanged onto `pg-poc/05-queries` (`8f2c49c355`,
+`79f2e66049`). Evidence and status are in the U11 entry of
+[UPSTREAM-FIXES.md](../UPSTREAM-FIXES.md).
 A syntactically accepted query or passing single-unit test is insufficient.
 Do not broaden this task into general cross-model relation redesign.
 

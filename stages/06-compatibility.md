@@ -95,7 +95,9 @@ historical pass to accept a new gate.
 | `domain/objectstore/state` | 0 | Recorded pass. |
 | `domain/keymanager/state` | 0 | 2026-10-26 at `08=7dc5b5bbc9`, full package; was 6 (X37, fixed). |
 | `domain/storageprovisioning/state` | 0 | 2026-10-26 at `08=7dc5b5bbc9`, full package (659 s). |
-| `domain/crossmodelrelation/state/model` | 23 | 2026-10-26 at `08=7dc5b5bbc9`. X37 offer-scope tests pass. Remaining, all test-side or U11: 16 fixtures bind integer `0` to `relation_status.updated_at` (mainly `package_test.go` `addOfferConnection`); 4 X25 `auto_prune` integer fixtures; 2 `instr` (X30, U11 secrets queries); 1 test `ORDER BY rowid` (`offer_test.go`, X31). |
+| `domain/crossmodelrelation/state/model` | 23 | 2026-10-26 at `08=7dc5b5bbc9`. X37 offer-scope tests pass. Remaining, all test-side or U11: 16 fixtures bind integer `0` to `relation_status.updated_at` (mainly `package_test.go` `addOfferConnection`); 4 X25 `auto_prune` integer fixtures; 2 `instr` (X30, U11 secrets queries); 1 test `ORDER BY rowid` (`offer_test.go`, X31). After U11 was cherry-picked, `TestModelSecretsSuite` passes 29/29 at `08=c5f185e6f6`, so the 2 U11 failures are fixed. |
+| `domain/crossmodelrelation` (U11 watcher tests) | 0 | 2026-10-26 at `08=c5f185e6f6`: `TestWatcherSuite/TestWatchRemoteConsumedSecretsChanges*` (2 tests). |
+| `domain/secret/state` (consumed-secret tests only) | 3 of 5 | 2026-10-26 at `08=c5f185e6f6`, `-run 'TestStateSuite/.*Consumed'`. The 3 failures are in fixture `UpdateSecret` (X16 `updateSecret`, 42803 on `rp.policy`), not the U11 queries. Full package not run. |
 | `internal/migration` | 3 | X21 (2), test trigger (1); PostgreSQL import deferred. |
 | `domain/provisioner/state/model` | 5 | X25 fixtures. |
 | `domain/provisioner` | 0 | Recorded pass. |

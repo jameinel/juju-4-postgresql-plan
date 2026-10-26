@@ -66,7 +66,7 @@ before their corresponding execution tasks begin.
 | [OPERATIONS.md](OPERATIONS.md) | Building, testing, regenerating or operating the PoC. |
 | [Stage 6 task/results detail](stages/06-compatibility.md) | Selected compatibility task or validation run. |
 | [BENCHMARKS.md](BENCHMARKS.md) | Designing or executing the three-way comparison. |
-| [Cross-model secrets](investigations/crossmodel-secrets.md) | Dedicated U11 design/fix task. |
+| [Cross-model secrets](investigations/crossmodel-secrets.md) | U11 design/fix task (done; cherry-picked under D43). |
 | [ANALYSIS.md](ANALYSIS.md), [history/](history/), [handoffs/](handoffs/) | Exploration rationale or historical evidence only; not prerequisite reading unless a task cites a section. |
 
 ## Repositories
@@ -137,7 +137,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 done; U11 dedicated design/fix |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | in progress (test SQL fixes) |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
@@ -146,18 +146,22 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next: run the bounded D42 entry gate ([Stage 6 detail](stages/06-compatibility.md#runtime-entry-gate-before-stage-8-implementation));
-X37/X38 are done. [Stage 5](stages/05-queries.md) keeps the dedicated
-cross-model secrets task; [Stage 6](stages/06-test-harness.md) owns the
+X37/X38 and U11 are done; U11 is cherry-picked from juju/juju#23688,
+which is still open. [Stage 5](stages/05-queries.md) keeps the
+`domain/secret/state` bare `GROUP BY` sites (X16) found while verifying
+U11. [Stage 6](stages/06-test-harness.md) owns the
 remaining test repairs and acceptance gate. The latest handoff reports
 PostgreSQL bootstrap passing; Stage 8's runtime worker remains unimplemented.
 Do not repeat the old bootstrap-query fixes. Satisfy the bounded D42 entry
-gate before Stage 8 implementation; broader portability findings and U11
+gate before Stage 8 implementation; broader portability findings
 still gate functionality rather than disappearing from scope.
 
 ## Stack workflow
 
 Every stage branch sits on the one below it in the table, in one line
-(N4, N8). The base is upstream `4.1` at `a8591fe1b8`. The **top** is the
+(N4, N8). The base is upstream `4.1` at `a8591fe1b8`. Stage 5 also
+carries unchanged cherry-picks of open upstream PRs (D43; listed in
+UPSTREAM-FIXES.md). The **top** is the
 highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
 
 - **New stage**: create its branch from the top
