@@ -80,8 +80,16 @@ observable dqlite change (notably X36's reused-UUID error):
 - X36: several `ON CONFLICT` clauses (`fix(objectstore): use a single
   conflict clause when putting metadata`). A reused uuid now returns
   `ErrHashAndSizeAlreadyExists`.
-- Open: X37 (`==` in three queries) and X38 (comma join scope in removal
-  storage), see DIALECT.md.
+- X37: SQLite's `==` in three queries (`fix: use standard sql equality in
+  three domain queries`). `DeletePublicKeysForUser`'s unused-key cleanup
+  had no test; one was added.
+- X38: comma join scope in `GetDetachInfoForStorageAttachment`
+  (`fix(removal): spell out the fulfilment cross join in detach info`).
+  The fulfilment CTE is a one-row aggregate, so `CROSS JOIN` is the
+  intended join, not a rewrite. A new test covers a fulfilment count of
+  zero, which dqlite also lacked.
+- Upstream: X37 and X38 are proposed together as `4.1-sql-standard-syntax`
+  (UPSTREAM-PLAN.md), one commit each. Not yet extracted.
 
 Known gap, not a dqlite defect: `constraint.allocate_public_ip` stays `INT`
 in dqlite (`STRICT` table and the go-dqlite nullable-bool bug), and a
@@ -129,6 +137,7 @@ requiring these commits to be available.
 | U10/X31 | `a8301140de` |
 | X34/X33 | `18886acfdf` / `e2258798fe` |
 | X36 | `d658b402a6` |
+| X37 / X38 | `0703122e2a` / `18d679a2b7` |
 | U6/X6 | `8a60208176` |
 | X3/X4, X24, model IIF | `ff382936b3`, `fda7add768`, `9499d95ca6` |
 | X18 | `01316d98fe`, `bccb8d37b4` |
