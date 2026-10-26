@@ -138,23 +138,27 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | in progress (test SQL fixes) |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: run the bounded D42 entry gate ([Stage 6 detail](stages/06-compatibility.md#runtime-entry-gate-before-stage-8-implementation));
+Next: settle the [Stage 8](stages/08-dbaccessor.md) runtime lifecycle
+contract, then implement the PostgreSQL dbaccessor worker. The D42
+runtime-entry gate is met at `08=c5f185e6f6`
+([evidence](stages/06-compatibility.md#d42-runtime-entry-gate-run)):
+all 13 entry packages pass on both backends; status (48) and removal (47)
+failures are all recorded test-side tasks. `domain/schema` still skips its
+trigger and schema tests on PostgreSQL (06-schema-skip).
 X37/X38 and U11 are done; U11 is cherry-picked from juju/juju#23688,
 which is still open. [Stage 5](stages/05-queries.md) keeps the
 `domain/secret/state` bare `GROUP BY` sites (X16) found while verifying
 U11. [Stage 6](stages/06-test-harness.md) owns the
-remaining test repairs and acceptance gate. The latest handoff reports
-PostgreSQL bootstrap passing; Stage 8's runtime worker remains unimplemented.
-Do not repeat the old bootstrap-query fixes. Satisfy the bounded D42 entry
-gate before Stage 8 implementation; broader portability findings
-still gate functionality rather than disappearing from scope.
+remaining test repairs and the functional gate. Do not repeat the old
+bootstrap-query fixes. Broader portability findings still gate
+functionality rather than disappearing from scope.
 
 ## Stack workflow
 

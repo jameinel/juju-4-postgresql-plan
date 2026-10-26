@@ -47,9 +47,10 @@ D11 if changing the harness. Commit inventories and past failures are in
 3. Run the approved gate sequentially on both backends at the restacked
    revision; record selectors, tags, skips and evidence. A fixed issue
    remains "awaiting rerun" until tested.
-4. Stage 8 can proceed after that entry gate is satisfied. The functional
-   milestone also requires the dedicated cross-model secrets fix and
-   Stage 9 runtime evidence; passing this gate alone is not "functional".
+4. Stage 8 can proceed after that entry gate is satisfied (met on
+   2026-10-26; see the detail file). The functional milestone also
+   requires Stage 9 runtime evidence; passing this gate alone is not
+   "functional".
 
 ## Stop conditions
 

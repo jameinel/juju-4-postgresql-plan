@@ -5,13 +5,12 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 ## Status and prerequisites
 
 Bootstrap/placement code is implemented; the runtime worker is not.
-The latest handoff reports `TestPostgresBootstrapSuite` passing on PG.
-The old operation-4 query failures were fixed on Stage 5; do not repeat
-that work. Recover the tested revision/log or rerun before using this as
-acceptance evidence ([Stage 6 results](06-compatibility.md#latest-recorded-evidence)).
+`TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
+`08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
+do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
 
-Implementation resumes after the Stage 6 runtime-entry gate (D42), not
-all broader compatibility work. Stage 7 supplies immutable config and
+Implementation resumes after the Stage 6 runtime-entry gate (D42), which
+was met on 2026-10-26; broader compatibility work continues separately. Stage 7 supplies immutable config and
 `connsource.Source`. Read D3, D4, D7, D9, D11, D19–D23 and N2 for runtime
 work, plus X13/X22 for pool policy.
 
