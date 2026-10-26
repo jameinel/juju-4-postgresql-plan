@@ -39,9 +39,11 @@ For each proposed 4.1 change:
 - Record the PoC commit, extraction adjustments, validation and upstream
   disposition (not proposed / in review / merged / deferred).
 
-Existing entries have not been revalidated or assigned upstream PRs during
-this plan refinement. Prioritise concrete bugs and schema-correctness fixes
-for release review; do not wait for all portability suites to be green.
+Upstream PRs are listed under
+[Upstream review status](#upstream-review-status). The Status column below
+records the PoC implementation. Prioritise concrete bugs and
+schema-correctness fixes for release review; do not wait for all
+portability suites to be green.
 
 
 | ID | Class | Location | Defect on dqlite | Status |
@@ -50,7 +52,7 @@ for release review; do not wait for all portability suites to be green.
 | U2 | latent | Model and controller schema, eleven lookup FK columns | Declared `TEXT` while referencing integer lookup IDs. SQLite coercion hid the mismatch, and exports carried the IDs as strings. | Fixed, Stage 4, same commit as U1. |
 | U3 | latent | `internal/database/bootstrap.go` `InsertControllerNodeID` | Bound a `uint64` to the `TEXT` `dqlite_node_id` column. It worked only because the bootstrap node always uses go-dqlite's `BootstrapID` (high bit clear); `database/sql` rejects a `uint64` with the high bit set. | Fixed, Stage 6, `fix(database): bind controller node id as text`. |
 | U4 | latent (test) | `domain/lease/state/migration_test.go` | Seeded leases with `date('now')` and discarded the `StdTxn` error, so a failed seed went unnoticed and the tests checked an empty table. | Fixed, Stage 6, `test(lease): seed migration test leases with bound timestamps`. |
-| U5 | latent (test) | `domain/changestream/state/state_test.go` `insertControllerNodes`; `domain/upgrade/state/state_test.go` | Insert integer `dqlite_node_id` values into the `TEXT` column, relying on SQLite type affinity. | changestream fixed, Stage 6, `test(changestream): insert controller node ids as text`; upgrade open. |
+| U5 | latent (test) | `domain/changestream/state/state_test.go` `insertControllerNodes`; `domain/upgrade/state/state_test.go` | Insert integer `dqlite_node_id` values into the `TEXT` column, relying on SQLite type affinity. | changestream fixed, Stage 6, `test(changestream): insert controller node ids as text`; upgrade open in the PoC, fixed upstream in juju/juju#23685. |
 | U6 | latent (test) | `domain/model/state/testing/model.go` (lines 122, 240) | Uses `""` as an empty string literal. SQLite accepts double-quoted strings only as a legacy misfeature; standard SQL reads `""` as an identifier. | Fixed, Stage 6, `test(domain): use single-quoted string literals in test sql` (49 files). |
 | U7 | bug | `v_model_config` (model patch 0027) read by `domain/modelconfig/state` `ModelConfig` | If `model_config` also holds `agent-stream`, the view returns two `agent-stream` rows and `ModelConfig` keeps the last. SQLite's `UNION` sorts, so the `agent_version` stream wins only when it sorts after the config value (DIALECT.md X15). | Fixed, Stage 6, `fix(schema): prefer agent_version values in v_model_config`. The model branch excludes `agent-stream` and `agent-version` and the view uses `UNION ALL`; `TestModelConfigAgentStreamAndVersionInConfig` fails on dqlite without it. |
 | U8 | latent | Controller schema: `user_activation_key.activation_key`, the eight `bakery_config` key columns, `macaroon_root_key.root_key` | Declared `TEXT` but bound as raw random bytes (activation key, bakery key pairs, `dbrootkeystore` root keys). SQLite stores them as BLOBs regardless; `domain/schema/storage.go` `binaryTextColumns` and recovery carried the mismatch, and exports typed them as strings. PostgreSQL rejects them (DIALECT.md X11), breaking `add-user`, the bootstrap worker's bakery initialisation and macaroon minting. | Fixed, Stage 6, `fix(schema): store random key bytes in blob columns`. The columns become `BLOB` in place; the 4.1 controller export types become `[]byte`. Upstream, drop the `domain/schema/postgresql/` paths from the commit. |
@@ -78,8 +80,11 @@ observable dqlite change (notably X36's reused-UUID error):
   operation sizes as text`). Follow-up: a stored-bytes measure such as
   `pg_column_size` needs backend-aware state code.
 - X36: several `ON CONFLICT` clauses (`fix(objectstore): use a single
-  conflict clause when putting metadata`). A reused uuid now returns
-  `ErrHashAndSizeAlreadyExists`.
+  conflict clause when putting metadata`). In the PoC a reused uuid
+  returns `ErrHashAndSizeAlreadyExists`. Upstream (juju/juju#23694) it
+  returns a plain error, "metadata uuid already exists with different
+  hashes or size", because callers treat the sentinel as "already
+  stored". Reconcile the PoC when the PR lands.
 - X37: SQLite's `==` in three queries (`fix: use standard sql equality in
   three domain queries`). `DeletePublicKeysForUser`'s unused-key cleanup
   had no test; one was added.
@@ -88,8 +93,10 @@ observable dqlite change (notably X36's reused-UUID error):
   The fulfilment CTE is a one-row aggregate, so `CROSS JOIN` is the
   intended join, not a rewrite. A new test covers a fulfilment count of
   zero, which dqlite also lacked.
-- Upstream: X37 and X38 are proposed together as `4.1-sql-standard-syntax`
-  (UPSTREAM-PLAN.md), one commit each. Not yet extracted.
+- Upstream: X37 and X38 are in juju/juju#23695, one commit each. A third
+  commit uses `=` in the storage lifecycle triggers. That changes the
+  trigger patch's schema hash, so a model database created by an earlier
+  4.1 beta fails the hash check. The released 4.0.15 DDL is unchanged.
 
 Known gap, not a dqlite defect: `constraint.allocate_public_ip` stays `INT`
 in dqlite (`STRICT` table and the go-dqlite nullable-bool bug), and a
@@ -113,6 +120,42 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   clauses, and `ON CONFLICT DO UPDATE` with no conflict target
   (`domain/sequence`), are ambiguous or invalid only on PostgreSQL
   (DIALECT.md X3, X4). Fixed as portability on Stage 5.
+
+## Upstream review status
+
+Snapshot of 2026-10-26. Every PR targets `juju/juju` branch `4.1` from
+`jameinel/juju`, based on `upstream/4.1` at `04bc64ef54`. All are open
+and in review.
+
+| Branch | Findings | PR | Head |
+|---|---|---|---|
+| `4.1-sqlite-integers` | U1, U2, U12 | juju/juju#23680 | `845941c226` |
+| `4.1-binary-key-columns` | U8 | juju/juju#23682 | `de69a748a6` |
+| `4.1-model-config-precedence` | U7 | juju/juju#23683 | `a38cb5538d` |
+| `4.1-keymanager-insert-id` | U13 | juju/juju#23684 | `d490585ad7` |
+| `4.1-controller-node-id-text` | U3, U5 | juju/juju#23685 | `55ee33f048` |
+| `4.1-lease-migration-tests` | U4 | juju/juju#23686 | `7e3e903650` |
+| `4.1-crossmodel-secret-revisions` | U11 | juju/juju#23688 | `4992247076` |
+| `4.1-removal-force-boolean` | U9 | juju/juju#23690 | `f39572e43b` |
+| `4.1-changestream-latest-row` | X16 | juju/juju#23691 | `763411fe09` |
+| `4.1-blockcommand-order` | U10/X31 | juju/juju#23692 | `495768b0aa` |
+| `4.1-operation-query-portability` | X34, X33 | juju/juju#23693 | `e463565601` |
+| `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `ef537132be` |
+| `4.1-sql-standard-syntax` | X37, X38 | juju/juju#23695 | `2f53766cdd` |
+| `4.1-sql-test-literals` | U6 | juju/juju#23696 | `11ff0981e0` |
+| `4.1-secret-latest-revision` | | not started | |
+
+Notes:
+
+- The PR descriptions are drafted in `PR-4.1-<branch>.md`.
+- juju/juju#23680 and juju/juju#23690 conflict with each other. Whichever
+  lands second needs a rebase. Every other pair of branches merges
+  cleanly.
+- juju/juju#23685 also fixes the upgrade test half of U5.
+- juju/juju#23696 also fixes double-quoted string literals in production
+  SQL, not only in tests.
+- X7, X24 and X18 are not proposed upstream.
+- `4.1-secret-latest-revision` is a follow-on task in UPSTREAM-PLAN.md.
 
 ## Source provenance
 
