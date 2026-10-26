@@ -42,6 +42,27 @@ so that reconciliation after landing drops them cleanly. The semantics and
 evidence are in [the task](../investigations/crossmodel-secrets.md) and in
 U11 in [UPSTREAM-FIXES.md](../UPSTREAM-FIXES.md).
 
+### 05-SECRET-X16: bare grouped columns in secret state
+
+Deferred until after the D42 gate (user decision, 2026-10-26). Rewrite the
+open `domain/secret/state/state.go` sites listed under X16 in
+[DIALECT.md](../DIALECT.md) so that they are portable:
+- `updateSecret`
+- `GetRotationExpiryInfo`
+- `fetchSecrets`
+- `listCharmSecrets`
+- `getSecretsRevisionExpiryChanges`
+
+Where a site relies on SQLite's `MAX` row rule, select the latest revision
+explicitly, for example with a correlated subquery as in `79f2e66049`, and
+join back to its row.
+
+Add tests with several revisions that pass against both the old and new
+queries on SQLite, then run the full `domain/secret/state` package on both
+backends. Keep this as its own commit, separate from the U11 cherry-picks,
+so that it can be extracted as `4.1-secret-latest-revision`
+([UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md)).
+
 ## Contracts consumers must preserve
 
 - D16 lease times are bound as UTC `YYYY-MM-DD HH:MM:SS` text; expiry is
