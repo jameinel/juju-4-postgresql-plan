@@ -147,7 +147,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 
 Next: implement the PostgreSQL dbaccessor worker against the approved
 [Stage 8](stages/08-dbaccessor.md) lifecycle contract (D44–D47), in the
-order 08-tracker, 08-worker, 08-upgrade-selector, 08-delete. The D42
+order 08-tracker, 08-worker, 08-upgrade-selector, 08-delete
+([handoff](handoffs/2026-10-26-stage-8-implementation.md)). The D42
 runtime-entry gate is met at `08=c5f185e6f6`
 ([evidence](stages/06-compatibility.md#d42-runtime-entry-gate-run)):
 all 13 entry packages pass on both backends; status (48) and removal (47)
