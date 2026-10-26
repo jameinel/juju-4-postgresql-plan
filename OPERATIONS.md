@@ -104,8 +104,20 @@ PostgreSQL. The median test time went from 0.17 s to 2.1–2.8 s.
 - Run-to-run drift follows fsync latency on the loop-backed pool and host
   I/O load. The catalogs have no dead tuples, and catalog-only DDL is fast,
   so catalog bloat is not the cause.
-- Options that would remove most of the setup cost, none adopted:
-  - Use `fsync=off` or ZFS `sync=disabled` on a disposable test server.
+- ZFS is not the main cause. A 500-file create+write+fsync loop costs
+  0.87 ms per file in the container, 0.66 ms on host ext4. In a scratch
+  cluster inside the container, 500 text-PK tables took 1.15 s on ZFS,
+  0.33 s with `fsync=off` and 0.26 s on tmpfs.
+- Server profiles (`deploy-postgresql.py --profile`, stage 01):
+  `production` (charm defaults), `testing` (default; trimmed logs and WAL,
+  fsync on, no real speed-up) and `disposable` (`fsync=off`,
+  `full_page_writes=off`, set through Patroni because the charm exposes
+  neither; a crash can corrupt the cluster). Applied to the shared server
+  on 2026-10-26: 500 text-PK tables 3.9 s -> 0.6 s. The charm rejects
+  `synchronous_commit=off` and pins it in the local Patroni file, so it can
+  only be set per connection.
+- Remaining options:
+  - Use ZFS `sync=disabled` (needs root on the host).
   - Use PostgreSQL 17 or later, whose bulk-write API passes the index sync
     to the checkpointer.
   - Use storage that is not loop-backed.

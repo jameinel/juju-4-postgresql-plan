@@ -57,6 +57,10 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
   - Next: user review of the script. Since 2026-10-24 the branch sits in
     the line between 00 and 02, so every later stage carries the script.
 - Findings (for later stages):
+  - Profiles (2026-10-26): `--profile production|testing|disposable`
+    (default `testing`). `disposable` sets `fsync=off` and
+    `full_page_writes=off` via `patronictl edit-config`; the live `pg-poc`
+    server runs it. Re-run with `-p testing` to restore durability.
   - `pg_hba` has `host juju relation-N 0.0.0.0/0 scram-sha-256` (`hostssl`
     with TLS). The host (via the `lxdbr0` gateway) and LXD containers on
     the bridge connect; no workaround is needed.
