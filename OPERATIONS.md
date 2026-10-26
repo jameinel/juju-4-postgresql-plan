@@ -58,6 +58,7 @@ on `DqliteSuite` is redirected, not just previously verified suites.
   and removal-model suites have taken 16–17 minutes on PostgreSQL;
   a three-minute example is not their acceptance budget. Agree the budget
   before a long run; timeout is not evidence of a functional regression.
+  The cost is per-test setup, not query speed (see below).
 - Do not print the database URL. Obtain it from the private file or the
   environment. The snap Go command has been observed to produce no output
   with direct file redirection: use a pipe, preserving the test exit code.
@@ -70,6 +71,46 @@ export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
 timeout 200s go test -count=1 -race -timeout 3m -v ./internal/database/postgresql/ \
   2>&1 | tee "$LOG_FILE"
 ```
+
+### Why PostgreSQL state tests are slow
+
+Measured 2026-10-26 on the shared test server (PostgreSQL 16.15 in LXD
+container `juju-089db6-0`, ZFS pool backed by a loop file on host ext4).
+The removal-model package took 67 s on SQLite and 713–983 s on
+PostgreSQL. The median test time went from 0.17 s to 2.1–2.8 s.
+
+- Each `ModelSuite` test applies the full model DDL (156 patches) to a
+  fresh schema in about 2.4 s, then `DROP SCHEMA ... CASCADE` takes about
+  0.4–0.5 s. Each test writes about 12 MB of WAL. A write commit takes about
+  2 ms and a read-only transaction about 0.5 ms, so the test bodies
+  themselves are cheap.
+- The DDL time is index builds. The model DDL creates 250 tables and 688
+  btree indexes (438 primary key, unique and explicit indexes, plus 250
+  TOAST indexes). PostgreSQL 16 `nbtsort.c` fsyncs every WAL-logged index
+  build (`smgrimmedsync`), even for an empty table. On this storage that
+  costs about 3.5 ms per index, or about 2.4 s per model.
+- Synthetic evidence (500 objects in one statement):
+
+  | Objects | Time |
+  |---|---|
+  | Views | 0.24 s |
+  | Tables, no index | 0.24 s |
+  | Tables with an integer primary key | 2.09 s |
+  | Tables with a text primary key | 3.89 s |
+  | Temporary tables with a text primary key (no WAL or fsync) | 0.68 s |
+
+  `synchronous_commit=off` does not change the single-transaction time,
+  because these fsyncs are not commit fsyncs.
+- Run-to-run drift follows fsync latency on the loop-backed pool and host
+  I/O load. The catalogs have no dead tuples, and catalog-only DDL is fast,
+  so catalog bloat is not the cause.
+- Options that would remove most of the setup cost, none adopted:
+  - Use `fsync=off` or ZFS `sync=disabled` on a disposable test server.
+  - Use PostgreSQL 17 or later, whose bulk-write API passes the index sync
+    to the checkpointer.
+  - Use storage that is not loop-backed.
+  - Change the harness, for example to clone a template database or reuse a
+    schema per suite. This changes test isolation and needs a decision.
 
 `LOG_FILE` must name a file outside both repositories. Capture the pipeline
 exit status immediately in automation. For the default-backend run, unset
