@@ -4,8 +4,9 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 
 ## Status and prerequisites
 
-Bootstrap/placement code is implemented; the runtime worker is not. The
-lifecycle contract below was approved on 2026-10-26 (D44–D47).
+Bootstrap/placement code and 08-tracker are implemented; the runtime
+worker is not. The lifecycle contract below was approved on 2026-10-26
+(D44–D47); D48 records the tracker interfaces.
 `TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
 `08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
 do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
@@ -18,9 +19,12 @@ pool policy.
 
 Already present: `postgresql.Placement` (`SchemaName`, `OpenAdmin`,
 `OpenNamespace`), schema create/ensure/drop/existence helpers,
-`WithRootCAs`, `database.DqliteInitialiser` / `PostgresInitialiser`,
+`postgresql.SchemaInitialised` (the D44 marker check), `WithRootCAs`,
+`database.DqliteInitialiser` / `PostgresInitialiser`,
 `agentbootstrap.DatabaseInitialiser` and selection at
-`cmd/jujuagentd/agent/bootstrap.go` (`newDatabaseInitialiser`).
+`cmd/jujuagentd/agent/bootstrap.go` (`newDatabaseInitialiser`), and the
+tracker's `DBOpener` / `TrackedDBBackend` interfaces with
+`dbaccessor.PostgresNamespaces` (D48).
 Verify APIs on the current branch; these are not requests to rebuild them.
 
 ## 08-contract: approved lifecycle contract
@@ -93,7 +97,7 @@ change-stream watchers and API address publication are unchanged.
 
 | Task | Prerequisites and scope | Required checks |
 |---|---|---|
-| 08-tracker | Approved contract; replace the SQLite catalog/PRAGMA assumptions, select model DDL by backend and add the D46 schema check to the ping. | Fresh namespace, existing namespace and empty schema without a marker; a DDL failure leaves no marker; an overlapping initialiser fails cleanly and its retry succeeds; cancellation; namespace isolation; a dropped schema ends the tracker with `ErrDBDead`; default dqlite unchanged. |
+| 08-tracker | **Done** ([result](#08-tracker-result)). Approved contract; replace the SQLite catalog/PRAGMA assumptions, select model DDL by backend and add the D46 schema check to the ping. | Fresh namespace, existing namespace and empty schema without a marker; a DDL failure leaves no marker; an overlapping initialiser fails cleanly and its retry succeeds; cancellation; namespace isolation; a dropped schema ends the tracker with `ErrDBDead`; default dqlite unchanged. |
 | 08-worker | Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
 | 08-upgrade-selector | Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
 | 08-delete | Approved contract and worker ownership; D47 RESTRICT drop replacing the CASCADE `postgresql.DropSchema`, which only tests use. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
@@ -102,6 +106,47 @@ change-stream watchers and API address publication are unchanged.
 Clarify removal of provisioning-host `sslrootcert` paths from agent URLs
 before live TLS acceptance; do not assume the path exists on controller
 machines.
+
+## 08-tracker result
+
+Done 2026-10-26 at `08=45f3bdf358` (pushed), in three commits:
+
+- `b6a7690d80` `fix(dbaccessor): close databases the tracker opens but
+  does not keep`: U14, three pool leaks that also exist on stock 4.1.
+- `f9a8adfbf1` `feat(database): report whether a postgresql schema is
+  initialised`: `postgresql.SchemaInitialised`, the D44 marker check.
+  `TestSchemaInitialised` covers a missing schema, an empty schema, a view
+  named `schema`, a marker in another schema, a marker with no rows and a
+  complete marker.
+- `45f3bdf358` `feat(dbaccessor): add tracked database backends for
+  postgresql`: D48. `PostgresNamespaces` opens the namespace pool, runs
+  `EnsureSchema` outside a transaction, checks the marker and applies
+  `ModelDDLForBackend(BackendPostgreSQL)` only when it is absent. Its ping
+  returns `ErrDBDead` when the schema is gone (D46). Controller trackers
+  never create or initialise the schema; 08-worker must check the
+  controller marker before serving.
+
+Required checks, `TestTrackedDBPostgresSuite`
+(`internal/worker/dbaccessor/tracker_pg_test.go`), all on PostgreSQL:
+
+| Check | Test |
+|---|---|
+| Fresh namespace | `TestFreshNamespace`: schema created, marker present, 156 version rows, `current_schema()` is the namespace. |
+| Existing namespace | `TestExistingNamespace`: with a tampered hash that makes re-applying the DDL fail, a new tracker starts and data survives. |
+| Empty schema without a marker | `TestEmptySchemaWithoutMarker` |
+| DDL failure leaves no marker | `TestDDLFailureLeavesNoMarker`: a conflicting `change_log` fails the DDL; no `schema` table remains; a retry after removing the conflict succeeds. |
+| Overlapping initialisers | `TestOverlappingInitialisers`: 4 concurrent trackers; the losers fail with 23505 or 42P07 (DIALECT.md X39) and leave no marker; each retry succeeds. |
+| Cancellation | `TestCancelledInitialisationLeavesNoMarker`: DDL blocked on an uncommitted conflicting table (confirmed through `pg_blocking_pids`), then cancelled; no marker; a retry succeeds. |
+| Namespace isolation | `TestNamespaceIsolation` |
+| Dropped schema | `TestDroppedSchemaEndsTrackerWithErrDBDead`: `Wait` returns `ErrDBDead`, `Open` ran once, the schema stays dropped, `StdTxn` returns `ErrDBDead`, and another namespace's tracker stays healthy. |
+| Controller namespace | `TestControllerNamespaceIsNotCreated`: the schema is not created and the first ping ends the tracker with `ErrDBDead`. |
+| Default dqlite unchanged | Existing `TestTrackedDBWorkerSuite` and the full package pass on SQLite; new `TestWorkerDoesNotReopenDeadDB`. |
+
+Both `ErrDBDead` tests fail when the no-reopen short-circuit is disabled
+(3 opens instead of 1). Validation: the full `dbaccessor` package with
+`-race` on SQLite and on PostgreSQL, `internal/database/postgresql` on
+PostgreSQL, `go build ./...`; stress with `-race`: tracker suite on SQLite
+220 runs, PostgreSQL tracker suite 18 runs (`-p 3`), 0 failures.
 
 ## Acceptance
 

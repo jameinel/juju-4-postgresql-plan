@@ -140,15 +140,19 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
-| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed; lifecycle contract approved) |
+| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer and 08-tracker committed; 08-worker next) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: implement the PostgreSQL dbaccessor worker against the approved
-[Stage 8](stages/08-dbaccessor.md) lifecycle contract (D44–D47), in the
-order 08-tracker, 08-worker, 08-upgrade-selector, 08-delete
-([handoff](handoffs/2026-10-26-stage-8-implementation.md)). The D42
+Next: 08-worker, the PostgreSQL dbaccessor worker, against the approved
+[Stage 8](stages/08-dbaccessor.md) lifecycle contract (D44–D48), then
+08-upgrade-selector and 08-delete
+([handoff](handoffs/2026-10-26-stage-8-worker.md)). 08-tracker is done
+at `08=45f3bdf358`
+([result](stages/08-dbaccessor.md#08-tracker-result)): D48 tracker
+interfaces with `PostgresNamespaces`, and the U14 pool-leak fix, which
+also applies to stock 4.1. The D42
 runtime-entry gate is met at `08=c5f185e6f6`
 ([evidence](stages/06-compatibility.md#d42-runtime-entry-gate-run)):
 all 13 entry packages pass on both backends; status (48) and removal (47)
