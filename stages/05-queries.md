@@ -4,8 +4,8 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
 
 ## Status and scope
 
-Implemented baseline; remaining production tasks below. X33–X36 are
-finished according to the latest run; X37/X38 and U11 remain open.
+Implemented baseline; remaining production tasks below. X33–X38 are
+finished; U11 remains open.
 The [commit inventory](../history/compatibility.md#stage-5-inventory) is
 historical. Stage 6 supplies the existing PostgreSQL harness; do not
 reimplement it. Latest failures are in [its evidence table](06-compatibility.md#latest-recorded-evidence).
@@ -17,29 +17,19 @@ dual-backend tests and PLAN.md for restacking.
 
 ## Remaining tasks
 
-### 05-X37: equality syntax
+### 05-X37: equality syntax (done)
 
-- Read X37. Entry points: `domain/keymanager/state/state.go`
-  `deleteUnusedUserKeys`, `domain/storageprovisioning/state/volume.go`
-  machine join, and `domain/crossmodelrelation/state/model/offer.go`
-  scope predicate.
-- Replace SQL `==` with `=` at these sites only. This is portability;
-  generated PostgreSQL triggers already translate their own `==`.
-- Check the affected package tests on both backends, covering deletion,
-  the join and scope filtering, not only successful SQL preparation.
-  Keymanager had six recorded PG failures from this issue.
-- Stop if failures require unrelated semantics or schema changes.
+`0703122e2a`. Three production `==` predicates became `=`; added a
+keymanager test for unused-key cleanup, which had no coverage, and checked
+it with mutations. Existing volume join and offer scope tests cover the
+other sites. Both backends pass at `08=7dc5b5bbc9` (06-compatibility.md).
 
-### 05-X38: removal join scope
+### 05-X38: removal join scope (done)
 
-- Read X38. Entry point: `domain/removal/state/model/storage.go`,
-  `GetDetachInfoForStorageAttachment`.
-- Confirm the replacement join before implementation. Explicit
-  `CROSS JOIN fulfilment` and moving the one-row CTE first are alternatives,
-  not two instructions to execute. Preserve cardinality and returned data;
-  consider SQLite's CROSS JOIN planner restriction.
-- Verify the three recorded PostgreSQL failures and equivalent dqlite
-  cases; cover the intended attachment and missing-result paths.
+`18d679a2b7`. `CROSS JOIN fulfilment` was chosen: the CTE is a single-row
+aggregate, so the join is a deliberate cross join and cardinality is
+unchanged. Added a zero-fulfilment test. The detach-info tests pass on both
+backends; the full removal package rerun is part of the D42 gate.
 
 ### 05-CMR: cross-model secrets
 

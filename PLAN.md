@@ -137,7 +137,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 open; U11 dedicated design/fix |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 done; U11 dedicated design/fix |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | in progress (test SQL fixes) |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer committed) |
@@ -145,7 +145,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: use [Stage 5](stages/05-queries.md) for X37/X38 and the dedicated
+Next: run the bounded D42 entry gate ([Stage 6 detail](stages/06-compatibility.md#runtime-entry-gate-before-stage-8-implementation));
+X37/X38 are done. [Stage 5](stages/05-queries.md) keeps the dedicated
 cross-model secrets task; [Stage 6](stages/06-test-harness.md) owns the
 remaining test repairs and acceptance gate. The latest handoff reports
 PostgreSQL bootstrap passing; Stage 8's runtime worker remains unimplemented.
