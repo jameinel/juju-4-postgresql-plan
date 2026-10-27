@@ -14,8 +14,10 @@ Follow the PLAN.md session protocol:
 
 ## 1. Where things are
 
-The code tree is clean on `pg-poc/08-dbaccessor` at `fc8f6f7f88`. Every
-`pg-poc/*` branch is pushed; 08 is the top of the stack.
+The code tree is clean on `pg-poc/08-dbaccessor` at `05c37d6e9f`. Every
+`pg-poc/*` branch is pushed; 08 is the top of the stack. The 08-delete
+commits were restacked onto the N15 harness change (`06=e7f3822281`);
+the hashes in the 08-delete result are historical.
 
 08-delete is done ([result](../stages/08-dbaccessor.md#08-delete-result)):
 `postgresql.DeleteSchema` drops a namespace's schema with RESTRICT (D47),

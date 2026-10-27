@@ -17,9 +17,10 @@ make every Juju package pass before any runtime work resumes.
 
 Read the selected task and relevant rows in
 [06-compatibility.md](06-compatibility.md), its X*/D* references, and
-[OPERATIONS.md](../OPERATIONS.md) for running tests. Read N6, N9, N10 and
-D11 if changing the harness. Commit inventories and past failures are in
-[history](../history/compatibility.md), not mandatory setup reading.
+[OPERATIONS.md](../OPERATIONS.md) for running tests. Read N6, N9, N10,
+N14, N15 and D11 if changing the harness. Commit inventories and past
+failures are in [history](../history/compatibility.md), not mandatory
+setup reading.
 
 ## Existing contracts
 
@@ -40,6 +41,14 @@ D11 if changing the harness. Commit inventories and past failures are in
   packages at `06=4615e24467`; the harness, database, agentbootstrap,
   dbaccessor and upgradedatabase packages at the restacked top
   `08=c77f1ad694`.
+- The per-test schema teardown fails the test if its CASCADE drop would
+  remove objects outside the schema (N15, `06=e7f3822281`). A test that
+  makes another schema depend on its schema must drop those objects
+  itself. The check found no such leak in the harness, driver, database,
+  agentbootstrap, schema, lease, changestream, controllernode,
+  eventsource and model state packages at 06, or in the harness, driver,
+  database, agentbootstrap, dbaccessor and upgradedatabase packages at
+  the restacked top `08=05c37d6e9f` (PostgreSQL, `-race`).
 - Failure injection must still test the intended operation and rollback.
   A different SQL error during setup is not equivalent coverage.
 

@@ -150,7 +150,10 @@ missing inputs; do not ask an executor to design and implement a backlog.
 Next: 08-cleanup-tool, the operator script
 `scripts/postgresql-poc/drop-juju-schemas.py`, then the Stage 9 handover
 ([handoff](handoffs/2026-10-27-stage-8-cleanup-tool.md)). The top is
-`08=fc8f6f7f88`. 08-delete is done
+`08=05c37d6e9f`. On 2026-10-27 the per-test schema teardown was made to
+fail a test whose CASCADE drop reaches objects outside its schema (N15)
+at `06=e7f3822281`, and the stack restacked; earlier 08 hashes in the
+stage files are historical. 08-delete is done
 ([result](stages/08-dbaccessor.md#08-delete-result)): `pgWorker.DeleteDB`
 drops a model's schema with RESTRICT (D47), in a READ COMMITTED
 transaction, an approved exception to D7 (D47 amendment, X40).

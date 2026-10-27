@@ -154,13 +154,14 @@ historical pass to accept a new gate.
 | `domain/modelmigration/state/controller` | 0 | Recorded pass; not proof of full migration support. |
 | `domain/removal/state/model` | 47 | 2026-10-26 at `08=c5f185e6f6`, full package without `-race` (1333 s): 326 pass. All test-side, each mapped to a task above: 25 X27 schedule/time round trips; 11 06-X23 (`secret_test.go:299`); 2 06-X25 (`state_test.go` `force`); 2 06-DDL (`DATETIME` in `application_test.go`, `unit_test.go`); 2 06-X9 (`CONCAT`); 1 06-X16; 1 06-trigger-drop; 2 06-failure-injection; 1 06-errors (machine FK message). The older "22 X23" count was a miscount, and the 3 X38 failures are fixed. |
 | `domain/status/state/model` | 48 | 2026-10-26 at `08=c5f185e6f6`, full package without `-race` (469 s): 125 pass, 48 fail, all X27 precision (see 06-status-diagnosis). |
+| `domain/model/state/controller` | 1 | 2026-10-27 at `06=e7f3822281`, full package with `-race`: 91 pass. `TestStateSuite/TestGetActivatedModelUUIDs` expects `GetActivatedModelUUIDs` to return UUIDs in insertion order; its query (`WHERE uuid IN (...)`) has no `ORDER BY`. Test-side ordering assumption; not yet assigned a task. |
+| `domain/model/state/model` | 2 | 2026-10-27 at `06=e7f3822281`, full package with `-race`: 36 pass. `TestModelSuite/TestCreateModelAndUpdate` and `TestCreateModelAndDelete` match the immutable-row message exactly; PG prefixes `ERROR:` and suffixes the SQLSTATE (06-errors). |
 | D42 runtime-entry packages (13) | 0 | 2026-10-26 at `08=c5f185e6f6`; see [D42 runtime-entry gate run](#d42-runtime-entry-gate-run). `domain/schema` has a known skip gap (06-schema-skip). `TestPostgresBootstrapSuite` passes, superseding Stage 8's old operation-4 failure. |
 
 Not rerun after the latest X6/X7/X8 repairs:
 
 - `domain/access/state`, `domain/modeldefaults/state`
-- `domain/modelmigration/state/model`, `domain/model/state/controller`,
-  `domain/model/state/model`, `domain/upgrade/state`
+- `domain/modelmigration/state/model`, `domain/upgrade/state`
 - `domain/operation/state`, `domain/cloud/state`, `domain/sequence/state`,
   `domain/machine/state`, `domain/application/state`
 - `domain/modelconfig/state`, `domain/macaroon/state`

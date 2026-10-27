@@ -241,7 +241,10 @@ failures.
 
 ## 08-delete result
 
-Done 2026-10-27 at `08=fc8f6f7f88` (pushed), in two commits:
+Done 2026-10-27 at `08=fc8f6f7f88` (pushed), in two commits. The same
+day both were restacked onto the N15 harness change as `630fcdbf2f` and
+`05c37d6e9f`; their tests passed again on PostgreSQL with no teardown
+leak reported.
 
 - `7d9198a0f1` `feat(database): drop postgresql namespace schemas without
   cascade`: `postgresql.DeleteSchema(ctx, db, name, lockTimeout)` (D47).
