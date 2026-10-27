@@ -4,11 +4,11 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 
 ## Status and prerequisites
 
-Bootstrap/placement code, 08-tracker and 08-worker are implemented;
-08-upgrade-selector and 08-delete are not. The lifecycle contract below
+Bootstrap/placement code, 08-tracker, 08-worker and 08-upgrade-selector
+are implemented; 08-delete is not. The lifecycle contract below
 was approved on 2026-10-26 (D44–D47); D48 records the tracker interfaces,
-D49 the manifold's connection source and D50 the loss of the controller
-schema.
+D49 the manifold's connection source, D50 the loss of the controller
+schema and D51 the upgrade worker's backend.
 `TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
 `08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
 do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
@@ -27,7 +27,8 @@ Already present: `postgresql.Placement` (`SchemaName`, `OpenAdmin`,
 `cmd/jujuagentd/agent/bootstrap.go` (`newDatabaseInitialiser`), and the
 tracker's `DBOpener` / `TrackedDBBackend` interfaces with
 `dbaccessor.PostgresNamespaces` (D48), and `dbaccessor.pgWorker` with
-manifold selection from `DBConnectionSource` (D49).
+manifold selection from `DBConnectionSource` (D49), and the upgrade
+worker's schema selection from the same source (D51).
 Verify APIs on the current branch; these are not requests to rebuild them.
 
 ## 08-contract: approved lifecycle contract
@@ -94,8 +95,10 @@ change-stream watchers and API address publication are unchanged.
   empty schema. dqlite has the same race. Record it if seen; no fix is
   planned.
 - The 15 s `lock_timeout` on deletes is not tuned.
-- Upgrades of PostgreSQL schemas are exercised only by selecting the DDL
-  for the backend (08-upgrade-selector).
+- Upgrades of PostgreSQL schemas are exercised only by re-applying the
+  backend's DDL to an initialised schema (08-upgrade-selector). No
+  PostgreSQL schema patch exists yet, and the data-migration upgrade
+  steps are untested on PostgreSQL.
 
 ## Implementation tasks
 
@@ -103,7 +106,7 @@ change-stream watchers and API address publication are unchanged.
 |---|---|---|
 | 08-tracker | **Done** ([result](#08-tracker-result)). Approved contract; replace the SQLite catalog/PRAGMA assumptions, select model DDL by backend and add the D46 schema check to the ping. | Fresh namespace, existing namespace and empty schema without a marker; a DDL failure leaves no marker; an overlapping initialiser fails cleanly and its retry succeeds; cancellation; namespace isolation; a dropped schema ends the tracker with `ErrDBDead`; default dqlite unchanged. |
 | 08-worker | **Done** ([result](#08-worker-result)). Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
-| 08-upgrade-selector | Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
+| 08-upgrade-selector | **Done** ([result](#08-upgrade-selector-result)). Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
 | 08-delete | Approved contract and worker ownership; D47 RESTRICT drop replacing the CASCADE `postgresql.DropSchema`, which only tests use, and the interim `NotImplemented` in `pgWorker.deleteDatabase`. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
 | 08-cleanup-tool | Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`. | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
 
@@ -200,6 +203,34 @@ PostgreSQL, the `cmd/jujuagentd/agent`, `machine` and `safemode`
 packages, `go build ./...` and `golangci-lint` on the changed packages (0
 issues); stress with `-race` of the PostgreSQL worker and manifold
 suites, 24 runs (`-p 3`), 0 failures.
+
+## 08-upgrade-selector result
+
+Done 2026-10-27 at `08=306db7518f` (pushed), in one commit:
+`306db7518f` `feat(upgradedatabase): select the upgrade schemas by
+backend` (D51). The upgradedatabase manifold reads the backend from
+`DBConnectionSource`; the machine agent passes `StartupValueProvider`, as
+for dbaccessor. Safe mode does not run the upgrade worker.
+
+Before this change the worker applied the dqlite DDL to PostgreSQL. On
+PostgreSQL, `TestUpgradeController` aborted with a syntax error at
+`AUTOINCREMENT`. The unexpected `SetDBUpgradeFailed` mock call then
+stopped the worker goroutine, and the test's deferred kill waited for the
+whole package timeout.
+
+Required checks:
+
+| Check | Test |
+|---|---|
+| Backend mapping | `TestStart` (dqlite), `TestStartPostgreSQL`, `TestStartUnknownBackend` (no worker starts), `TestStartConnectionSourceError` and a nil-source `Validate` case in `manifold_test.go`; `TestValidateBackend` rejects an empty or unknown worker backend. |
+| Both selector paths | The worker suite uses `schematesting.BackendForTest()`, so each run selects that backend's DDL. `TestUpgradeControllerUsesConfiguredBackend` (full lifecycle: abort, `SetDBUpgradeFailed`, `applying controller schema`) and `TestUpgradeModelUsesConfiguredBackend` configure the other backend, whose DDL fails on the test database, so a hardcoded schema fails on at least one backend. |
+| Existing lifecycle semantics | The existing worker tests pass on both backends. `TestUpgradeControllerThatIsAlreadyUpgraded` and `TestUpgradeModelsThatIsAlreadyUpgraded` now apply the backend's DDL first, so the worker's `Ensure` is a no-op on an initialised schema. |
+
+Validation: the `upgradedatabase` packages with `-race` on SQLite and on
+PostgreSQL (16 s), the `machine` package, `go build ./...` and
+`golangci-lint` on the changed packages (0 issues); stress with `-race`
+of the worker and manifold suites on SQLite, 138 runs (`-p 3`), 0
+failures.
 
 ## Acceptance
 

@@ -140,15 +140,17 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
-| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer, 08-tracker and 08-worker committed; 08-upgrade-selector next) |
+| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer, 08-tracker, 08-worker and 08-upgrade-selector committed; 08-delete next) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: 08-upgrade-selector, selecting the controller and model DDL by
-backend in the upgrade worker, then 08-delete, the D47 drop that replaces
-`pgWorker`'s interim `NotImplemented`
-([handoff](handoffs/2026-10-26-stage-8-upgrade.md)). 08-worker is done
+Next: 08-delete, the D47 drop that replaces `pgWorker`'s interim
+`NotImplemented` ([handoff](handoffs/2026-10-27-stage-8-delete.md)).
+08-upgrade-selector is done at `08=306db7518f`
+([result](stages/08-dbaccessor.md#08-upgrade-selector-result)): the
+upgrade worker selects its controller and model DDL from the same
+`DBConnectionSource` as dbaccessor (D51). 08-worker is done
 at `08=aa09e41411`
 ([result](stages/08-dbaccessor.md#08-worker-result)): `pgWorker`, manifold
 selection from `DBConnectionSource` (D49) and a fatal loss of the
