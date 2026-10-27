@@ -33,6 +33,13 @@ D11 if changing the harness. Commit inventories and past failures are in
   cycle. Use dialect-aware helpers for unavoidable backend-specific DDL.
 - PG connections use UTC, SERIALIZABLE and bounded pools (cap 3 per
   namespace, X22). Stage 8 must preserve these runtime requirements.
+- PG test sessions get `lock_timeout` 30 s, `statement_timeout` 60 s and
+  `idle_in_transaction_session_timeout` 60 s from `pgtesting.URL()`
+  unless the URL sets them (N14, `06=4615e24467`). Passed on PostgreSQL
+  with `-race`: the harness, driver, schema and blockcommand state
+  packages at `06=4615e24467`; the harness, database, agentbootstrap,
+  dbaccessor and upgradedatabase packages at the restacked top
+  `08=c77f1ad694`.
 - Failure injection must still test the intended operation and rollback.
   A different SQL error during setup is not equivalent coverage.
 

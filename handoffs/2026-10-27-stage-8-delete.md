@@ -15,9 +15,11 @@ Follow the PLAN.md session protocol:
 
 ## 1. Where things are
 
-The code tree is clean on `pg-poc/08-dbaccessor` at `306db7518f`. Every
+The code tree is clean on `pg-poc/08-dbaccessor` at `c77f1ad694`. Every
 `pg-poc/*` branch is pushed; 08 is the top of the stack, so 08 commits
-need no restack.
+need no restack. The stack was restacked on 2026-10-27 for the
+PostgreSQL test session timeouts (N14, `06=4615e24467`), so earlier
+08 hashes in the stage file are historical.
 
 08-upgrade-selector is done
 ([result](../stages/08-dbaccessor.md#08-upgrade-selector-result)). The
@@ -65,16 +67,21 @@ stage file's acceptance section hands over to Stage 9.
 
 ```
 cd ~/dev/go/src/github.com/juju/juju-4-postgresql
-go test -race -count=1 -timeout 120s ./internal/worker/dbaccessor/ 2>&1 | tee /tmp/dbaccessor-sqlite.log | tail -3
-export JUJU_POSTGRESQL_TEST_URL=$(cat ~/.config/juju-pg-poc/db-url) && go test -race -count=1 -timeout 120s ./internal/worker/dbaccessor/ 2>&1 | tee /tmp/dbaccessor-pg.log | tail -3
+set -o pipefail
+timeout 150 go test -race -count=1 -timeout 120s -v ./internal/worker/dbaccessor/ 2>&1 | tee /tmp/dbaccessor-sqlite-$$.log | grep -E -- '^(FAIL|ok)|--- FAIL'
+export JUJU_POSTGRESQL_TEST_URL=$(cat ~/.config/juju-pg-poc/db-url) && timeout 150 go test -race -count=1 -timeout 120s -v ./internal/worker/dbaccessor/ 2>&1 | tee /tmp/dbaccessor-pg-$$.log | grep -E -- '^(FAIL|ok)|--- FAIL'
 go test -c -race -o /tmp/dbaccessor.test ./internal/worker/dbaccessor
-export JUJU_POSTGRESQL_TEST_URL=$(cat ~/.config/juju-pg-poc/db-url) && timeout 200 ~/.local/bin/stress -p 3 -timeout 100s /tmp/dbaccessor.test -test.run '<Suite>'
+export JUJU_POSTGRESQL_TEST_URL=$(cat ~/.config/juju-pg-poc/db-url) && timeout 120 ~/.local/bin/stress -p 1 -timeout 100s /tmp/dbaccessor.test -test.run '<Suite>'
 ```
 
-- Give every test run a `-timeout` of about 120 s and keep its output in
-  a log file, so a hang fails quickly and can be inspected. Use `tee`: in
-  this environment a plain `go test ... > file 2>&1` redirect has left
-  the file empty.
+- Bound every run and check progress at least every two minutes
+  ([OPERATIONS.md](../OPERATIONS.md#bounded-runs-and-check-ins), N13).
+  Pass `-v` so the log shows progress, and use `tee`: in this
+  environment a plain `go test ... > file 2>&1` redirect has left the
+  file empty. Use one stress process for PostgreSQL.
+- PostgreSQL test sessions time out lock waits after 30 s (N14). D47's
+  own `SET LOCAL lock_timeout` (15 s) overrides that inside the drop
+  transaction, so a lock-timeout test sees D47's value.
 - `JUJU_POSTGRESQL_TEST_URL` is not set in a fresh shell, so a plain
   `go test` runs on SQLite. Do not use `env -u`; the user's permission
   prompt rejects it. Export the URL in the same command for PostgreSQL

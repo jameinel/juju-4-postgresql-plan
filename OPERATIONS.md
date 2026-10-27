@@ -40,6 +40,52 @@ is diagnostic context, not a command to repeat blindly.
   `canonical/postgresql-single-kernel-library`, `canonical/data-integrator`.
   Go module sources are in the module cache.
 
+## Bounded runs and check-ins
+
+Nothing an agent starts may run for more than about two minutes without a
+progress check (N13). The go test timeout ends a hang; it is not how a
+hang should be noticed.
+
+- Tests follow the code repository's AGENTS.md: they block on an event
+  that must happen, with no explicit timeout branch. A test's only bound
+  is the binary's `-timeout`, which panics with every goroutine's stack.
+  Use `-timeout 120s` per run, inside an outer `timeout` about 30 s
+  longer.
+- Split work so each run fits that budget: one package per run, and for a
+  slow PostgreSQL package one suite or a group of its tests per run, for
+  example `-run '^TestStateSuite$/^Test(Get|Set)'`. `tc` runs each suite
+  method as a subtest. At about 2.5 s per `ModelSuite` test on
+  PostgreSQL, one run holds about 40 tests. `go test -list .` lists only
+  the suites; count methods in the source.
+- A run that cannot be split, such as stress or a benchmark, gets an
+  agreed budget. Run it in the background and check it at least every two
+  minutes, reporting tests finished, the current test and failures so
+  far.
+- Always pass `-v` and `tee` the output to a uniquely named log, for
+  example `/tmp/<pkg>-<backend>-$$.log`. Without `-v`, `go test` holds a
+  package's output until the package finishes, so the log shows no
+  progress.
+- At each check, compare the log's latest `=== RUN` and `--- PASS/FAIL`
+  lines with the previous check. A test running far beyond its usual few
+  seconds is a suspected stall. Collect evidence before stopping it:
+  - `pg_stat_activity` for this database: sessions waiting on a lock
+    (`wait_event_type = 'Lock'`), long statements, or sessions idle in a
+    transaction.
+  - A goroutine dump: `kill -QUIT <pid>` on the test binary itself (the
+    `<pkg>.test` child of `go test`, or a binary built with `go test -c`)
+    prints every goroutine's stack and exits.
+
+  Then record the run as inconclusive.
+- PostgreSQL test sessions fail a lock wait after 30 s, a statement after
+  60 s and an idle transaction after 60 s (N14), so a database-side block
+  surfaces as a test error.
+- Known blocking pattern: `workertest.CleanKill` / `DirtyKill` deferred in
+  a test waits on `c.Context()`, which `testing` cancels only after the
+  test function returns. If the worker goroutine has already ended, for
+  example because a gomock expectation failed inside it, the kill blocks
+  until `-timeout`. Look in the log for the gomock failure
+  ("Unexpected call", "missing call(s)") above the timeout panic.
+
 ## PostgreSQL test runs
 
 `JUJU_POSTGRESQL_TEST_URL` opts the harness into PostgreSQL (N6). Without
@@ -54,11 +100,11 @@ on `DqliteSuite` is redirected, not just previously verified suites.
   connection failure. A previous Stage 6 run silently used SQLite.
 - Use `-count=1`. Use `-race` for mutex/goroutine code and bounded stress
   for goroutine, tomb or catacomb code, as required by AGENTS.md.
-- Set a Go timeout and a longer outer timeout per package. Application
-  and removal-model suites have taken 16–17 minutes on PostgreSQL;
-  a three-minute example is not their acceptance budget. Agree the budget
-  before a long run; timeout is not evidence of a functional regression.
-  The cost is per-test setup, not query speed (see below).
+- Bound every run as in [Bounded runs](#bounded-runs-and-check-ins).
+  The application and removal-model packages have taken 16–17 minutes on
+  PostgreSQL; run them in suite- or test-group-sized chunks, not as one
+  run. A timeout is not evidence of a functional regression. The cost is
+  per-test setup, not query speed (see below).
 - Do not print the database URL. Obtain it from the private file or the
   environment. The snap Go command has been observed to produce no output
   with direct file redirection: use a pipe, preserving the test exit code.
@@ -68,7 +114,7 @@ Example for one small package; substitute the task's package and budgets:
 ```bash
 set -o pipefail
 export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
-timeout 200s go test -count=1 -race -timeout 3m -v ./internal/database/postgresql/ \
+timeout 150s go test -count=1 -race -timeout 120s -v ./internal/database/postgresql/ \
   2>&1 | tee "$LOG_FILE"
 ```
 

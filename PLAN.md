@@ -103,7 +103,9 @@ missing inputs; do not ask an executor to design and implement a backlog.
 5. Keep one PoC implementation/restack stream. Upstream-only fixes may
    run concurrently in dedicated worktrees under [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
    (N11); do not switch or restack another owner's tree. PostgreSQL package
-   tests and benchmarks must not overlap.
+   tests and benchmarks must not overlap. Bound every run and check its
+   progress at least every two minutes
+   ([OPERATIONS.md](OPERATIONS.md#bounded-runs-and-check-ins), N13).
 6. Classify every change made to get PostgreSQL working, whether in code,
    tests or schema:
    - `bug`: the dqlite behaviour is wrong today.
@@ -147,6 +149,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 
 Next: 08-delete, the D47 drop that replaces `pgWorker`'s interim
 `NotImplemented` ([handoff](handoffs/2026-10-27-stage-8-delete.md)).
+On 2026-10-27 the PostgreSQL test session timeouts (N14) were added at
+`06=4615e24467` and the stack restacked; the top is `08=c77f1ad694`.
 08-upgrade-selector is done at `08=306db7518f`
 ([result](stages/08-dbaccessor.md#08-upgrade-selector-result)): the
 upgrade worker selects its controller and model DDL from the same
