@@ -4,11 +4,12 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 
 ## Status and prerequisites
 
-Bootstrap/placement code, 08-tracker, 08-worker, 08-upgrade-selector
-and 08-delete are implemented; 08-cleanup-tool is not. The lifecycle contract below
+Bootstrap/placement code, 08-tracker, 08-worker, 08-upgrade-selector,
+08-delete and 08-cleanup-tool are implemented. 08-delete-locks is open
+and needs a design choice. The lifecycle contract below
 was approved on 2026-10-26 (D44–D47); D48 records the tracker interfaces,
 D49 the manifold's connection source, D50 the loss of the controller
-schema and D51 the upgrade worker's backend.
+schema, D51 the upgrade worker's backend and D52 the cleanup tool.
 `TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
 `08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
 do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
@@ -116,7 +117,8 @@ change-stream watchers and API address publication are unchanged.
 | 08-worker | **Done** ([result](#08-worker-result)). Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
 | 08-upgrade-selector | **Done** ([result](#08-upgrade-selector-result)). Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
 | 08-delete | **Done** ([result](#08-delete-result)). Approved contract and worker ownership; D47 RESTRICT drop replacing the interim `NotImplemented` in `pgWorker.deleteDatabase`. The CASCADE `postgresql.DropSchema` stays, for tests only. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
-| 08-cleanup-tool | Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`. | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
+| 08-cleanup-tool | **Done** ([result](#08-cleanup-tool-result)). Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`, on Stage 1 (D52). | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
+| 08-delete-locks | Open; needs a design choice from the user before implementation. `DeleteSchema` (D47) deletes a model in one transaction holding about 4,430 locks, about 69% of the PoC server's 6,400-slot shared lock table (X42). Two concurrent model deletes, or one on a busy cluster, can fail with 53200, and so can other sessions' transactions. Candidate approaches, none chosen or verified: raise `max_locks_per_transaction` on the server (a restart; whether the charm exposes it is unchecked); split the delete across transactions, giving up D47's all-or-nothing drop; serialise deletes per controller (this does not help across HA controllers); or drop fewer objects, for example one shared change-log trigger function, saving 292. | The lock count of one model delete, measured against the configured table; concurrent model deletes alongside normal controller load do not fail with 53200; any partial delete is retried to completion, or nothing is dropped. |
 
 Clarify removal of provisioning-host `sslrootcert` paths from agent URLs
 before live TLS acceptance; do not assume the path exists on controller
@@ -328,6 +330,48 @@ PostgreSQL; `golangci-lint` on the changed packages, whose only findings
 are two pre-existing `rangeint` hints in `driver_test.go`. Stress with
 `-race` (`-p 1`), 0 failures: `TestPgWorkerSuite` 14 runs,
 `TestSchemaSuite` 83 runs.
+
+## 08-cleanup-tool result
+
+Done 2026-10-27 as `01=bd0f4e7638`
+`feat(scripts): add a postgresql poc schema inspection and cleanup tool`
+(pushed). Stages 02–08 were restacked onto it with no other tree change;
+the top is `08=2eac5de1a2`, and `go build ./...` passes there. The design
+choices are recorded in D52. Run the script with no options for an
+inventory and `-h` for usage; its docstring describes the checks.
+
+**Lock limit.** The first design dropped every target in one transaction.
+Against a bootstrapped controller and model, `DROP SCHEMA ... CASCADE`
+took 1,473 locks for `juju_controller` and 4,419 for one model schema.
+The controller with 2 models (10,303 locks) succeeded, but the controller
+with 5 models failed with `out of shared memory`, because
+`max_locks_per_transaction` is 64. The user chose one transaction per
+schema with `juju_controller` last. A full breakdown, which also covers
+`DeleteSchema`, is in DIALECT.md X42 and became 08-delete-locks.
+
+**Validation** against the live server, PostgreSQL 16.15. The fixtures
+were schemas made by `database.BootstrapPostgres` from a temporary
+program on the Stage 8 tip: the controller and 5 model schemas. Rows were
+added for a dying model, a model that was never activated, and a dead
+model with no schema. There was also an unknown `juju_poc_scratch` schema
+with a view over `juju_controller`, and test schemas whose process was
+gone, still running, of unknown start, or had its PID reused. `lxc` was
+replaced, through `--lxc`, by scripts that report every instance as
+stopped or that fail.
+
+| Check | Result |
+|---|---|
+| Inventory | Every kind, model state, test process state and the running LXD instances listed; nothing changed. |
+| Controller-stopped precondition | Refused with the real `lxc` (3 running instances), when `lxc` fails, and when `--controller` names another controller. |
+| Explicit target | `public`, a missing schema, a test schema named with a `juju_*` one, two named test schemas, a running test process, and `--yes` without a target were all refused. |
+| Confirmation | Without a terminal and without `--yes`: refused. Through a pty: `nope` refused; `drop` dropped one model schema. |
+| Outside dependents | The scratch view blocked `--controller`. A view in a running test schema over a stale one blocked `--stale-test-schemas`. `DROP_SQL` run directly, past the pre-check, still refused and dropped nothing. |
+| Success paths | `--stale-test-schemas` dropped the 3 stale test schemas and kept the running one. `--schema` dropped `juju_poc_scratch`. `--controller` dropped 4 models and then `juju_controller` in 3.4 s. Afterwards only `login_hook` and `public` remained. |
+
+`ruff check` and `ruff format` pass on the script. Two quirks:
+`COMMENT ON SCHEMA` takes only a literal, so fixture comments are built
+in the shell; and `pg_total_relation_size` takes locks, so every session
+sets `lock_timeout`.
 
 ## Acceptance
 

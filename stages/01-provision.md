@@ -56,6 +56,14 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
     logs) and `.../common/data/logs` (WAL) first.
   - Next: user review of the script. Since 2026-10-24 the branch sits in
     the line between 00 and 02, so every later stage carries the script.
+  - Since 2026-10-27 the branch also carries
+    `scripts/postgresql-poc/drop-juju-schemas.py` (`01=bd0f4e7638`, D52),
+    Stage 8's 08-cleanup-tool
+    ([result](08-dbaccessor.md#08-cleanup-tool-result)). Run it with no
+    options to list the Juju and test schemas in the database. Use
+    `--controller UUID` after stopping a PoC controller, so the next
+    bootstrap can reuse the database (D23), and `--stale-test-schemas`
+    after interrupted test runs.
 - Findings (for later stages):
   - Profiles (2026-10-26): `--profile production|testing|disposable`
     (default `testing`). `disposable` sets `fsync=off` and

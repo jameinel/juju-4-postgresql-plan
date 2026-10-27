@@ -135,25 +135,33 @@ missing inputs; do not ask an executor to design and implement a backlog.
 |---|---|---|---|
 | - | Plan documents | plan repository `main` | in review |
 | 00 | [Base fixes](stages/00-base-fixes.md) | `pg-poc/00-base-fixes` | done, in review |
-| 01 | [PostgreSQL provisioning script](stages/01-provision.md) | `pg-poc/01-provision` | in review |
+| 01 | [PostgreSQL provisioning script](stages/01-provision.md) | `pg-poc/01-provision` | in review (also carries the D52 cleanup tool) |
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
-| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector and 08-delete committed; 08-cleanup-tool next) |
+| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete and 08-cleanup-tool committed; 08-delete-locks open, needs a design choice) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: 08-cleanup-tool, the operator script
-`scripts/postgresql-poc/drop-juju-schemas.py`, then the Stage 9 handover
-([handoff](handoffs/2026-10-27-stage-8-cleanup-tool.md)). The top is
-`08=05c37d6e9f`. On 2026-10-27 the per-test schema teardown was made to
+Next: a design choice for 08-delete-locks
+([task](stages/08-dbaccessor.md#implementation-tasks), X42), then the
+Stage 9 handover. `DeleteSchema` deletes a model in one transaction
+holding about 4,430 locks, about 69% of the PoC server's shared lock
+table, so concurrent model deletes can fail. One model delete fits, so it
+does not block Stage 9's single-model teardown. The top is
+`08=2eac5de1a2`. 08-cleanup-tool is done
+([result](stages/08-dbaccessor.md#08-cleanup-tool-result)):
+`scripts/postgresql-poc/drop-juju-schemas.py` on Stage 1
+(`01=bd0f4e7638`, D52) lists and drops PoC controller, model and test
+schemas, one transaction per schema. Stages 02–08 were restacked onto
+it; earlier 08 hashes in the stage files are historical. On 2026-10-27
+the per-test schema teardown was made to
 fail a test whose CASCADE drop reaches objects outside its schema (N15)
-at `06=e7f3822281`, and the stack restacked; earlier 08 hashes in the
-stage files are historical. 08-delete is done
+at `06=e7f3822281`, and the stack restacked. 08-delete is done
 ([result](stages/08-dbaccessor.md#08-delete-result)): `pgWorker.DeleteDB`
 drops a model's schema with RESTRICT (D47), in a READ COMMITTED
 transaction, an approved exception to D7 (D47 amendment, X40).
