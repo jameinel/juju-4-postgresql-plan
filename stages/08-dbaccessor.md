@@ -4,8 +4,8 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 
 ## Status and prerequisites
 
-Bootstrap/placement code, 08-tracker, 08-worker and 08-upgrade-selector
-are implemented; 08-delete is not. The lifecycle contract below
+Bootstrap/placement code, 08-tracker, 08-worker, 08-upgrade-selector
+and 08-delete are implemented; 08-cleanup-tool is not. The lifecycle contract below
 was approved on 2026-10-26 (D44–D47); D48 records the tracker interfaces,
 D49 the manifold's connection source, D50 the loss of the controller
 schema and D51 the upgrade worker's backend.
@@ -21,14 +21,16 @@ pool policy.
 
 Already present: `postgresql.Placement` (`SchemaName`, `OpenAdmin`,
 `OpenNamespace`), schema create/ensure/drop/existence helpers,
-`postgresql.SchemaInitialised` (the D44 marker check), `WithRootCAs`,
+`postgresql.SchemaInitialised` (the D44 marker check), `postgresql.DeleteSchema`
+(the D47 drop), `WithRootCAs`,
 `database.DqliteInitialiser` / `PostgresInitialiser`,
 `agentbootstrap.DatabaseInitialiser` and selection at
 `cmd/jujuagentd/agent/bootstrap.go` (`newDatabaseInitialiser`), and the
 tracker's `DBOpener` / `TrackedDBBackend` interfaces with
 `dbaccessor.PostgresNamespaces` (D48), and `dbaccessor.pgWorker` with
 manifold selection from `DBConnectionSource` (D49), and the upgrade
-worker's schema selection from the same source (D51).
+worker's schema selection from the same source (D51), and
+`PostgresNamespaces.Delete` behind `pgWorker.DeleteDB`.
 Verify APIs on the current branch; these are not requests to rebuild them.
 
 ## 08-contract: approved lifecycle contract
@@ -94,7 +96,13 @@ change-stream watchers and API address publication are unchanged.
   check while another controller deletes the model, and recreate an
   empty schema. dqlite has the same race. Record it if seen; no fix is
   planned.
-- The 15 s `lock_timeout` on deletes is not tuned.
+- The 15 s `lock_timeout` on deletes is not tuned. It bounds each lock
+  wait, not the whole delete, and the delete holds up uncached `GetDB`
+  and `DeleteDB` requests while it waits ([08-delete result](#08-delete-result)).
+- A cancelled PostgreSQL query leaves its server backend running until it
+  completes or times out: pgx closes the connection without sending a
+  cancel request. This applies to every PoC query; deletes are bounded by
+  their lock timeout.
 - Upgrades of PostgreSQL schemas are exercised only by re-applying the
   backend's DDL to an initialised schema (08-upgrade-selector). No
   PostgreSQL schema patch exists yet, and the data-migration upgrade
@@ -107,7 +115,7 @@ change-stream watchers and API address publication are unchanged.
 | 08-tracker | **Done** ([result](#08-tracker-result)). Approved contract; replace the SQLite catalog/PRAGMA assumptions, select model DDL by backend and add the D46 schema check to the ping. | Fresh namespace, existing namespace and empty schema without a marker; a DDL failure leaves no marker; an overlapping initialiser fails cleanly and its retry succeeds; cancellation; namespace isolation; a dropped schema ends the tracker with `ErrDBDead`; default dqlite unchanged. |
 | 08-worker | **Done** ([result](#08-worker-result)). Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
 | 08-upgrade-selector | **Done** ([result](#08-upgrade-selector-result)). Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
-| 08-delete | Approved contract and worker ownership; D47 RESTRICT drop replacing the CASCADE `postgresql.DropSchema`, which only tests use, and the interim `NotImplemented` in `pgWorker.deleteDatabase`. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
+| 08-delete | **Done** ([result](#08-delete-result)). Approved contract and worker ownership; D47 RESTRICT drop replacing the interim `NotImplemented` in `pgWorker.deleteDatabase`. The CASCADE `postgresql.DropSchema` stays, for tests only. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
 | 08-cleanup-tool | Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`. | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
 
 Clarify removal of provisioning-host `sslrootcert` paths from agent URLs
@@ -174,12 +182,11 @@ Done 2026-10-26 at `08=aa09e41411` (pushed), in three commits:
   agent config`: D49. The output `ClusterDescriber` reports no nodes
   (D19); `domain/status` builds an empty map from that.
 
-**Interim delete.** `DeleteDB` refuses the controller namespace with
-`Forbidden`, kills the namespace's tracker with `ErrDBDead` and waits for
-it, then returns `NotImplemented`; the schema survives. The undertaker
-deletes the model's rows first, then retries `DeleteDB` with backoff, so
-model removal on PostgreSQL does not complete until 08-delete replaces
-the error with the D47 drop.
+**Interim delete (superseded by [08-delete](#08-delete-result)).**
+`DeleteDB` refused the controller namespace with `Forbidden`, killed the
+namespace's tracker with `ErrDBDead` and waited for it, then returned
+`NotImplemented`; the schema survived, so model removal on PostgreSQL
+could not complete.
 
 **Race fixed while testing.** When the controller tracker fails to
 start, the runner dies with the real error, but `start` can see
@@ -196,7 +203,7 @@ Required checks:
 | Restart/cancellation | `TestRestart`; `TestKillWhileRegistering`: registration blocked on an `ACCESS EXCLUSIVE` lock (confirmed through `pg_blocking_pids`), a cancelled `GetDB` returns `context.Canceled`, `Kill` is clean and later calls return `ErrDBAccessorDying`. |
 | Deterministic pool closure | `TestKillClosesPools`: sessions tagged with `application_name` drop to 0 after `Kill`. |
 | Controller schema loss (D50) | `TestDroppedControllerSchemaIsFatal`, and the amended `TestControllerNamespaceIsNotCreated`. |
-| Interim delete | `TestDeleteDB`: `Forbidden` for the controller, `NotImplemented` for a model, the old runner returns `ErrDBDead`, and the schema survives. |
+| Interim delete | `TestDeleteDB`: `Forbidden` for the controller, `NotImplemented` for a model, the old runner returns `ErrDBDead`, and the schema survives. Superseded: 08-delete changed it to expect the drop. |
 
 Validation: the full `dbaccessor` package with `-race` on SQLite and on
 PostgreSQL, the `cmd/jujuagentd/agent`, `machine` and `safemode`
@@ -231,6 +238,93 @@ PostgreSQL (16 s), the `machine` package, `go build ./...` and
 `golangci-lint` on the changed packages (0 issues); stress with `-race`
 of the worker and manifold suites on SQLite, 138 runs (`-p 3`), 0
 failures.
+
+## 08-delete result
+
+Done 2026-10-27 at `08=fc8f6f7f88` (pushed), in two commits:
+
+- `7d9198a0f1` `feat(database): drop postgresql namespace schemas without
+  cascade`: `postgresql.DeleteSchema(ctx, db, name, lockTimeout)` (D47).
+  One transaction with `SET LOCAL lock_timeout` checks that the schema
+  exists (a missing one succeeds), then drops its views, tables,
+  functions and remaining sequences by name, then the schema, each
+  statement with RESTRICT. Anything else (types, materialized views,
+  procedures, aggregates) or an outside dependent fails with 2BP01 and
+  nothing is dropped. PostgreSQL lists the dependents only in the error's
+  `Detail`, so the error appends it (X26, X41). A lock timeout under 1 ms
+  is rejected, because 0 disables it. `DropSchema` (CASCADE) is
+  documented as test-only.
+- `fc8f6f7f88` `feat(dbaccessor): delete postgresql model schemas`:
+  `PostgresNamespaces.Delete` opens a short-lived admin pool and calls
+  `DeleteSchema` with a 15 s lock timeout; `pgWorker.deleteDatabase` calls
+  it after killing the tracker and waiting for it, replacing the interim
+  `NotImplemented`.
+
+**Isolation.** The delete transaction uses READ COMMITTED, an exception
+to D7 approved on 2026-10-27 and recorded as a D47 amendment. Under a
+SERIALIZABLE snapshot, objects dropped by a concurrent delete are still
+listed, and `regclass` renders their OIDs as bare numbers; the `DROP`
+then fails with `syntax error at or near "<oid>"`. SSI does not track
+catalog reads (X40).
+
+**Behaviour.**
+
+- The delete runs on the worker loop, so uncached `GetDB` and `DeleteDB`
+  requests wait behind it; cached runners are still served.
+- `lock_timeout` bounds each lock wait, not the whole delete. 15 s is not
+  tuned.
+- A tracker still starting is waited for: schema creation and DDL run
+  before the tracker is published, so a delete never overlaps the DDL.
+- Cancelling or killing the worker mid-delete drops nothing. The caller
+  gets `ErrDBAccessorDying` or `context.Canceled`, depending on a select
+  race. pgx v5's default `DeadlineContextWatcherHandler` closes the
+  connection without a cancel request, so the server backend keeps
+  waiting until it gets the lock or times out, then rolls back. This
+  affects every PoC query; `pgconn.CancelRequestContextWatcherHandler`
+  is a possible follow-up (not verified).
+
+**Test fixture finding.** `BootstrapPostgres` creates and initialises
+the controller model's schema as well as the controller's. The first
+delete tests used that model, so the in-progress-start case never ran.
+The worker delete tests now register a fresh namespace, check that its
+schema is absent, and `TestDeleteDB` checks that the controller model's
+schema survives.
+
+Required checks. `TestSchemaSuite` and `TestPlacementSuite` are in
+`internal/database/postgresql`; `TestPgWorkerSuite` is in
+`internal/worker/dbaccessor/pgworker_pg_test.go`. All but
+`TestDeleteSchemaRejectsShortLockTimeout` and `TestWithDetail` run on
+PostgreSQL.
+
+| Check | Test |
+|---|---|
+| Teardown reaches the intended schema; unrelated schemas survive | `TestDeleteSchemaDropsJujuObjects`: tables, identity and serial columns, a sequence, an index, a trigger and its function, overloaded functions and nested views; neighbours `<name>x` and `other` with the same objects are unchanged. `TestDeleteDB`: the old runner returns `ErrDBDead`, the schema is gone, a later `GetDB` returns `ErrDBNotFound` without recreating it, and the controller, controller model and another model survive. |
+| Repeated and never-created deletes | `TestDeleteSchemaDropsJujuObjects`, `TestDeleteSchemaEmpty`, `TestDeleteDBWithoutTrackedDatabase` (a schema created by an earlier worker, then deleted twice, and a namespace that never had one). |
+| Unexpected object fails without dropping anything | `TestDeleteSchemaUnexpectedObject` (enum, materialized view, procedure, aggregate); `TestDeleteDBForeignObject`, whose error is not `NotFound`, which the undertaker would take as success. A retry after removing the object succeeds. |
+| Outside dependent fails without dropping anything | `TestDeleteSchemaOutsideDependent` (view, foreign key, trigger, sequence default); `TestDeleteDBForeignObject` (view). Neither schema changes; a retry after removing the dependent succeeds. |
+| Lock timeout | `TestDeleteSchemaLockTimeout` (55P03 in well under the session's own timeout; nothing dropped; a retry succeeds), `TestDeleteSchemaRejectsShortLockTimeout`. |
+| Lock wait | `TestDeleteSchemaWaitsForLock`; `TestDeleteDBWaitsForLock` (blocking confirmed through `pg_blocking_pids`; a cached runner is served meanwhile). |
+| Cancellation | `TestDeleteSchemaCancelled`; `TestKillWhileDeleting` (no relation dropped, and the worker's sessions reach 0 once the lock is released). |
+| Acquire/delete races | `TestDeleteDBRacesUse` (4 users loop on `GetDB` and transactions until `ErrDBNotFound`); `TestDeleteDBWhileStarting` (a tracker held after its DDL: the delete does not finish within 100 ms, then succeeds after release, and the runner returns `ErrDBDead`); `TestDeleteDBFromAnotherController` (the other controller's runner returns `ErrDBDead` and is not replaced); `TestDeleteSchemaConcurrentlyDeleted`. |
+| Error detail | `TestWithDetail`. |
+
+Mutations, each reverted:
+
+| Mutation | Failing tests |
+|---|---|
+| SERIALIZABLE instead of READ COMMITTED | `TestDeleteSchemaConcurrentlyDeleted` |
+| A fixed lock timeout instead of the caller's | `TestDeleteSchemaLockTimeout` |
+| CASCADE instead of RESTRICT | `TestDeleteSchemaOutsideDependent`, `TestDeleteSchemaUnexpectedObject` |
+| No tracker kill before the drop | `TestDeleteDB`, `TestDeleteDBWhileStarting` |
+| No wait for a starting tracker | `TestDeleteDBWhileStarting` |
+
+Validation: `go build ./...`; the `dbaccessor` and `postgresql`
+packages with `-race` on SQLite; the full `dbaccessor` package with
+`-race` on PostgreSQL (45 s) and the full `postgresql` package on
+PostgreSQL; `golangci-lint` on the changed packages, whose only findings
+are two pre-existing `rangeint` hints in `driver_test.go`. Stress with
+`-race` (`-p 1`), 0 failures: `TestPgWorkerSuite` 14 runs,
+`TestSchemaSuite` 83 runs.
 
 ## Acceptance
 
