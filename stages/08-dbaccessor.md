@@ -4,9 +4,11 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 
 ## Status and prerequisites
 
-Bootstrap/placement code and 08-tracker are implemented; the runtime
-worker is not. The lifecycle contract below was approved on 2026-10-26
-(D44–D47); D48 records the tracker interfaces.
+Bootstrap/placement code, 08-tracker and 08-worker are implemented;
+08-upgrade-selector and 08-delete are not. The lifecycle contract below
+was approved on 2026-10-26 (D44–D47); D48 records the tracker interfaces,
+D49 the manifold's connection source and D50 the loss of the controller
+schema.
 `TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
 `08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
 do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
@@ -24,7 +26,8 @@ Already present: `postgresql.Placement` (`SchemaName`, `OpenAdmin`,
 `agentbootstrap.DatabaseInitialiser` and selection at
 `cmd/jujuagentd/agent/bootstrap.go` (`newDatabaseInitialiser`), and the
 tracker's `DBOpener` / `TrackedDBBackend` interfaces with
-`dbaccessor.PostgresNamespaces` (D48).
+`dbaccessor.PostgresNamespaces` (D48), and `dbaccessor.pgWorker` with
+manifold selection from `DBConnectionSource` (D49).
 Verify APIs on the current branch; these are not requests to rebuild them.
 
 ## 08-contract: approved lifecycle contract
@@ -59,9 +62,10 @@ when the tracker stops. The pool uses SERIALIZABLE, UTC, the namespace's
 `search_path`, the D22 in-memory CA and the charm's login role, and is
 capped at 3 connections. Transactions keep the existing tomb-bound
 context and `database.Retry` policy. The ping/reopen loop stays; the
-ping also checks that the schema still exists, and the tracker exits
-with `ErrDBDead` when it does not (D46, provisional). There is no
-long-lived admin pool.
+ping also checks that the schema still exists. A tracker whose model
+schema is gone exits with `ErrDBDead` (D46, provisional); a missing
+controller schema is a plain error that fails the worker (D50). There
+is no long-lived admin pool.
 
 **Delete.** `DeleteDB` keeps the existing order: refuse the controller
 namespace, kill the local tracker with `ErrDBDead` and wait for it, then
@@ -98,9 +102,9 @@ change-stream watchers and API address publication are unchanged.
 | Task | Prerequisites and scope | Required checks |
 |---|---|---|
 | 08-tracker | **Done** ([result](#08-tracker-result)). Approved contract; replace the SQLite catalog/PRAGMA assumptions, select model DDL by backend and add the D46 schema check to the ping. | Fresh namespace, existing namespace and empty schema without a marker; a DDL failure leaves no marker; an overlapping initialiser fails cleanly and its retry succeeds; cancellation; namespace isolation; a dropped schema ends the tracker with `ErrDBDead`; default dqlite unchanged. |
-| 08-worker | Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
+| 08-worker | **Done** ([result](#08-worker-result)). Tracker contract; separate `pgWorker` reusing `trackedDBWorker`, connection source and machine/safemode output wiring. | Backend/default selection; a missing controller marker is an error; `AddDqliteNodeID` runs before ready; ready access; restart/cancellation; deterministic pool closure. |
 | 08-upgrade-selector | Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
-| 08-delete | Approved contract and worker ownership; D47 RESTRICT drop replacing the CASCADE `postgresql.DropSchema`, which only tests use. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
+| 08-delete | Approved contract and worker ownership; D47 RESTRICT drop replacing the CASCADE `postgresql.DropSchema`, which only tests use, and the interim `NotImplemented` in `pgWorker.deleteDatabase`. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
 | 08-cleanup-tool | Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`. | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
 
 Clarify removal of provisioning-host `sslrootcert` paths from agent URLs
@@ -139,7 +143,7 @@ Required checks, `TestTrackedDBPostgresSuite`
 | Cancellation | `TestCancelledInitialisationLeavesNoMarker`: DDL blocked on an uncommitted conflicting table (confirmed through `pg_blocking_pids`), then cancelled; no marker; a retry succeeds. |
 | Namespace isolation | `TestNamespaceIsolation` |
 | Dropped schema | `TestDroppedSchemaEndsTrackerWithErrDBDead`: `Wait` returns `ErrDBDead`, `Open` ran once, the schema stays dropped, `StdTxn` returns `ErrDBDead`, and another namespace's tracker stays healthy. |
-| Controller namespace | `TestControllerNamespaceIsNotCreated`: the schema is not created and the first ping ends the tracker with `ErrDBDead`. |
+| Controller namespace | `TestControllerNamespaceIsNotCreated`: the schema is not created and the first ping ends the tracker. 08-worker changed the error from `ErrDBDead` to a plain error (D50). |
 | Default dqlite unchanged | Existing `TestTrackedDBWorkerSuite` and the full package pass on SQLite; new `TestWorkerDoesNotReopenDeadDB`. |
 
 Both `ErrDBDead` tests fail when the no-reopen short-circuit is disabled
@@ -147,6 +151,55 @@ Both `ErrDBDead` tests fail when the no-reopen short-circuit is disabled
 `-race` on SQLite and on PostgreSQL, `internal/database/postgresql` on
 PostgreSQL, `go build ./...`; stress with `-race`: tracker suite on SQLite
 220 runs, PostgreSQL tracker suite 18 runs (`-p 3`), 0 failures.
+
+## 08-worker result
+
+Done 2026-10-26 at `08=aa09e41411` (pushed), in three commits:
+
+- `5594111e4b` `refactor(dbaccessor): extract the tracked database
+  runner`: `newTrackedDBRunner`, so both workers share the runner's
+  fatal and restart rules.
+- `fa46a683cc` `feat(dbaccessor): add a postgresql dbaccessor worker`:
+  `pgWorker` (`internal/worker/dbaccessor/pgworker.go`). Before `GetDB`
+  unblocks, it starts the controller tracker, checks the controller
+  marker with `PostgresNamespaces.CheckControllerInitialised` (D44) and
+  calls `AddDqliteNodeID` (D45). Request serialisation, the
+  `namespace_list` check and the tracker cache follow the dqlite worker.
+  The controller tracker's ping returns a plain error when the schema is
+  gone (D50).
+- `aa09e41411` `feat(dbaccessor): select the dbaccessor backend from
+  agent config`: D49. The output `ClusterDescriber` reports no nodes
+  (D19); `domain/status` builds an empty map from that.
+
+**Interim delete.** `DeleteDB` refuses the controller namespace with
+`Forbidden`, kills the namespace's tracker with `ErrDBDead` and waits for
+it, then returns `NotImplemented`; the schema survives. The undertaker
+deletes the model's rows first, then retries `DeleteDB` with backoff, so
+model removal on PostgreSQL does not complete until 08-delete replaces
+the error with the D47 drop.
+
+**Race fixed while testing.** When the controller tracker fails to
+start, the runner dies with the real error, but `start` can see
+`worker.ErrDead` first. The loop then returns the runner's error instead.
+
+Required checks:
+
+| Check | Test |
+|---|---|
+| Backend/default selection | `TestStartPostgreSQL` (outputs, empty cluster details, no dqlite inputs), `TestStartDqliteNeedsDqliteInputs`, `TestStartUnknownBackend`, `TestStartConnectionDetailsError` and a nil-source `Validate` case in `manifold_test.go`; `TestDetailsReadCurrentAgentConfig` (empty backend is dqlite) and `TestSafeModeDetailsReadCurrentAgentConfig` in `cmd/jujuagentd/agent`. |
+| Missing controller marker | `TestMissingControllerSchema` (no schema is created) and `TestControllerSchemaWithoutMarker`. |
+| `AddDqliteNodeID` before ready | `TestRegistersControllerBeforeServing` (rows `0`, `1`); `TestControllerNodeNotAlive` (the worker fails and never serves). |
+| Ready access | `TestGetDBModelNamespaces`: controller and model namespaces, the cached runner, a registered namespace without a schema gets an initialised one, and an unregistered namespace returns `ErrDBNotFound` without a schema. |
+| Restart/cancellation | `TestRestart`; `TestKillWhileRegistering`: registration blocked on an `ACCESS EXCLUSIVE` lock (confirmed through `pg_blocking_pids`), a cancelled `GetDB` returns `context.Canceled`, `Kill` is clean and later calls return `ErrDBAccessorDying`. |
+| Deterministic pool closure | `TestKillClosesPools`: sessions tagged with `application_name` drop to 0 after `Kill`. |
+| Controller schema loss (D50) | `TestDroppedControllerSchemaIsFatal`, and the amended `TestControllerNamespaceIsNotCreated`. |
+| Interim delete | `TestDeleteDB`: `Forbidden` for the controller, `NotImplemented` for a model, the old runner returns `ErrDBDead`, and the schema survives. |
+
+Validation: the full `dbaccessor` package with `-race` on SQLite and on
+PostgreSQL, the `cmd/jujuagentd/agent`, `machine` and `safemode`
+packages, `go build ./...` and `golangci-lint` on the changed packages (0
+issues); stress with `-race` of the PostgreSQL worker and manifold
+suites, 24 runs (`-p 3`), 0 failures.
 
 ## Acceptance
 
