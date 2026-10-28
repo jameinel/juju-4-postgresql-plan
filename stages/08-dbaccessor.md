@@ -5,11 +5,12 @@ Branch `pg-poc/08-dbaccessor`, on `pg-poc/07-config`; current stack top.
 ## Status and prerequisites
 
 Bootstrap/placement code, 08-tracker, 08-worker, 08-upgrade-selector,
-08-delete and 08-cleanup-tool are implemented. 08-delete-locks is open
-and needs a design choice. The lifecycle contract below
+08-delete, 08-cleanup-tool and 08-delete-locks are implemented. The
+lifecycle contract below
 was approved on 2026-10-26 (D44–D47); D48 records the tracker interfaces,
 D49 the manifold's connection source, D50 the loss of the controller
-schema, D51 the upgrade worker's backend and D52 the cleanup tool.
+schema, D51 the upgrade worker's backend, D52 the cleanup tool and D53
+the schema change lock.
 `TestPostgresBootstrapSuite` passes on PG (2 tests) in the D42 run at
 `08=c5f185e6f6`. The old operation-4 query failures were fixed on Stage 5;
 do not repeat that work ([D42 evidence](06-compatibility.md#d42-runtime-entry-gate-run)).
@@ -100,6 +101,13 @@ change-stream watchers and API address publication are unchanged.
 - The 15 s `lock_timeout` on deletes is not tuned. It bounds each lock
   wait, not the whole delete, and the delete holds up uncached `GetDB`
   and `DeleteDB` requests while it waits ([08-delete result](#08-delete-result)).
+- Schema creates have no `lock_timeout`, so a schema change transaction
+  that never ends would block every later create on the database
+  ([08-delete-locks result](#08-delete-locks-result)). A delete queued
+  behind several creates can time out; the undertaker retries it.
+- The schema change lock (D53) is per database. Juju databases that share
+  one PostgreSQL cluster do not serialise each other's schema changes,
+  but they share its lock tables.
 - A cancelled PostgreSQL query leaves its server backend running until it
   completes or times out: pgx closes the connection without sending a
   cancel request. This applies to every PoC query; deletes are bounded by
@@ -118,7 +126,7 @@ change-stream watchers and API address publication are unchanged.
 | 08-upgrade-selector | **Done** ([result](#08-upgrade-selector-result)). Backend plumbing; wire `ControllerDDLForBackend` / `ModelDDLForBackend` into the upgrade worker. | Both selector paths and existing lifecycle semantics; no new restore/cross-version upgrade support. |
 | 08-delete | **Done** ([result](#08-delete-result)). Approved contract and worker ownership; D47 RESTRICT drop replacing the interim `NotImplemented` in `pgWorker.deleteDatabase`. The CASCADE `postgresql.DropSchema` stays, for tests only. | Teardown reaches the intended schema; repeated and never-created deletes; an unexpected object or an outside dependent fails without dropping anything; lock timeout, cancellation and acquire/delete races; unrelated schemas survive. |
 | 08-cleanup-tool | **Done** ([result](#08-cleanup-tool-result)). Separate operator task; `scripts/postgresql-poc/drop-juju-schemas.py`, on Stage 1 (D52). | Non-destructive inventory, explicit target/confirmation and controller-stopped precondition; never blanket cleanup on bootstrap failure. |
-| 08-delete-locks | Open; needs a design choice from the user before implementation. `DeleteSchema` (D47) deletes a model in one transaction holding about 4,430 locks, about 69% of the PoC server's 6,400-slot shared lock table (X42). Two concurrent model deletes, or one on a busy cluster, can fail with 53200, and so can other sessions' transactions. Candidate approaches, none chosen or verified: raise `max_locks_per_transaction` on the server (a restart; whether the charm exposes it is unchecked); split the delete across transactions, giving up D47's all-or-nothing drop; serialise deletes per controller (this does not help across HA controllers); or drop fewer objects, for example one shared change-log trigger function, saving 292. | The lock count of one model delete, measured against the configured table; concurrent model deletes alongside normal controller load do not fail with 53200; any partial delete is retried to completion, or nothing is dropped. |
+| 08-delete-locks | **Done** ([result](#08-delete-locks-result)). Every PostgreSQL schema change transaction (`Schema.Ensure`, `DeleteSchema`) runs the dialect's `BeginSchemaChangeSQL` first: READ COMMITTED and a per-database advisory lock (D53). D47's single transaction is kept. | The lock count of one model delete, measured against the configured table; concurrent model deletes alongside normal controller load do not fail with 53200; any partial delete is retried to completion, or nothing is dropped. |
 
 Clarify removal of provisioning-host `sslrootcert` paths from agent URLs
 before live TLS acceptance; do not assume the path exists on controller
@@ -372,6 +380,98 @@ stopped or that fail.
 `COMMENT ON SCHEMA` takes only a literal, so fixture comments are built
 in the shell; and `pg_total_relation_size` takes locks, so every session
 sets `lock_timeout`.
+
+## 08-delete-locks result
+
+Done 2026-10-28 at `08=950bba743e`, in two commits:
+
+- `0990a8d03d` `test(database): share the wait for a blocked postgresql
+  session`: `pgtesting.WaitForBlocked` replaces two local copies.
+- `950bba743e` `fix(database): serialise postgresql schema changes with
+  an advisory lock` (D53).
+
+**Measurements** on the PoC server (PostgreSQL 16.15) at 156 model
+patches, counting lock rows outside the fast path:
+
+| Transaction | Locks | Time |
+|---|---|---|
+| Controller create (`Ensure`) | 1,319 | |
+| Model create (`Ensure`) | 3,628 (1,257 AccessExclusive) | 1.07 s |
+| Model delete (`DeleteSchema`) | 4,418 | 0.32 s |
+
+The shared lock table holds `max_locks_per_transaction` × MaxBackends =
+64 × 137 = 8,768 entries, not the 6,400 recorded earlier. On PostgreSQL
+16, MaxBackends is `max_connections` (100) + `autovacuum_max_workers`
+(3) + 1 + `max_worker_processes` (8) + `max_wal_senders` (25). One delete
+uses about 50% and one create about 41%, so two overlapping deletes can
+fail with 53200, and a delete beside a create leaves little room for
+other sessions (X42).
+
+**Design.** The user chose to keep D47's single transaction and
+serialise every PostgreSQL schema change with an advisory transaction
+lock. A dialect method supplies the statements, so callers and
+transaction runners are unchanged. `Schema.Ensure` runs
+them first, which covers bootstrap, tracker creation, the upgrade worker
+and the test harness. `DeleteSchema` runs them after `SET LOCAL
+lock_timeout`, which then bounds the wait (55P03, retried by the
+undertaker). The key is the bytes of `juju_ddl`.
+
+**SIRead finding.** A load experiment ran 3–5 concurrent creates and
+deletes beside SERIALIZABLE readers of another model schema, sampling
+`pg_locks`. With the lock alone, the heavyweight peak stayed near 5,000,
+but `Ensure` still ran at SERIALIZABLE for over a second. PostgreSQL
+keeps the SIRead locks of every SERIALIZABLE transaction that commits
+while an older one runs, server-wide. With two readers that each read
+every table, creates and readers failed with 53200 and the hint "increase
+max_pred_locks_per_transaction" (peak 17,536 SIRead rows). With four
+readers of 10 tables each, the peak was about 13,700. The user approved
+running `Ensure` at READ COMMITTED (X43), like the D47 delete, and asked
+that the exposure stay minimal. The dialect therefore has one opaque
+method, `BeginSchemaChangeSQL`, which returns `SET TRANSACTION ISOLATION
+LEVEL READ COMMITTED` and the lock for PostgreSQL, and nothing for SQLite.
+
+Results with the final code:
+
+| Load | Result |
+|---|---|
+| None; 3 creates and 3 deletes | All pass, run one at a time; heavyweight peak 4,433. |
+| 4 readers × 10 tables; 5 creates and 5 deletes | All pass; SIRead peak 830 (was about 13,700). |
+| 2 readers of every table; 3 creates and 3 deletes | Creates and deletes pass in 3 runs; reader 53200s in 1 run. |
+| 2 readers of every table; no schema changes | Reader 53200s in both runs (60 and 10). |
+
+The last row shows that the remaining failures come from the synthetic
+readers themselves. Stage 11 records a READ COMMITTED experiment for
+application transactions.
+
+**Overlapping initialisers.** A transaction that waited for the lock
+now sees the DDL of the one it waited for, so `TestOverlappingInitialisers`
+reported 0 of 4 failures (3 of 4 before, X39).
+
+Required checks:
+
+| Check | Test |
+|---|---|
+| Lock counts against the configured table | Measured above with a temporary probe (not committed). |
+| Concurrent deletes alongside load do not fail with 53200 | The load experiment above (temporary, not committed); `TestDeleteSchemaWaitsForSchemaChangeLock`, `TestDeleteSchemaHoldsSchemaChangeLock`, `TestEnsureWaitsForSchemaChangeLock`, `TestEnsureHoldsSchemaChangeLock`. |
+| A partial delete is retried, or nothing is dropped | D47's single transaction is kept. `TestDeleteSchemaSchemaChangeLockTimeout`: 55P03, nothing dropped, a retry succeeds. |
+| `Ensure` runs at READ COMMITTED and sees the change it waited for | `TestEnsureRunsAtReadCommitted`, `TestEnsureSeesSchemaChangeItWaitedFor`. |
+| SQLite unchanged | `TestDialects`, `TestBeginSchemaChangeSQLite`. |
+
+Mutations, each reverted:
+
+| Mutation | Failing tests |
+|---|---|
+| No lock in `Ensure` or `DeleteSchema` | The four wait and hold tests and `TestDeleteSchemaSchemaChangeLockTimeout` |
+| No `SET TRANSACTION` | `TestEnsureRunsAtReadCommitted`, `TestEnsureSeesSchemaChangeItWaitedFor` (42P07) |
+
+Validation: `go build ./...`. With `-race` on SQLite: the dialect,
+schema, `dbaccessor`, `upgradedatabase`, `internal/database` and
+`domain/schema` packages. With `-race` on PostgreSQL, one package at a
+time: schema, `postgresql`, `dbaccessor` (76 s), `upgradedatabase`,
+`internal/database` and `domain/schema`. `golangci-lint` on the changed
+packages, whose only findings are the two pre-existing `rangeint` hints in
+`driver_test.go`. Stress with `-race` (`-p 1`), 0 failures: the new schema
+tests 53 runs, the new delete tests 48 runs.
 
 ## Acceptance
 

@@ -29,7 +29,7 @@ and acceptance criteria first.
     the SIRead locks of every SERIALIZABLE transaction that commits while
     it runs, across all schemas. READ COMMITTED takes no predicate locks
     and needs no 40001 retries. The D47 delete and schema `Ensure`
-    already run at READ COMMITTED.
+    already run at READ COMMITTED (D53, DIALECT.md X43).
   - Trial: the default isolation is one connection parameter
     (`default_transaction_isolation` in `internal/database/postgresql/driver.go`).
   - Risk: dqlite has one writer, so domain code may rely on read-then-write

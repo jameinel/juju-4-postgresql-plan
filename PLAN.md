@@ -142,18 +142,21 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
-| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | in progress (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete and 08-cleanup-tool committed; 08-delete-locks open, needs a design choice) |
+| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); Stage 9 handover next |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: a design choice for 08-delete-locks
-([task](stages/08-dbaccessor.md#implementation-tasks), X42), then the
-Stage 9 handover. `DeleteSchema` deletes a model in one transaction
-holding about 4,430 locks, about 69% of the PoC server's shared lock
-table, so concurrent model deletes can fail. One model delete fits, so it
-does not block Stage 9's single-model teardown. The top is
-`08=2eac5de1a2`. 08-cleanup-tool is done
+Next: the Stage 9 handover. The top is `08=950bba743e`. 08-delete-locks
+is done ([result](stages/08-dbaccessor.md#08-delete-locks-result)):
+every PostgreSQL schema change transaction (`Schema.Ensure`,
+`DeleteSchema`) first runs the dialect's `BeginSchemaChangeSQL`, which
+sets READ COMMITTED and takes a per-database advisory lock (D53). A
+model delete takes about 4,400 locks and a create about 3,600, against
+a shared table of 8,768 (X42), so they now run one at a time. READ
+COMMITTED is a D7 exception: a long SERIALIZABLE `Ensure` exhausted the
+predicate lock table under load (X43). Stage 11 records an experiment
+to run all transactions at READ COMMITTED. 08-cleanup-tool is done
 ([result](stages/08-dbaccessor.md#08-cleanup-tool-result)):
 `scripts/postgresql-poc/drop-juju-schemas.py` on Stage 1
 (`01=bd0f4e7638`, D52) lists and drops PoC controller, model and test
