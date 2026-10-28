@@ -150,7 +150,9 @@ missing inputs; do not ask an executor to design and implement a backlog.
 Next: unblock the PostgreSQL bootstrap. 09-functional run 1 failed on U15
 (nullable primary key for the wildcard exposed endpoint, X44, needs a
 design choice) and U16 (`RegisterAgentBinary` after a conflict, X18); see
-[the run log](stages/09-bootstrap.md#09-functional-run-log). The top is `08=950bba743e`. 08-delete-locks
+[the run log](stages/09-bootstrap.md#09-functional-run-log). A proposed
+[same-database guard](stages/09-bootstrap.md#09-same-db-guard-stop-two-controllers-sharing-one-database-proposed)
+is recorded and not scheduled. The top is `08=950bba743e`. 08-delete-locks
 is done ([result](stages/08-dbaccessor.md#08-delete-locks-result)):
 every PostgreSQL schema change transaction (`Schema.Ensure`,
 `DeleteSchema`) first runs the dialect's `BeginSchemaChangeSQL`, which

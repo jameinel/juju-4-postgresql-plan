@@ -51,6 +51,50 @@ preserved, not a promised speedup. Start with single controllers; Stage 10
 follows. Workload, scale, repetitions and TLS comparison remain open and
 must be fixed before assigning the run.
 
+## 09-same-db-guard: stop two controllers sharing one database (proposed)
+
+Status: proposed, not approved or scheduled. Raised by the user on
+2026-10-28 after a manual bootstrap ran alongside run 1: one database per
+controller is accepted (D3), but a second bootstrap against a database that
+already holds a controller should fail clearly, so users cannot damage
+themselves. Whether run 1 was in fact disturbed by that manual bootstrap is
+unknown; its failures (U15/U16) are deterministic and do not need it.
+
+What exists (read from the code, not yet exercised live):
+
+- `BootstrapPostgres` (`internal/database/bootstrap_postgresql.go`) creates
+  `juju_controller` and `juju_<controller model uuid>` in one transaction and
+  fails with `ErrSchemaExists` ("bootstrap requires a database with no Juju
+  state") if either exists. A concurrent second bootstrap blocks on the
+  first's uncommitted schema and then fails the same way.
+- It runs on the controller machine in bootstrap-state, so the user finds out
+  only after the instance is provisioned and the agent installed, and only
+  through the bootstrap output.
+- The model schema is keyed by the new controller model UUID, so a second
+  bootstrap collides only on `juju_controller`.
+
+Gaps to check and decide:
+
+1. Live check: bootstrap a second controller at a database that holds a
+   (failed or complete) first one. Record the client output, what is left on
+   the machine/LXD, and whether the first controller is untouched.
+2. Early failure: a client-side pre-flight at `juju bootstrap`. The client may
+   not reach the database, so it can only be best effort (fail if it can
+   connect and finds `juju_controller`; otherwise warn and go on). It would
+   link the PostgreSQL driver into the client. Open choice.
+3. Runtime ownership: nothing at runtime checks that `juju_controller` belongs
+   to this agent's controller. The recorded controller UUID is in the schema
+   (the cleanup tool reads it). A controller pointed at another controller's
+   database, for example by a mistaken restore or `enable-ha` configuration,
+   would open it without complaint. Options: `pgWorker` compares the stored
+   controller UUID with the agent's at start and fails fatally on a mismatch
+   (like D50), or only at bootstrap. Open choice; needs a decision before
+   work.
+4. Failure clean-up stays manual (D52); do not make bootstrap drop schemas.
+
+Stop conditions: do not add a lock or a second ownership table before the
+live check shows the existing guard is insufficient.
+
 ## 09-functional run log
 
 ### Run 1: PostgreSQL bootstrap (2026-10-28, `09=950bba743e`, no code changes)
