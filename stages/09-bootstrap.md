@@ -79,6 +79,8 @@ hung on the unreachable API), the client entry removed with `juju
 unregister`, and both schemas dropped with `drop-juju-schemas.py
 --controller`. The database was left with no Juju schemas.
 
-Next: decide U15 (design) and fix U15/U16 on Stage 5 (or Stage 4 if the
-schema is overridden for PostgreSQL), restack, and re-run. Expect further
+Next: the user wants U15 split out as an upstream fix (NULL in a primary
+key is a bad design; see `4.1-nullable-primary-keys` in UPSTREAM-PLAN.md),
+with U16 beside it. Once both exist, cherry-pick them under D43 onto their
+owning stage (or apply a PoC-local workaround meanwhile), restack, and re-run. Expect further
 bootstrap findings; no dqlite run has been made yet.
