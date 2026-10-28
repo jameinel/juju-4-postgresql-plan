@@ -44,6 +44,23 @@ and acceptance criteria first.
     still holds; and Stage 9 benchmark comparisons of throughput, retry
     rate and peak SIRead/heavyweight locks. Compare with the mixed option
     (READ COMMITTED or `READ ONLY DEFERRABLE` for pure reads only).
+- Parallel PostgreSQL test packages: let test packages build schemas in
+  parallel without changing production `Ensure`.
+  - Why: the D53 schema change lock is per database, and the harness
+    creates every package's test schemas in one database, so parallel
+    packages queue for schema setup. With three packages in parallel the
+    batch took 20% longer and small packages about twice as long
+    ([08-delete-locks result](08-dbaccessor.md#08-delete-locks-result)).
+    Without the lock, the same three packages (one with model schemas)
+    already peaked at about 80% of the shared lock table, so removing the
+    lock or raising `-p` is not safe either.
+  - Options: one database per package or test process, so each has its
+    own lock; the lock table is still server-wide, so cap concurrency or
+    raise `max_locks_per_transaction` on the test server. Cutting the
+    setup cost (template databases or a schema per suite, OPERATIONS.md)
+    also shortens the queue.
+  - Scope it with: parallel runs at several `-p` values, recording wall
+    time, advisory lock waits, peak heavyweight locks and any 53200.
 - Actual sharding across databases/clusters. D3's placement indirection
   already belongs to the PoC; only using it for sharding is deferred.
 - Continuous dual-backend CI and PostgreSQL tracing. Current dual-backend

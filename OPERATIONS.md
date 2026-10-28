@@ -93,7 +93,11 @@ it, tests use the existing SQLite/dqlite path. With it, every suite built
 on `DqliteSuite` is redirected, not just previously verified suites.
 
 - Run one PostgreSQL package at a time. Do not overlap suites, stress
-  workers or benchmarking on the shared server.
+  workers or benchmarking on the shared server. Parallel packages also
+  queue on the schema change lock (D53), because every test schema is in
+  one database: three packages in parallel took 20% longer than without
+  the lock, and small packages about twice as long
+  ([measurements](stages/08-dbaccessor.md#08-delete-locks-result)).
 - Prove backend selection after harness/environment changes: run the
   selected suite with
   `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and require a
@@ -150,6 +154,16 @@ PostgreSQL. The median test time went from 0.17 s to 2.1–2.8 s.
 - Run-to-run drift follows fsync latency on the loop-backed pool and host
   I/O load. The catalogs have no dead tuples, and catalog-only DDL is fast,
   so catalog bloat is not the cause.
+- When comparing timings, alternate the variants (for example A B C C B
+  A) and record `/usr/bin/time -v`, load, pressure stall information
+  (`/proc/pressure`), `vmstat`, and checkpoint, WAL and catalog
+  autovacuum deltas (`pg_stat_bgwriter`, `pg_stat_wal`,
+  `pg_stat_sys_tables`). On 2026-10-28 one variant's runs differed by
+  15% within minutes. The PoC role cannot run `CHECKPOINT` (it lacks
+  `pg_checkpoint`) or vacuum the system catalogs (superuser only on
+  PostgreSQL 16). Autovacuum already runs on the catalogs about 12 times
+  during a 20 s package. `VACUUM FULL` of a catalog would block every
+  session on the shared server.
 - ZFS is not the main cause. A 500-file create+write+fsync loop costs
   0.87 ms per file in the container, 0.66 ms on host ext4. In a scratch
   cluster inside the container, 500 text-PK tables took 1.15 s on ZFS,

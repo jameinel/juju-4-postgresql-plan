@@ -473,6 +473,49 @@ packages, whose only findings are the two pre-existing `rangeint` hints in
 `driver_test.go`. Stress with `-race` (`-p 1`), 0 failures: the new schema
 tests 53 runs, the new delete tests 48 runs.
 
+**Test-suite time.** Measured 2026-10-28 at `08=950bba743e` without
+`-race`, using test binaries built with three versions of
+`BeginSchemaChangeSQL`: A returns nothing (as before this task), B only
+the lock, and C is the committed code. Runs alternated variants to spread
+server drift, and each recorded `/usr/bin/time -v`, load, pressure stall
+information, `vmstat`, and checkpoint, WAL and catalog autovacuum deltas.
+
+One package at a time, per-test median:
+
+| Package (schema) | A | B | C |
+|---|---|---|---|
+| `domain/keymanager/state` (controller, 30 tests) | 0.690 s | 0.690 s | 0.712 s |
+| `domain/model/state/model` (model, 38 tests), last four runs | 1.625 s | 1.620 s | 1.620–1.645 s |
+
+READ COMMITTED has no measurable cost. `SET TRANSACTION` is sent in the
+same round trip as the lock, and a test's time goes to index builds on
+the server: the test process used 2.2 s of CPU in a 20 s run. The model
+package's first two runs were 8–15% faster for every variant, so drift
+was larger than any difference between variants.
+
+Three packages in parallel (`domain/model/state/model`,
+`domain/keymanager/state` and `domain/objectstore/state`), in batches
+A C C A, sampling `pg_locks` about every 0.5 s; means of two batches:
+
+| Measure | A | C |
+|---|---|---|
+| Batch wall | 63.1 s | 75.9 s (+20%) |
+| keymanager | 22.7 s | 50.0 s (2.2×) |
+| objectstore | 40.5 s | 75.9 s (1.9×) |
+| model/state/model | 63.1 s | 65.6 s (+4%) |
+| Time with a lock waiter | 0% | 64–68%, up to 2 waiters |
+| Peak heavyweight locks | 6,812–7,064 | 5,685–6,565 |
+
+The lock is per database, and the PostgreSQL harness creates every
+package's test schemas in one database, so parallel packages queue for
+each schema setup. With A, each package ran about as fast as it does
+alone, so the server was not the bottleneck at three packages, but one
+model package and two controller packages already used about 80% of the
+lock table. No run failed with 53200; the two model/state/model failures
+are the known 06-errors tests. OPERATIONS.md runs one PostgreSQL package
+at a time, so current runs are unaffected. Stage 11 records a test-only
+fix.
+
 ## Acceptance
 
 Each task needs focused unit/integration tests and the required race/stress
