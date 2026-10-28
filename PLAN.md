@@ -143,11 +143,14 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); Stage 9 handover next |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | not started; workload open |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); PostgreSQL bootstrap blocked by U15/U16 |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: the Stage 9 handover. The top is `08=950bba743e`. 08-delete-locks
+Next: unblock the PostgreSQL bootstrap. 09-functional run 1 failed on U15
+(nullable primary key for the wildcard exposed endpoint, X44, needs a
+design choice) and U16 (`RegisterAgentBinary` after a conflict, X18); see
+[the run log](stages/09-bootstrap.md#09-functional-run-log). The top is `08=950bba743e`. 08-delete-locks
 is done ([result](stages/08-dbaccessor.md#08-delete-locks-result)):
 every PostgreSQL schema change transaction (`Schema.Ensure`,
 `DeleteSchema`) first runs the dialect's `BeginSchemaChangeSQL`, which

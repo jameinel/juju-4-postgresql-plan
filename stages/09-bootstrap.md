@@ -1,7 +1,7 @@
 # Stage 09: functional single controller and first comparison
 
 Branch `pg-poc/09-bootstrap`, to be created on `pg-poc/08-dbaccessor`.
-Status: not started. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Status: 09-functional started 2026-10-28 (scenario fixed in D54); first PostgreSQL bootstrap fails, see the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 
@@ -50,3 +50,35 @@ Acceptance is reproducible, interpretable measurements with correctness
 preserved, not a promised speedup. Start with single controllers; Stage 10
 follows. Workload, scale, repetitions and TLS comparison remain open and
 must be fixed before assigning the run.
+
+## 09-functional run log
+
+### Run 1: PostgreSQL bootstrap (2026-10-28, `09=950bba743e`, no code changes)
+
+`make juju jujuagentd`, then `juju bootstrap localhost pgpoc-pg
+--config <0600 file> --build-agent`. The controller machine started and
+created both schemas (`juju_controller` with 61 patches, the controller
+model with 156), so the runtime path from Stage 8 works. Bootstrap never
+completed; the `bootstrap` worker failed repeatedly:
+
+1. First attempt: `ensuring controller application: exposing controller
+   application: inserting exposed endpoints to CIDRs: null value in column
+   "application_endpoint_uuid" ... (23502)`. U15 / X44: a nullable primary
+   key column used for the wildcard endpoint. Not fixed; needs a schema
+   design choice.
+2. Every retry: `saving agent binary metadata ... current transaction is
+   aborted (25P02)`. U16 / X18: `RegisterAgentBinary` queries after a
+   primary key conflict. A consequence of the first failure's retry, but a
+   real portability defect. Not fixed.
+
+Also seen, probably secondary: `api-address-setter: getting network for
+controller unit "controller/0": unit not found`.
+
+Cleanup: the container was deleted with `lxc delete -f` (`kill-controller`
+hung on the unreachable API), the client entry removed with `juju
+unregister`, and both schemas dropped with `drop-juju-schemas.py
+--controller`. The database was left with no Juju schemas.
+
+Next: decide U15 (design) and fix U15/U16 on Stage 5 (or Stage 4 if the
+schema is overridden for PostgreSQL), restack, and re-run. Expect further
+bootstrap findings; no dqlite run has been made yet.
