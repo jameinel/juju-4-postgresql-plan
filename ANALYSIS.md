@@ -225,7 +225,11 @@ serialised on change_log, matching dqlite today.
 Isolation:
 
 - SERIALIZABLE everywhere (PoC): safest port of dqlite semantics; cost is
-  40001 retries under contention and SSI predicate-lock memory.
+  40001 retries under contention and SSI predicate-lock memory. The
+  predicate lock table is server-wide; 08-delete-locks exhausted it (53200)
+  with two readers that each read every table of a model schema
+  ([Stage 11](stages/11-future-work.md) records a READ COMMITTED
+  experiment).
 - READ COMMITTED + explicit `SELECT ... FOR UPDATE` / constraints on
   read-then-write paths: highest throughput; requires auditing every domain
   state method.
