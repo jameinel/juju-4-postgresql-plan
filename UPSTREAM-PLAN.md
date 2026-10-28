@@ -3,10 +3,7 @@
 This is a standalone implementation plan for a stock upstream 4.1
 checkout. Read this guide's shared rules, the assigned task, and the target
 repository's root/nested AGENTS.md and contribution guidance. No other
-planning document or project's checkout, configuration or tests is required.
-
-These issues were discovered during a portability proof of concept;
-that explains their origin, not how to implement or validate these changes.
+planning document, checkout, configuration or test setup is required.
 Describe each fix in terms of upstream behaviour and its regression tests.
 
 ## Working agreement
@@ -30,46 +27,44 @@ Describe each fix in terms of upstream behaviour and its regression tests.
 
 ## Existing integer branch
 
-`4.1-sqlite-integers` already contained integer FK corrections and the
-revision-updater application unit-count fix when this plan was written.
-Check its current state; do not duplicate those changes. Add the
-relation-status integer correction as a separate commit if still missing,
-reusing its legacy-ID parsing helpers and extending its import fixtures.
-The user chose this grouping rather than a separate relation-status branch.
+PR #23680 on `4.1-sqlite-integers` contains the lookup-ID corrections and
+revision-updater unit-count fix. Check its current state before changing it;
+do not duplicate those fixes. The relation-status integer correction is a
+separate commit on that branch, reusing its legacy-ID parsing helpers and
+extending its import fixtures.
 
 ## Candidate branch map
 
-Names are proposals except the existing integer branch. Each row defines
-an upstream problem to solve, not a patch to copy from another branch.
+Rows with a PR have an established branch; other names are proposals. Each
+row defines an upstream problem to solve, not a patch to copy.
 
 | Branch | Change and entry points | Required result |
 |---|---|---|
-| `4.1-sqlite-integers` (existing) | `relation_status_type.id` and `relation_status.relation_status_type_id`: TEXT declarations disagree with integer writers and lookup values. | INT declarations, matching export types and legacy string-ID conversion; preserve existing unit-count fixes. |
-| `4.1-binary-key-columns` (**landed**, juju/juju#23682) | `user_activation_key.activation_key`, eight `bakery_config` key columns and `macaroon_root_key.root_key`: raw bytes declared TEXT. | BLOB declarations and consistent storage/export/recovery representations, including legacy compatibility. |
-| `4.1-removal-force-boolean` | `removal.force`: INT declaration despite boolean writers/readers. | BOOLEAN declaration, boolean export type and validated 4.0.12 integer conversion. |
-| `4.1-model-config-precedence` | `v_model_config` and `domain/modelconfig/state`: duplicate agent stream/version rows let row ordering choose the winner. | Authoritative `agent_version` values win regardless of config contents or row order. |
-| `4.1-keymanager-insert-id` | `domain/keymanager/state`, `ensureUserPublicKey`: a zero-row insert can leave `LastInsertId` referring to an earlier key. | Use the inserted row's returned ID; reject unknown algorithms without linking an unrelated key. |
-| `4.1-controller-node-id-text` (**landed**, juju/juju#23685) | `internal/database/bootstrap.go`, `InsertControllerNodeID`, and changestream/upgrade fixtures: uint64 values bound to a TEXT column. | Bind decimal strings and support the full unsigned range. |
-| `4.1-lease-migration-tests` (**landed**, juju/juju#23686) | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
-| `4.1-crossmodel-secret-revisions` | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | Defined, tested multi-unit revision semantics; design approval required before implementation. |
-| `4.1-nullable-primary-keys` (**design open**, U15/X44, blocks the PoC bootstrap) | Model schema tables with a NULL-able primary key column: `application_exposed_endpoint_cidr` / `_space` (NULL `application_endpoint_uuid` means the wildcard endpoint; writers in `domain/application/state/exposed.go`, readers through `v_application_exposed_endpoint`), `charm_container_mount`, `charm_manifest_base`. SQLite accepts the NULLs and does not enforce uniqueness over them. | Replace NULL-as-wildcard with an explicit, non-NULL representation (the design is open; the user rejects NULL in a primary key as a design). Cover each of the five tables, the exposed-endpoint readers and exports, and the 4.0.12 import. Show which tables really store NULLs today before changing them. |
-| `4.1-agentbinary-conflict` (U16/X18, follows U15 in the PoC) | `RegisterAgentBinary` in `domain/agentbinary/state/{controller,model}/state.go`: queries after a primary key conflict inside the same transaction. | Avoid the conflict in SQL (`ON CONFLICT DO NOTHING`, then compare), keeping `AlreadyExists` / `AgentBinaryImmutable`. Tests for new, repeated and different-object registrations. |
+| `4.1-sqlite-integers` (existing; PR #23680 open) | `relation_status_type.id` and `relation_status.relation_status_type_id`: TEXT declarations disagree with integer writers and lookup values. | INT declarations, matching export types and legacy string-ID conversion; preserve the existing unit-count and lookup-ID fixes. |
+| `4.1-binary-key-columns` (**landed**, PR #23682) | `user_activation_key.activation_key`, eight `bakery_config` key columns and `macaroon_root_key.root_key`: raw bytes declared TEXT. | BLOB declarations and consistent storage/export/recovery representations, including legacy compatibility. |
+| `4.1-removal-force-boolean` (**landed**, PR #23690) | `removal.force`: INT declaration despite boolean writers/readers. | BOOLEAN declaration, boolean export type and validated 4.0.12 integer conversion. |
+| `4.1-model-config-precedence` (**in review**, PR #23683) | `v_model_config` and `domain/modelconfig/state`: duplicate agent stream/version rows let row ordering choose the winner. | Authoritative `agent_version` values win regardless of config contents or row order. |
+| `4.1-keymanager-insert-id` (**landed**, PR #23684) | `domain/keymanager/state`, `ensureUserPublicKey`: a zero-row insert can leave `LastInsertId` referring to an earlier key. | Use the inserted row's returned ID; reject unknown algorithms without linking an unrelated key. |
+| `4.1-controller-node-id-text` (**landed**, PR #23685) | `internal/database/bootstrap.go`, `InsertControllerNodeID`, and changestream/upgrade fixtures: uint64 values bound to a TEXT column. | Bind decimal strings and support the full unsigned range. |
+| `4.1-lease-migration-tests` (**landed**, PR #23686) | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
+| `4.1-crossmodel-secret-revisions` (**in review**, PR #23688) | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | The current review contract reports a secret if any remote consuming unit is behind and returns its latest revision once. Match units by an exact application-name prefix; cover the contract's edge cases in tests. |
+| `4.1-dbaccessor-pool-cleanup` | `internal/worker/dbaccessor/tracker.go`: pools opened during setup or reopen attempts are leaked when a later step fails. | Close every pool the tracker opens but does not retain, including failures setting foreign keys, model initialization and reopen ping; preserve pools successfully transferred to the worker. |
+| `4.1-nullable-primary-keys` (**in review**, PR #23710) | Model schema tables with a nullable primary-key column: `application_exposed_endpoint_cidr` / `_space` (`NULL application_endpoint_uuid` means the wildcard endpoint; writers in `domain/application/state/exposed.go`, readers through `v_application_exposed_endpoint`), `charm_container_mount`, and `charm_manifest_base`. SQLite accepts NULLs and does not enforce uniqueness over them. Only the exposure tables store NULL. | Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings; the endpoint tables require the endpoint. `charm_container_mount` requires the container key; `charm_manifest_base` is keyed on its manifest position. Readers, the API and the `""` wildcard are unchanged. The 4.0.12 import splits exposure rows by scope and removes duplicate wildcard rows. `remove-space --force` no longer fails on exposure to both the removed space and `alpha`. A schema test rejects nullable primary key columns. |
+| `4.1-agentbinary-conflict` | `RegisterAgentBinary` in `domain/agentbinary/state/{controller,model}/state.go`: queries after a primary-key conflict inside the same transaction. | Avoid the conflict in SQL (`ON CONFLICT DO NOTHING`, then compare), keeping `AlreadyExists` / `AgentBinaryImmutable`. Test new, repeated and different-object registrations. |
+| `4.1-lease-pin-conflict` | `domain/lease/state`, `PinLease`: ignoring a unique violation leaves the transaction unusable on PostgreSQL. | Resolve the pin race in SQL with `ON CONFLICT DO NOTHING`; preserve the existing result for already-pinned leases and test competing pins. |
 
 ### Schema lane
 
-Use one owner to prepare the integer extension, binary-key and removal
-boolean branches sequentially; their reviews can proceed concurrently.
-The relation-status extension uses parsing helpers on the existing integer
-branch. Binary-key and removal-boolean branches can each start from `B`;
-neither requires the other's behaviour. The model-config view fix can
-proceed independently.
+The only schema correction ready for implementation is the relation-status
+integer extension on `4.1-sqlite-integers`; nullable primary keys are in
+review (PR #23710). The binary-key, removal-boolean, keymanager, node-ID and
+lease-test changes have landed; do not recreate them.
 
-Inspect schema SQL under `domain/schema/{model,controller}/`, generated
-export types under `domain/export/types/`, and the legacy conversion code
-under `domain/modelimport/transformer/transforms/to_v4_1_0/`. Integer and
-boolean work overlaps model export/transform/recovery output; key columns
-also affect controller exports, `domain/schema/storage.go` and controller
-recovery decoding. Assign shared handwritten changes explicitly.
+For the integer extension, inspect schema SQL under
+`domain/schema/{model,controller}/`, generated export types under
+`domain/export/types/`, and legacy conversion code under
+`domain/modelimport/transformer/transforms/to_v4_1_0/`. Assign shared
+handwritten changes explicitly.
 
 Regenerate from each branch's own schema using its export/import/recovery
 tooling (currently `make rebuild-export`). After a merge conflict,
@@ -82,10 +77,6 @@ Required checks:
 
 - Integer IDs: valid, nullable where supported, and invalid legacy string
   representations through transform/import/export and persistence.
-- Key columns: arbitrary bytes, including NUL/non-UTF-8, through storage,
-  export and recovery; preserve supported historical encodings.
-- Removal flag: 0/1 to false/true conversion, rejection of other values,
-  and persistence/round-trip behaviour.
 
 ### Leaf task requirements
 
@@ -101,27 +92,29 @@ Required checks:
 - **Model config:** exclude authoritative keys from the competing config
   rows. Test values that sort before and after the authoritative values,
   and assert one effective value for each key.
-- **Cross-model secrets:** trace both query results to their consumers.
-  Decide whether any/all consuming units being behind should trigger an
-  update, which revision is returned and how optional revision filtering
-  interacts with that rule. Obtain approval before changing semantics.
+- **Dbaccessor pools:** inject failures after opening a pool at the foreign
+  keys pragma, model initialization and reopen ping steps. Assert every
+  unretained pool is closed and successfully retained pools remain usable.
+- **Lease pin conflicts:** exercise competing pins and confirm the losing
+  operation leaves the transaction usable and preserves the existing
+  already-pinned result.
+- **Cross-model secrets:** implement the current review contract: report a
+  secret if any remote consuming unit is behind, return its latest revision
+  once, and match units by an exact application-name prefix.
   Cover no consumers, current/behind consumers, mixed multi-unit revisions,
   multiple secrets/revisions, application-name prefix collisions and
   optional filtering. Assert membership, chosen revisions and duplicates;
   a single-unit test does not establish the contract.
 
-## Suggested first batch
+## Current work queue
 
-1. **Schema owner:** extend the existing integer branch with relation-status
-   IDs; then prepare binary-key and removal-boolean branches one at a time.
-2. **Leaf owner A:** keymanager insert-ID correctness.
-3. **Leaf owner B:** unsigned controller-node ID binding and fixtures.
-
-Model-config precedence and lease-test reliability can follow as capacity
-frees. Cross-model design can proceed concurrently, but implementation
-waits for semantic approval. Broad test-literal cleanup follows overlapping
-functional work, or uses explicitly reserved files. This keeps reviews
-small without creating a dependency chain between unrelated fixes.
+The landed branches in the map need no further implementation. The active
+reviews are #23680, #23683, #23688, #23691, #23693, #23694 and #23710;
+update their base or resolve review feedback on their existing branches
+rather than recreating them. New independent implementation tasks are
+dbaccessor pool cleanup, agent-binary conflict handling and lease pin
+conflict handling. Secret latest-revision work follows the cross-model
+secret review, and lookup-key `NOT NULL` work follows #23710.
 
 ## Follow-on SQL improvements
 
@@ -131,13 +124,14 @@ unrelated changes or label observable behaviour changes as mechanical.
 
 | Proposed branch | Change / entry point | Review requirement |
 |---|---|---|
-| `4.1-changestream-latest-row` | `internal/changestream/stream/stream.go`: replace bare-column `MAX(id)` grouping with explicit latest-ID selection and a join to its row. | Preserve full-row consistency, high-water marks, coalescing and pruning; add regressions and required concurrency coverage. |
-| `4.1-blockcommand-order` | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Approve the observable ordering change and test it. |
-| `4.1-operation-query-portability` | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
-| `4.1-objectstore-conflicts` | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Agree reused-UUID error semantics; test hashes, size mismatches, duplicate UUIDs and unchanged existing metadata. |
-| `4.1-sql-test-literals` (**landed**, juju/juju#23696) | SQL test helpers: single-quoted strings instead of SQLite's double-quoted-string fallback. | Bound the file set; preserve fixture meaning and coordinate overlapping owners. |
-| `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret change in juju/juju#23688. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
-| `4.1-sql-standard-syntax` (**landed**, juju/juju#23695) | Two commits. Equality: replace SQLite's `==` with `=` in `domain/keymanager/state` `DeletePublicKeysForUser`, `domain/storageprovisioning/state` `GetVolumeAttachmentIDs` and `domain/crossmodelrelation/state/model` `ValidateApplicationAndEndpointsForOffer`. Join scope: `domain/removal/state/model` `GetDetachInfoForStorageAttachment` joins a one-row aggregate CTE with a comma and then uses `JOIN ... ON` with the table before the comma; spell that join as `CROSS JOIN`. | No behaviour change. Test that removing a user's keys deletes keys no other model uses and keeps shared ones. Test detach info when the requested attachment is no longer alive and no other attachment is, so the fulfilment count is zero. Confirm no other `==` remains in production SQL. |
+| `4.1-changestream-latest-row` (**in review**, PR #23691) | `internal/changestream/stream/stream.go`: replace bare-column `MAX(id)` grouping with explicit latest-ID selection and a join to its row. | Preserve full-row consistency, high-water marks, coalescing and pruning; add regressions and required concurrency coverage. |
+| `4.1-blockcommand-order` (**landed**, PR #23692) | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Preserve and test the agreed explicit order. |
+| `4.1-operation-query-portability` (**in review**, PR #23693) | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
+| `4.1-objectstore-conflicts` (**in review**, PR #23694) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | The current review returns a plain error when a UUID exists with different hashes or size; test hashes, size mismatches, duplicate UUIDs and unchanged existing metadata. |
+| `4.1-sql-test-literals` (**landed**, PR #23696) | SQL test helpers and production SQL: single-quoted strings instead of SQLite's double-quoted-string fallback. | Bound the file set; preserve fixture and query meaning and coordinate overlapping owners. |
+| `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret change in PR #23688. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
+| `4.1-sql-standard-syntax` (**landed**, PR #23695) | Two commits. Equality: replace SQLite's `==` with `=` in `domain/keymanager/state` `DeletePublicKeysForUser`, `domain/storageprovisioning/state` `GetVolumeAttachmentIDs` and `domain/crossmodelrelation/state/model` `ValidateApplicationAndEndpointsForOffer`. Join scope: `domain/removal/state/model` `GetDetachInfoForStorageAttachment` joins a one-row aggregate CTE with a comma and then uses `JOIN ... ON` with the table before the comma; spell that join as `CROSS JOIN`. | No behaviour change. Test that removing a user's keys deletes keys no other model uses and keeps shared ones. Test detach info when the requested attachment is no longer alive and no other attachment is, so the fulfilment count is zero. Confirm no other `==` remains in production SQL. |
+| `4.1-lookup-key-not-null` | Single-column `id INT PRIMARY KEY` lookup tables lack `NOT NULL`: 48 model tables (for example `agent_stream`, `life`, `os`) and 17 controller tables (for example `cloud_type`, `lease_type`). Nothing writes a NULL ID; the writers are the schema seeds, `AllowCloudType` (a Go `int`), model import (`INSERT ... ON CONFLICT DO NOTHING`) and recovery restore. But the generated 4.1.0 export types use `ID *int64`, so import and recovery would store a NULL-keyed row from a malformed payload. Declare `id INT NOT NULL PRIMARY KEY`, regenerate the export types and narrow the guard in `domain/schema/primary_key_schema_test.go` to exempt only `INTEGER`. Follows `4.1-nullable-primary-keys`, which adds the guard. | Model export types change from `*int64` to `int64`, so `to_v4_1_0` needs a delta per table (or a shared helper) that rejects a nil 4.0.12 ID. Controller export types exist only at 4.1.0 and need no deltas. Test import and recovery with valid and nil IDs. |
 
 Further candidates need named files and tests before dispatch: explicit
 upsert targets/qualification, explicit CTE membership subqueries and
@@ -155,7 +149,7 @@ selection does not authorise work on other branches.
 
 Example assignment:
 
-> In stock upstream Juju 4.1 at <base>, implement the keymanager insert-ID
+> In stock upstream Juju 4.1 at <base>, implement the dbaccessor pool-cleanup
 > task from UPSTREAM-PLAN.md on <branch> in <worktree>. Use only that
 > checkout's code and test infrastructure. Add the specified regressions,
 > run its normal validation, and report the diff and results. Stop for
@@ -168,7 +162,8 @@ Example assignment:
   existing contract across relevant edge cases.
 - Run focused tests first, then the affected package suites. Starting
   scopes: `domain/keymanager/state`; `internal/database` plus
-  `domain/changestream/state` and `domain/upgrade/state`; `domain/lease/state`;
+  `domain/changestream/state` and `domain/upgrade/state`;
+  `internal/worker/dbaccessor`; `domain/lease/state`;
   `domain/modelconfig/state` plus schema tests; and
   `domain/crossmodelrelation/state/model` plus affected consumers.
 - Use the target checkout's standard test commands, dependencies and
