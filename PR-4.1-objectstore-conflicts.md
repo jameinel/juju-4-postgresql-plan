@@ -11,15 +11,18 @@ same hash and size is reused, and a size mismatch returns
 `ErrHashAndSizeAlreadyExists`.
 
 A reused `uuid` with different hashes or size used to fail with a raw
-`UNIQUE constraint failed` error. It now fails with a plain "metadata uuid
-already exists with different hashes or size" error, so callers can't
-mistake it for content that is already stored. The existing metadata is
-unchanged either way. The service generates a new `uuid` for every put, so
-only a caller bug can hit this.
+`UNIQUE constraint failed` error. It returns the documented
+`objectstoreerrors.ErrMetadataUUIDAlreadyExists` sentinel, so callers can
+match it with `errors.Is` without mistaking it for content that is already
+stored. The existing metadata is unchanged. The service generates a new
+`uuid` for every put, so only a caller bug can hit this. The sentinel keeps
+the error text from the initial version of this PR.
 
 Tests cover matching and mismatched hashes and sizes, a path reused with a
-different hash, and a reused `uuid` with the same or different hashes, with
-and without a controller ID hint.
+different hash, and a reused `uuid` with matching metadata, different hashes
+or only a different size, with and without a controller ID hint. Service
+tests verify that both put methods preserve the wrapped UUID-conflict
+sentinel and return no UUID on failure.
 
 ## Checklist
 
@@ -34,15 +37,24 @@ and without a controller ID hint.
 1. Run the unit tests with Dqlite enabled.
 
 ```sh
-make run-go-tests TEST_PACKAGES="./domain/objectstore/..." TEST_ARGS="-count=1 -p 4"
+make run-go-tests TEST_PACKAGES="./domain/objectstore/..." \
+  TEST_ARGS="-race -count=1 -p 2"
 ```
 
-2. Restore the two `ON CONFLICT` clauses in `domain/objectstore/state/state.go`
-   and rerun. Only `TestPutMetadataWithSameUUIDDifferentHashes` and
-   `TestPutMetadataWithControllerIDHintSameUUIDDifferentHashes` fail, with
-   `UNIQUE constraint failed: object_store_metadata.uuid`.
+2. Verify the UUID-reuse cases match `ErrMetadataUUIDAlreadyExists`, not
+   `ErrHashAndSizeAlreadyExists`, for different hashes and for a size-only
+   mismatch. Existing metadata and paths remain unchanged, and the rejected
+   controller hint is not recorded. Both service put methods preserve the
+   sentinel through error wrapping.
 
-3. Deploy the same charm twice, which reuses the stored charm by hash. Both
+3. Run focused static analysis.
+
+```sh
+make pre-check
+golangci-lint run ./domain/objectstore/...
+```
+
+4. Deploy the same charm twice, which reuses the stored charm by hash. Both
    applications become active.
 
 ```sh
@@ -55,7 +67,8 @@ $ juju status
 
 ## Documentation changes
 
-None.
+The domain errors package documents `ErrMetadataUUIDAlreadyExists` beside
+`ErrHashAndSizeAlreadyExists`. No CLI or API workflow changes.
 
 ## Links
 

@@ -84,10 +84,15 @@ observable dqlite change (notably X36's reused-UUID error):
   `pg_column_size` needs backend-aware state code.
 - X36: several `ON CONFLICT` clauses (`fix(objectstore): use a single
   conflict clause when putting metadata`). In the PoC a reused uuid
-  returns `ErrHashAndSizeAlreadyExists`. Upstream (juju/juju#23694) it
-  returns a plain error, "metadata uuid already exists with different
-  hashes or size", because callers treat the sentinel as "already
-  stored". Reconcile the PoC when the PR lands.
+  returns `ErrHashAndSizeAlreadyExists`. The verified local review
+  follow-up for juju/juju#23694 returns the documented
+  `ErrMetadataUUIDAlreadyExists` sentinel for different hashes or size,
+  preserving the initial PR's error text. It must remain distinct from
+  `ErrHashAndSizeAlreadyExists`, which callers treat as "already stored".
+  Both service put methods preserve the sentinel through wrapping; state
+  tests cover hash and size-only UUID conflicts and unchanged paths/hints.
+  Follow-up `53feca2259` awaits publication; reconcile the PoC when the PR
+  lands.
 - X37: SQLite's `==` in three queries (`fix: use standard sql equality in
   three domain queries`). `DeletePublicKeysForUser`'s unused-key cleanup
   had no test; one was added.
@@ -144,7 +149,7 @@ recheck GitHub before relying on them.
 | `4.1-changestream-latest-row` | X16 | juju/juju#23691 | `763411fe09` | open |
 | `4.1-blockcommand-order` | U10/X31 | juju/juju#23692 | `495768b0aa` | merged |
 | `4.1-operation-query-portability` | X34, X33 | juju/juju#23693 | `e463565601` | open |
-| `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `87ac64185e` | open |
+| `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `87ac64185e` published; `53feca2259` local | open; sentinel follow-up verified, awaiting publication |
 | `4.1-sql-standard-syntax` | X37, X38 | juju/juju#23695 | `13003d8680` | merged |
 | `4.1-sql-test-literals` | U6 | juju/juju#23696 | `11ff0981e0` | merged |
 | `4.1-nullable-primary-keys` | U15 | juju/juju#23710 | `43eed70758` | open |
