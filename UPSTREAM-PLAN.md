@@ -119,8 +119,11 @@ reviews are #23680, #23683, #23688, #23691, #23693, #23694 and #23710;
 update their base or resolve review feedback on their existing branches
 rather than recreating them. New independent implementation tasks are
 dbaccessor pool cleanup, agent-binary conflict handling and lease pin
-conflict handling. Secret latest-revision work follows the cross-model
-secret review, and lookup-key `NOT NULL` work follows #23710.
+conflict handling. The dbrepl latest-row query rewrite is queued separately
+as `4.1-dbrepl-latest-row`, following the review request on PR #23691; it
+is not covered by that PR's changestream-only rewrite. Secret latest-revision
+work follows the cross-model secret review, and lookup-key `NOT NULL` work
+follows #23710.
 
 ## Cross-model secret review scope and follow-up
 
@@ -164,7 +167,8 @@ unrelated changes or label observable behaviour changes as mechanical.
 
 | Proposed branch | Change / entry point | Review requirement |
 |---|---|---|
-| `4.1-changestream-latest-row` (**in review**, PR #23691) | `internal/changestream/stream/stream.go`: replace bare-column `MAX(id)` grouping with explicit latest-ID selection and a join to its row. | Preserve full-row consistency, high-water marks, coalescing and pruning; add regressions and required concurrency coverage. |
+| `4.1-changestream-latest-row` (**in review**, PR #23691) | `internal/changestream/stream/stream.go`: replace bare-column `MAX(id)` grouping with explicit latest-ID selection and a join to its row. | Preserve full-row consistency, high-water marks, coalescing and pruning; add regressions and required concurrency coverage. The equivalent dbrepl query is tracked separately below. |
+| `4.1-dbrepl-latest-row` (**queued**, follow-up to PR #23691) | `internal/worker/dbrepl/worker.go` (review location: line 680): replace `SELECT MAX(c.id), t.edit_type, n.namespace, changed, created_at ... GROUP BY c.namespace_id, c.changed` with a CTE selecting the latest ID per namespace/changed key, then join back to that change-log row. Join `change_log_edit_type` in the outer select to retain `t.edit_type`, as well as the namespace lookup. | Keep all returned fields from the selected latest row and preserve coalescing, query bounds, ordering and replication progress. Add regressions in `internal/worker/dbrepl/worker_test.go` for repeated changes to one key with differing edit types/timestamps, multiple keys/namespaces, empty results and query-boundary cases; verify the replicated payload and progress, not only the SQL result. Behaviour-preserving tests must pass with both old and rewritten SQL. Run the affected package tests with race/stress coverage. Confirm the query is still outstanding before dispatch; use a separate branch/worktree, not the PR #23691 owner's checkout. |
 | `4.1-blockcommand-order` (**landed**, PR #23692) | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Preserve and test the agreed explicit order. |
 | `4.1-operation-query-portability` (**in review**, PR #23693) | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
 | `4.1-objectstore-conflicts` (**in review**, PR #23694) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | The current review returns a plain error when a UUID exists with different hashes or size; test hashes, size mismatches, duplicate UUIDs and unchanged existing metadata. |
