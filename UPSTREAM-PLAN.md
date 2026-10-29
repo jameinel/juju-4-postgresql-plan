@@ -171,7 +171,7 @@ unrelated changes or label observable behaviour changes as mechanical.
 | `4.1-dbrepl-latest-row` (**queued**, follow-up to PR #23691) | `internal/worker/dbrepl/worker.go` (review location: line 680): replace `SELECT MAX(c.id), t.edit_type, n.namespace, changed, created_at ... GROUP BY c.namespace_id, c.changed` with a CTE selecting the latest ID per namespace/changed key, then join back to that change-log row. Join `change_log_edit_type` in the outer select to retain `t.edit_type`, as well as the namespace lookup. | Keep all returned fields from the selected latest row and preserve coalescing, query bounds, ordering and replication progress. Add regressions in `internal/worker/dbrepl/worker_test.go` for repeated changes to one key with differing edit types/timestamps, multiple keys/namespaces, empty results and query-boundary cases; verify the replicated payload and progress, not only the SQL result. Behaviour-preserving tests must pass with both old and rewritten SQL. Run the affected package tests with race/stress coverage. Confirm the query is still outstanding before dispatch; use a separate branch/worktree, not the PR #23691 owner's checkout. |
 | `4.1-blockcommand-order` (**landed**, PR #23692) | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Preserve and test the agreed explicit order. |
 | `4.1-operation-query-portability` (**in review**, PR #23693) | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
-| `4.1-objectstore-conflicts` (**in review**, PR #23694; sentinel follow-up verified locally, awaiting publication) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Return the documented `objectstoreerrors.ErrMetadataUUIDAlreadyExists` sentinel when a UUID exists with different hashes or size, distinct from `ErrHashAndSizeAlreadyExists`. Test hash and size-only UUID conflicts, duplicate UUID reuse, unchanged metadata/paths/hints, and wrapped sentinel propagation through both service put methods. |
+| `4.1-objectstore-conflicts` (**in review**, PR #23694; sentinel follow-up published, new-head CI pending) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Return the documented `objectstoreerrors.ErrMetadataUUIDAlreadyExists` sentinel when a UUID exists with different hashes or size, distinct from `ErrHashAndSizeAlreadyExists`. Test hash and size-only UUID conflicts, duplicate UUID reuse, unchanged metadata/paths/hints, and wrapped sentinel propagation through both service put methods. |
 | `4.1-sql-test-literals` (**landed**, PR #23696) | SQL test helpers and production SQL: single-quoted strings instead of SQLite's double-quoted-string fallback. | Bound the file set; preserve fixture and query meaning and coordinate overlapping owners. |
 | `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret change in PR #23688. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
 | `4.1-sql-standard-syntax` (**landed**, PR #23695) | Two commits. Equality: replace SQLite's `==` with `=` in `domain/keymanager/state` `DeletePublicKeysForUser`, `domain/storageprovisioning/state` `GetVolumeAttachmentIDs` and `domain/crossmodelrelation/state/model` `ValidateApplicationAndEndpointsForOffer`. Join scope: `domain/removal/state/model` `GetDetachInfoForStorageAttachment` joins a one-row aggregate CTE with a comma and then uses `JOIN ... ON` with the table before the comma; spell that join as `CROSS JOIN`. | No behaviour change. Test that removing a user's keys deletes keys no other model uses and keeps shared ones. Test detach info when the requested attachment is no longer alive and no other attachment is, so the fulfilment count is zero. Confirm no other `==` remains in production SQL. |
@@ -186,11 +186,14 @@ or aggregation rewrite into a syntax-only cleanup.
 
 ## Objectstore review follow-up and process
 
-The 2026-10-29 follow-up for `juju/juju#23694` is committed locally as
-`53feca2259` on the existing `4.1-objectstore-conflicts` worktree. Its parent
-and published head remain `87ac64185e`; the branch base is `04bc64ef54`.
-Upstream `4.1` was checked at `7ce6f49c04`; this review fix does not rebase or
-modify another owner's checkout.
+The 2026-10-29 follow-up for `juju/juju#23694` is published as
+`53feca2259` on the existing `4.1-objectstore-conflicts` branch. Its parent
+is `87ac64185e`; the branch base is `04bc64ef54`. Upstream `4.1` was checked
+at `7ce6f49c04`; this review fix does not rebase or modify another owner's
+checkout. The approved PR description is published, together with the
+[review reply](https://github.com/juju/juju/pull/23694#issuecomment-6510378577).
+New-head CI is running; the previous head's green checks are not evidence
+for this follow-up.
 
 - The explicit SQL table/projection-alias request is already implemented
   and its review thread is resolved. Keep that fix.
@@ -234,15 +237,18 @@ were run on all four changed Go files. No dependencies were installed.
 
 Process steps for this review:
 
-1. Review the local commit, the revised
-   [PR description](PR-4.1-objectstore-conflicts.md) and the
+1. Completed: reviewed the local commit, revised
+   [PR description](PR-4.1-objectstore-conflicts.md) and
    [review reply](COMMENT-4.1-objectstore-conflicts-review.md).
-2. Obtain explicit approval for pushing the commit to
-   `jameinel/juju:4.1-objectstore-conflicts`, replacing the description of
-   `juju/juju#23694`, and posting the reply there. Nothing is published yet.
-3. After approval, publish only those reviewed updates, rerun/check CI for
-   the new head, and record publication status. Do not resolve or edit any
-   additional published review threads without approval.
+2. Completed: received explicit approval to push the commit to
+   `jameinel/juju:4.1-objectstore-conflicts`, replace the description of
+   `juju/juju#23694`, and post the exact reviewed reply there.
+3. Completed: published only those approved updates and checked new-head
+   CI, which is pending. The installed `gh pr edit` failed on deprecated
+   classic-project GraphQL fields; the approved description was published
+   using `gh api --method PATCH repos/juju/juju/pulls/23694` instead.
+   Next: confirm new-head CI completes successfully. No review threads were
+   changed; further published edits/resolutions need approval.
 4. After the PR lands, reconcile the PoC's UUID-reuse classification with
    the upstream sentinel; do not treat UUID reuse as content already stored.
    That integration work is separate from this review fix.
