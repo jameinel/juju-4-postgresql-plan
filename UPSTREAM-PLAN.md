@@ -53,7 +53,7 @@ row defines an upstream problem to solve, not a patch to copy.
 | `4.1-keymanager-insert-id` (**landed**, PR #23684) | `domain/keymanager/state`, `ensureUserPublicKey`: a zero-row insert can leave `LastInsertId` referring to an earlier key. | Use the inserted row's returned ID; reject unknown algorithms without linking an unrelated key. |
 | `4.1-controller-node-id-text` (**landed**, PR #23685) | `internal/database/bootstrap.go`, `InsertControllerNodeID`, and changestream/upgrade fixtures: uint64 values bound to a TEXT column. | Bind decimal strings and support the full unsigned range. |
 | `4.1-lease-migration-tests` (**landed**, PR #23686) | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
-| `4.1-crossmodel-secret-revisions` (**in review**, PR #23688) | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | The current review contract reports a secret if any remote consuming unit is behind and returns its latest revision once. Match units by an exact application-name prefix; cover the contract's edge cases in tests. |
+| `4.1-crossmodel-secret-revisions` (**in review**, PR #23688) | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | Report a secret if any remote consuming unit is behind and return its latest revision once. Join through the indexed offer connection, with matching schema, migration and removal changes. Local-consumer query portability is split into `4.1-local-secret-revisions`; see the recorded scope below. |
 | `4.1-dbaccessor-pool-cleanup` | `internal/worker/dbaccessor/tracker.go`: pools opened during setup or reopen attempts are leaked when a later step fails. | Close every pool the tracker opens but does not retain, including failures setting foreign keys, model initialization and reopen ping; preserve pools successfully transferred to the worker. |
 | `4.1-nullable-primary-keys` (**in review**, PR #23710) | Model schema tables with a nullable primary-key column: `application_exposed_endpoint_cidr` / `_space` (`NULL application_endpoint_uuid` means the wildcard endpoint; writers in `domain/application/state/exposed.go`, readers through `v_application_exposed_endpoint`), `charm_container_mount`, and `charm_manifest_base`. SQLite accepts NULLs and does not enforce uniqueness over them. Only the exposure tables store NULL. | Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings; the endpoint tables require the endpoint. `charm_container_mount` requires the container key; `charm_manifest_base` is keyed on its manifest position. Readers, the API and the `""` wildcard are unchanged. The 4.0.12 import splits exposure rows by scope and removes duplicate wildcard rows. `remove-space --force` no longer fails on exposure to both the removed space and `alpha`. A schema test rejects nullable primary key columns. |
 | `4.1-agentbinary-conflict` | `RegisterAgentBinary` in `domain/agentbinary/state/{controller,model}/state.go`: queries after a primary-key conflict inside the same transaction. | Avoid the conflict in SQL (`ON CONFLICT DO NOTHING`, then compare), keeping `AlreadyExists` / `AgentBinaryImmutable`. Test new, repeated and different-object registrations. |
@@ -106,7 +106,7 @@ Required checks:
   already-pinned result.
 - **Cross-model secrets:** implement the current review contract: report a
   secret if any remote consuming unit is behind, return its latest revision
-  once, and match units by an exact application-name prefix.
+  once, and match consumers through their indexed offer connection.
   Cover no consumers, current/behind consumers, mixed multi-unit revisions,
   multiple secrets/revisions, application-name prefix collisions and
   optional filtering. Assert membership, chosen revisions and duplicates;
@@ -121,6 +121,40 @@ rather than recreating them. New independent implementation tasks are
 dbaccessor pool cleanup, agent-binary conflict handling and lease pin
 conflict handling. Secret latest-revision work follows the cross-model
 secret review, and lookup-key `NOT NULL` work follows #23710.
+
+## Cross-model secret review scope and follow-up
+
+The review follow-up for `juju/juju#23688` keeps the remote any-unit-behind
+query fix, indexed offer-connection schema/export/import/recovery changes,
+consumer cleanup, and their regression tests together.
+
+The independent local-consumer query portability change is split out onto
+`4.1-local-secret-revisions`, based on `9ea82c03bd`, for its own PR. It owns
+only `domain/secret/state/state.go` methods
+`InitialWatchStatementForConsumedSecretsChange` and
+`GetConsumedSecretURIsWithChanges`, and
+`TestConsumedSecretsChangesMultipleUnitsAndRevisions` in `state_test.go`.
+The regression passes with both the original SQLite SQL and the portable
+SQL; the full secret-state race suite and focused lint pass. The
+schema-dependent remote-consumer fixture stays in `juju/juju#23688`.
+The cross-model review follow-up is committed as `29fc497b6e`; the
+extracted local-query change is committed as `369fb64c2d`. The separate
+PR is drafted, not published.
+
+Do not confuse this extracted change with `4.1-secret-latest-revision`
+below: that task covers five other latest-revision queries and remains
+unimplemented. Per-connection watcher scoping is also separate follow-up;
+`juju/juju#23688` still scopes its watcher by the offered application.
+
+Explicit migration policy for `juju/juju#23688`: warn and discard
+unresolvable
+remote-consumer revision-tracking rows, including malformed names. These
+rows memoise consumed revisions, not secret content, grants or core model
+structure. A normal remote-secret read recreates missing tracking at the
+latest revision; dropping it does not itself emit a watcher event. Valid
+tracking is preserved. This is a justified exception for reconstructible
+metadata, not a general policy permitting inconsistent model data to be
+dropped.
 
 ## Follow-on SQL improvements
 
