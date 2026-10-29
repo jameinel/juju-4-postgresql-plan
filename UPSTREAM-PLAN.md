@@ -33,6 +33,12 @@ do not duplicate those fixes. The relation-status integer correction is a
 separate commit on that branch, reusing its legacy-ID parsing helpers and
 extending its import fixtures.
 
+The 2026-10-29 review follow-up adds full-row conversion coverage, invalid-ID
+error classification, explicit view row counts and developer schema-evolution
+documentation. Verified and committed as `0e9be8ddd7`; awaiting publication.
+Details and evidence are in
+[COMMENT-4.1-sqlite-integers-review.md](COMMENT-4.1-sqlite-integers-review.md).
+
 ## Candidate branch map
 
 Rows with a PR have an established branch; other names are proposals. Each
@@ -139,6 +145,13 @@ upsert targets/qualification, explicit CTE membership subqueries and
 Conflict-handling changes must be split by operation and preserve
 idempotency, retries and errors. Do not mix a production time-calculation
 or aggregation rewrite into a syntax-only cleanup.
+
+## Separate agent-workflow documentation task
+
+`4.1-pr-description-guidance`: clarify PR-description versus review-comment
+content in the agent commit instructions. Separate from the SQL fixes;
+[patch](4.1-pr-description-guidance.patch) and
+[PR draft](PR-4.1-pr-description-guidance.md) staged here. No branch or PR yet.
 
 ## Dispatch
 

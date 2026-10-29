@@ -126,13 +126,14 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 
 ## Upstream review status
 
-Snapshot of 2026-10-28. Every listed PR targets `juju/juju` branch `4.1`
-from `jameinel/juju`. Head and status reflect GitHub on this date; update
-them when review state or a branch head changes.
+Snapshot of 2026-10-28, with the integer-schema row refreshed on
+2026-10-29. Every listed PR targets `juju/juju` branch `4.1` from
+`jameinel/juju`. Other heads and statuses retain the older snapshot;
+recheck GitHub before relying on them.
 
 | Branch | Findings | PR | Head | Status |
 |---|---|---|---|---|
-| `4.1-sqlite-integers` | U1, U2, U12 | juju/juju#23680 | `845941c226` | open |
+| `4.1-sqlite-integers` | U1, U2, U12 | juju/juju#23680 | `bd53790866` | open; local follow-up `0e9be8ddd7` awaiting push |
 | `4.1-binary-key-columns` | U8 | juju/juju#23682 | `de69a748a6` | merged |
 | `4.1-model-config-precedence` | U7 | juju/juju#23683 | `c8b39bb2fd` | open |
 | `4.1-keymanager-insert-id` | U13 | juju/juju#23684 | `d490585ad7` | merged |
@@ -156,8 +157,9 @@ them when review state or a branch head changes.
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
-- juju/juju#23690 is merged. PRs #23680, #23683 and #23688 are open with
-  merge conflicts; rebase them before landing.
+- juju/juju#23690 is merged. juju/juju#23680 was mergeable when checked
+  on 2026-10-29. juju/juju#23683 and juju/juju#23688 had merge conflicts
+  in the 2026-10-28 snapshot; recheck them before rebasing or landing.
 - juju/juju#23685 also fixes the upgrade test half of U5.
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
@@ -170,6 +172,22 @@ Notes:
   cherry-pick it under D43 and record the PoC commits here. Its
   description has QA steps that have not been run on a live controller
   yet.
+
+### Integer-schema review follow-up (2026-10-29)
+
+U1/U2/U12, juju/juju#23680: stronger conversion/view tests, `NotValid` errors
+and developer schema-evolution documentation; verified and committed as
+`0e9be8ddd7` on `bd53790866` (base `9ea82c03bd`). Awaiting publication;
+no PoC reintegration.
+Race-enabled tests, 52 stress iterations and targeted lint passed; live QA
+not run. [PR draft](PR-4.1-sqlite-integers.md) and
+[review decisions/evidence](COMMENT-4.1-sqlite-integers-review.md) hold details.
+
+### Separate agent-workflow guidance
+
+`4.1-pr-description-guidance`: description/comment distinction, unrelated
+to SQL fixes. [Patch](4.1-pr-description-guidance.patch) and
+[PR draft](PR-4.1-pr-description-guidance.md) staged; no branch or PR yet.
 
 ## Source provenance
 

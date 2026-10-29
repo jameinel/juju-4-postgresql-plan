@@ -18,9 +18,17 @@ The relation-status fix is a separate commit. Export, import and recovery
 outputs were regenerated with `make rebuild-export`; only the expected export
 types and transform changed.
 
-The base schema files are edited in place for 4.1-beta3: 4.0 models reach 4.1
-through model migration, not an in-place schema upgrade. This is not an
-in-place conversion for existing beta databases.
+The base schema files are edited in place for the unreleased 4.1 schema.
+In-place controller upgrades are supported only within the same major.minor
+version: a 4.0 controller cannot be upgraded to 4.1. Instead, bootstrap a
+separate 4.1 controller, which creates a new controller database with the
+corrected controller-column types, and migrate the 4.0 models to it. The 4.0
+controller database is neither reused nor upgraded. On model import, the
+exported data is transformed and inserted into a new model database using
+the corrected 4.1 schema; the source model database is not upgraded in place.
+These changes do not provide an in-place conversion for existing 4.1 beta
+databases, and do not relax schema-patch hash requirements for supported
+patch-version upgrades.
 
 Not backported to 4.0: SQLite masked the lookup-ID type mismatches, and
 migrated models get the corrected schema on import. The revision-updater fix
@@ -34,7 +42,7 @@ is also scoped to 4.1.
 - [ ] ~[Integration tests](https://github.com/juju/juju/tree/main/tests), with comments saying what you're testing~
   (Go tests exercise real dqlite import/export and recovery; live
   bootstrap/migration QA below has not been run)
-- [ ] ~[doc.go](https://discourse.charmhub.io/t/readme-in-packages/451) added or updated in changed packages~
+- [x] [doc.go](https://discourse.charmhub.io/t/readme-in-packages/451) added or updated in changed packages
 
 ## QA steps
 
@@ -175,9 +183,17 @@ merged row for the applications without units.
 
 ## Documentation changes
 
-No user-facing CLI or API workflow changes. Conversion and regression-test
-comments describe the representation change; the QA instructions include the
-additional relation-status columns.
+No user-facing CLI or API workflow changes. The developer-facing schema
+package documentation explains the schema-evolution contract: cross-minor
+moves require a newly bootstrapped controller, model migration imports
+transformed data into the destination schema rather than upgrading source
+databases in place, and supported patch upgrades must preserve applied schema
+files and their hash chain. User-facing upgrade documentation is unchanged.
+Regression coverage now compares every field copied by the lookup-ID deltas,
+including nullable fields, checks NotValid classification of malformed IDs
+through transform wrapping, and explicitly compares revision-updater view
+row counts with application counts. The QA instructions include the additional
+relation-status columns.
 
 ## Links
 
