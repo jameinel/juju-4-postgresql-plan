@@ -1,16 +1,17 @@
 # fix(schema): split application exposure by scope
 
-Local draft; not published. Destination: new PR in `juju/juju`, base `4.1`,
-head `jameinel:4.1-application-exposure-scope`. Action: publish this title
-and the body below (excluding this metadata paragraph), only after explicit
-approval of content and branch publication.
+Published after explicit approval on 2026-10-30:
+https://github.com/juju/juju/pull/23723
+Base: `4.1`; head: `jameinel:4.1-application-exposure-scope` at `f31de64e52`.
+The title/body match the approved publication; this metadata is local only.
 
 Depends on juju/juju#23710 (charm keys); land that PR first. This branch is
 stacked on its charm-only local head. Until the parent lands, GitHub's
 comparison to `4.1` includes both PRs: review the exposure-only changes at
 https://github.com/jameinel/juju/compare/4.1-nullable-primary-keys...4.1-application-exposure-scope
-once the approved branches have been pushed. Rebase onto upstream `4.1`
-after the charm PR lands. Stacking keeps the combined primary-key guard
+Rebase onto upstream `4.1` after the charm PR lands.
+Current upstream base: `8369e6e2a9`; charm parent: `ba21f48ad3`;
+exposure head: `f31de64e52`. Stacking keeps the combined primary-key guard
 passing without mixing the two review concerns.
 
 The endpoint exposure tables use a NULL endpoint UUID to mean all
@@ -42,7 +43,8 @@ versus per-endpoint bindings:
   rows permitted by the old key; endpoint-specific rows are preserved.
 - `TestPrimaryKeySchemaSuite` guards model and controller schemas after
   both PRs. Single-column INT lookup keys remain exempt and are a separate
-  follow-up (`4.1-lookup-key-not-null`).
+  independent follow-up (`4.1-lookup-key-not-null`). That review will own
+  an INT-key-scoped guard; the global guard is tightened when both land.
 
 ### Schema policy and scope
 
@@ -70,9 +72,20 @@ relation wildcard is not a primary key and is outside this PR.
 ```sh
 make rebuild-export
 make run-go-tests \
-  TEST_PACKAGES="./domain/schema ./domain/application/... ./domain/network/state ./domain/removal/state/model ./domain/modelimport/... ./domain/recovery/..." \
-  TEST_ARGS="-race -count=1 -p 2 -timeout 8m"
+  TEST_PACKAGES="./generate/export ./domain/schema ./domain/application ./domain/application/service ./domain/network/state ./domain/removal/state/model ./domain/modelimport/... ./domain/recovery/..." \
+  TEST_ARGS="-race -count=1 -p=2 -timeout=12m" TEST_FILTER=Test
+make run-go-tests TEST_PACKAGES="./domain/application/state" \
+  TEST_ARGS="-race -count=1 -p=2 -timeout=4m" \
+  TEST_FILTER=TestExposedStateSuite
 ```
+
+At `f31de64e52`, the 13 packages above and the focused exposure-state race
+suite passed. Explicit build-tagged focused lint reported zero issues;
+regeneration was idempotent. Exposure-watcher stress reported 6 completed
+runs and zero failures before its bounded timeout. The refreshed base and
+stack both passed `make go-build` for all linux/amd64 targets. The entire
+application-state suite was not rerun (the initial pre-refresh broad run
+hit its cumulative timeout); live QA below has not been run.
 
 Verify both scopes through writes, reads, watcher events, unexpose,
 application removal, force space removal, legacy transform/import/export

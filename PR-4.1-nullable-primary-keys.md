@@ -1,10 +1,10 @@
 # fix(schema): require keys for charm container mounts and manifest bases
 
-Local draft for updating juju/juju#23710; not published.
-Destination: `juju/juju`, existing PR 23710, base `4.1`, head
-`jameinel:4.1-nullable-primary-keys`. Action: replace its title and body
-with the title above and the body below (excluding these draft metadata
-paragraphs), after explicit approval of content and branch publication.
+Published after explicit approval on 2026-10-30:
+https://github.com/juju/juju/pull/23710
+Base: `4.1`; head: `jameinel:4.1-nullable-primary-keys` at `ba21f48ad3`.
+The title above and body below match the approved published content;
+these metadata paragraphs are local only. Further edits need approval.
 
 Two charm tables have nullable columns inside composite primary keys.
 SQLite permits these NULLs and does not enforce uniqueness over them;
@@ -12,7 +12,12 @@ standard SQL requires every primary-key column to be `NOT NULL`.
 
 This PR contains only the charm-key corrections. The independent exposure
 scope change and combined primary-key guard have moved to the stacked
-`4.1-application-exposure-scope` proposal. Land this PR first.
+`4.1-application-exposure-scope` PR. Land this PR first. The lookup-key
+NOT NULL correction is a separate independent follow-up, not part of either
+PR.
+
+Rebased onto upstream `4.1` at `8369e6e2a9`, including the merged
+integer-schema corrections. Charm head: `ba21f48ad3`.
 
 ### `fix(schema): require keys for charm container mounts and manifest bases`
 
@@ -23,7 +28,6 @@ scope change and combined primary-key guard have moved to the stacked
   unique. The descriptive columns remain nullable attributes.
 - The 4.0.12 to 4.1.0 import delta rejects a mount without a container key,
   reporting the mount index and charm UUID.
-
 - The manifest-base delta rejects duplicate
   `(charm_uuid, array_index, nested_array_index)` positions with the charm
   UUID and both indices. The old key could distinguish these rows using
@@ -67,8 +71,13 @@ applies the deltas.
 make rebuild-export
 make run-go-tests \
   TEST_PACKAGES="./generate/export ./domain/schema ./domain/modelimport/... ./domain/recovery/..." \
-  TEST_ARGS="-race -count=1 -p 2 -timeout 8m"
+  TEST_ARGS="-race -count=1 -p=2 -timeout=8m" TEST_FILTER=Test
 ```
+
+All nine affected race packages and explicit build-tagged focused lint
+passed at `ba21f48ad3`. Regeneration was idempotent; focused charm-import
+stress reported 132 runs and zero failures before its bounded timeout.
+Live migration QA below has not been run.
 
 Check that:
 
@@ -97,5 +106,8 @@ No CLI/API workflow changes. Malformed legacy charm data fails migration
 with a diagnostic rather than a database constraint error.
 
 ## Links
+
+**Exposure-only comparison:**
+https://github.com/jameinel/juju/compare/4.1-nullable-primary-keys...4.1-application-exposure-scope
 
 ~**Jira card:**~ None.

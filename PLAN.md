@@ -154,8 +154,12 @@ Next: unblock the PostgreSQL bootstrap. 09-functional run 1 failed on U15
 into two upstream reviews: `4.1-nullable-primary-keys` keeps the charm-key
 fix in juju/juju#23710; `4.1-application-exposure-scope` is stacked on it
 and owns the wildcard exposure fix and combined primary-key guard. The
-split and second PR are committed locally (`charm=4df04695d8`,
-`exposure=3c90a7ded3`), not published or reintegrated. See [the review scope](UPSTREAM-PLAN.md#nullable-primary-key-review-split).
+split and second PR are committed locally and refreshed onto upstream
+`8369e6e2a9` (`charm=ba21f48ad3`, `exposure=f31de64e52`), published as
+juju/juju#23710 and juju/juju#23723 after explicit approval; neither is
+reintegrated into the PoC. See [the review scope](UPSTREAM-PLAN.md#nullable-primary-key-review-split).
+U17 (65 nullable INT lookup keys) is planned as an independent follow-up
+session; it does not need either U15 review to land first.
 Both fixes are needed before the next PostgreSQL bootstrap; the charm
 PR alone does not fix wildcard exposure. A proposed
 [same-database guard](stages/09-bootstrap.md#09-same-db-guard-stop-two-controllers-sharing-one-database-proposed)

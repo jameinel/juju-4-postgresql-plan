@@ -62,8 +62,92 @@ portability suites to be green.
 | U12 | latent | Model schema `relation_status_type.id`, `relation_status.relation_status_type_id` | Declared `TEXT` while the seed rows, `EncodeRelationStatus` and every writer use integers and the offer view compares with `1`. SQLite coercion hid it, and exports carried the ids as strings. pgx will not encode a Go int for `TEXT` (DIALECT.md X23). | Fixed, Stage 6, `fix(schema): declare relation status type ids as integers` (D30). 4.1 export types become `int64`; the 4.0.12 import delta parses the legacy strings. |
 | U13 | bug | `domain/keymanager/state` `ensureUserPublicKey` | Read the new key id with `LastInsertId`. When the `INSERT ... SELECT` inserted nothing because the fingerprint hash algorithm was unknown, SQLite returned the connection's previous rowid, so the model could be linked to an unrelated key. | Fixed, Stage 5, `fix(keymanager): return new public key ids from the insert` (D36, DIALECT.md X35). An unknown algorithm returns an error; new test. |
 | U14 | bug | `internal/worker/dbaccessor/tracker.go` | Leaked database pools. `openDatabase` did not close the pool when setting the foreign keys pragma failed; `newTrackedDBWorker` did not close it when model initialisation failed; `ensureDBAliveAndOpenIfRequired` never closed replacement pools it opened during reopen attempts that then failed their ping. Each leak kept a pool open until the process exited. | Fixed, Stage 8, `b6a7690d80` `fix(dbaccessor): close databases the tracker opens but does not keep`. Four new tests fail without the fix; race-enabled stress 214 runs, 0 failures. `tracker.go` and `tracker_test.go` at `pg-poc/08` base equal `upstream/4.1` (`04bc64ef54`), so the commit applies unchanged. Not proposed upstream yet. |
-| U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. **Implemented upstream first, not yet in the PoC:** local two-PR split proposal, not published. `4.1-nullable-primary-keys` retains the charm changes for juju/juju#23710; `4.1-application-exposure-scope` is the stacked exposure proposal. GitHub still has the original combined head until publication is approved. Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings, and the endpoint tables require the endpoint; `v_application_exposed_endpoint` still reports wildcard rows with a NULL endpoint. `charm_container_mount.charm_container_key` becomes `NOT NULL`; `charm_manifest_base` is keyed on `(charm_uuid, array_index, nested_array_index)` and rejects duplicate legacy positions with an identifying diagnostic. The exposure PR owns the combined schema guard. The `to_v4_1_0` deltas split 4.0.12 exposure rows by scope and remove duplicate wildcard rows. Also fixes `remove-space --force` failing with a UNIQUE error when an endpoint is exposed to both `alpha` and the removed space. `TestPrimaryKeySchemaSuite` guards both schemas. |
+| U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. **Implemented upstream first, not yet in the PoC:** two-PR split published after explicit approval on 2026-10-30. `4.1-nullable-primary-keys` retains the charm changes for juju/juju#23710 at `ba21f48ad3`; `4.1-application-exposure-scope` is stacked exposure PR juju/juju#23723 at `f31de64e52`. Both are based on upstream `8369e6e2a9`. Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings, and the endpoint tables require the endpoint; `v_application_exposed_endpoint` still reports wildcard rows with a NULL endpoint. `charm_container_mount.charm_container_key` becomes `NOT NULL`; `charm_manifest_base` is keyed on `(charm_uuid, array_index, nested_array_index)` and rejects duplicate legacy positions with an identifying diagnostic. The exposure PR owns the combined schema guard. The `to_v4_1_0` deltas split 4.0.12 exposure rows by scope and remove duplicate wildcard rows. Also fixes `remove-space --force` failing with a UNIQUE error when an endpoint is exposed to both `alpha` and the removed space. `TestPrimaryKeySchemaSuite` guards both schemas. |
 | U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found, not fixed (Stage 9, 2026-10-28):** bootstrap retries after the U15 failure re-register the binary and fail with 25P02. Fix like the other X18 sites: `ON CONFLICT DO NOTHING` and compare after, or check first. |
+| U17 | latent | 48 model and 17 controller single-column `id INT PRIMARY KEY` tables at `8369e6e2a9` | SQLite permits NULL keys; exported `*int64` IDs allow malformed payload rows to reach persistence. | Planned as independent `4.1-lookup-key-not-null`, separate session; declare `INT PRIMARY KEY NOT NULL`, regenerate `int64`, validate legacy/wire/recovery boundaries and reconcile guards after integration. Not implemented. |
+
+### U17: nullable INT lookup primary keys (planned, independent)
+
+**Class:** latent. **Status:** identified and planned, not implemented;
+assigned to a separate `4.1-lookup-key-not-null` session. User approved an
+independent branch from refreshed upstream 4.1 on 2026-10-30, not a branch
+stacked on either U15 PR.
+
+At upstream `8369e6e2a9`, 65 tables have a single-column `id INT PRIMARY KEY`
+with no explicit NOT NULL: **48 model, 17 controller**. The inventory was
+obtained from that ref's CREATE TABLE declarations in an in-memory SQLite
+database and `pragma_table_info`, not merely a textual count of INT tokens.
+INTEGER PRIMARY KEY is a different SQLite type spelling: it aliases rowid;
+INT PRIMARY KEY does not. SQLite accepts NULL INT keys and duplicate
+NULL-keyed rows, while standard SQL makes primary keys NOT NULL.
+
+`generate/export/main.go:sqliteTypeToGoType` maps INT to int64 and adds a
+pointer when the column is nullable, so these keys export as `*int64`.
+Making them `INT PRIMARY KEY NOT NULL` gives `int64` through the existing
+generator; changing the generator to infer NOT NULL from every primary key
+would hide rather than repair the storage declaration.
+
+Ordinary seed rows and `domain/cloud/state.AllowCloudType` already write
+integer IDs. Payload import/recovery are alternative producers: nullable
+legacy IDs can currently reach the database. The planned fix rejects absent
+IDs rather than inventing a zero (zero is a real seed ID). For 4.0.12 model
+lookup types, generated struct-shape changes require typed deltas; preserve
+all fields and validate consumed rows before dereferencing. Controller
+export types start at 4.1.0, so no legacy controller delta is required.
+Source changestream lookup rows are excluded by model import and must remain
+excluded; they are not a reason to reintroduce source namespace IDs.
+
+Representation checks for the separate session:
+
+- `domain/export/payload.go` currently uses `yaml.Unmarshal`; a new scalar
+  int64 alone cannot distinguish NULL/missing input from populated zero.
+  Verify and validate changed consumed IDs at the raw 4.1.0 model/controller
+  decode boundary, scoped to this change, before that distinction is lost.
+- Recovery's `domain/recovery/service/decode.go:decodeRows` explicitly
+  validates column presence and NULL versus scalar fields. Verify both model
+  and controller dump decode/replay after regeneration, including failure
+  atomicity; don't assume the generated type is the whole fix.
+- Preserve seeded-import conflict behaviour and every supported non-ID
+  representation. Test all consumed legacy lookup types, valid zero,
+  nil/omitted IDs, and representative real persistence round trips.
+
+**No semantic dependency on U15:** only shared schema/generated files and
+integration of the schema guard overlap. Use an INT-key-scoped schema guard
+on the independent branch, not the U15 whole-schema guard (which would fail
+while unrelated charm/exposure keys remain nullable). If the exposure guard
+has landed, narrow its exception to single-column INTEGER keys with the
+lookup fix. Otherwise tighten it when the independent changes are combined,
+regenerate and validate both guards. U15's two branches and PoC bootstrap
+requirements remain unchanged. No implementation or PostgreSQL experiment
+was performed for U17 in this session. The standalone scope and acceptance
+checks are in
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#lookup-key-not-null-task-separate-session).
+
+Inventory at the inspected base (all affected columns are `id`):
+
+- Model: `agent_stream`, `architecture`, `block_command_type`,
+  `block_device_provenance`, `change_log_edit_type`, `change_log_namespace`,
+  `charm_config_type`, `charm_provenance`, `charm_relation_role`,
+  `charm_relation_scope`, `charm_resource_kind`, `charm_run_as_kind`,
+  `charm_source`, `charm_storage_kind`, `container_type`, `hash_kind`,
+  `ip_address_config_type`, `ip_address_origin`, `ip_address_scope`,
+  `ip_address_type`, `k8s_pod_status_value`, `life`, `link_layer_device_type`,
+  `machine_cloud_instance_status_value`, `machine_placement_scope`,
+  `machine_status_value`, `network_address_scope`,
+  `operation_task_status_value`, `os`, `password_hash_algorithm`, `protocol`,
+  `resolve_mode`, `resource_origin_type`, `resource_retrieved_by_type`,
+  `resource_state`, `secret_grant_scope_type`, `secret_grant_subject_type`,
+  `secret_role`, `secret_rotate_policy`, `ssh_key_algorithm_type`,
+  `storage_filesystem_status_value`, `storage_kind`, `storage_provision_scope`,
+  `storage_volume_device_type`, `storage_volume_status_value`,
+  `unit_agent_status_value`, `virtual_port_type`, `workload_status_value`.
+- Controller: `architecture`, `auth_type`, `change_log_edit_type`,
+  `change_log_namespace`, `cloud_type`, `lease_type`, `life`, `model_type`,
+  `object_store_drain_phase_type`, `password_hash_algorithm`,
+  `permission_access_type`, `permission_object_access`,
+  `permission_object_type`, `secret_backend_type`,
+  `ssh_fingerprint_hash_algorithm`, `ssh_key_algorithm_type`,
+  `upgrade_state_type`.
 
 Shared portability improvements on Stage 5. Review each for behaviour
 deltas and extraction readiness; "portability" is not a guarantee of no
@@ -151,13 +235,13 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `53feca2259` | open |
 | `4.1-sql-standard-syntax` | X37, X38 | juju/juju#23695 | `13003d8680` | merged |
 | `4.1-sql-test-literals` | U6 | juju/juju#23696 | `11ff0981e0` | merged |
-| `4.1-nullable-primary-keys` | U15 (charm keys) | juju/juju#23710 | local `4df04695d8`; published `43eed70758` still combined | open; local charm-only split not published |
-| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | local proposal | `3c90a7ded3`, stacked on local charm-only `4df04695d8` | committed locally; not published |
+| `4.1-nullable-primary-keys` | U15 (charm keys) | juju/juju#23710 | `ba21f48ad3` on `8369e6e2a9` | open; charm-only update published, new-head CI not assessed |
+| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | juju/juju#23723 | `f31de64e52`, stacked on charm-only `ba21f48ad3` | open; published, new-head CI not assessed |
 | `4.1-dbaccessor-pool-cleanup` | U14 | not started | | not started |
 | `4.1-agentbinary-conflict` | U16 | not started | | not started |
 | `4.1-lease-pin-conflict` | X18 | not started | | not started |
 | `4.1-secret-latest-revision` | | not started | | not started |
-| `4.1-lookup-key-not-null` | | not started | | not started |
+| `4.1-lookup-key-not-null` | U17 | separate future PR | base to refresh in next session | planned, independent of U15; not implemented |
 | `4.1-local-secret-revisions` | U11 follow-up | juju/juju#23720 | `369fb64c2d` | open; empty-consumer review tests still missing locally |
 
 Notes:
@@ -173,25 +257,85 @@ Notes:
   U16 agent-binary task and the separate `PinLease` task above.
 - U14, U16, `PinLease`, `4.1-secret-latest-revision` and
   `4.1-lookup-key-not-null` are standalone 4.1 tasks in UPSTREAM-PLAN.md.
-- U15 was written upstream first, with no PoC source commit. The local
-  proposal splits charm keys from exposure scope: the charm-only update
-  targets juju/juju#23710, and `4.1-application-exposure-scope` is stacked
-  on it. Both are needed before the next PostgreSQL bootstrap; charm alone
-  leaves the wildcard failure intact. Integrate both under D43 and record
-  the PoC commits here. Neither split publication nor PoC reintegration has
-  occurred. The PR drafts' live-controller QA steps have not been run.
-  The bot review on #23710 asked for a manifest-base legacy-transform
-  test/diagnostic and table-specific errors from `unsetAllExposedEndpoints`;
-  both are present in the local split worktrees. The remote PR remains
-  combined until replacing it is explicitly approved.
+- U15 was written upstream first, with no PoC source commit. The published
+  split keeps charm keys in juju/juju#23710 and exposure scope in stacked
+  juju/juju#23723. Both are needed before the next PostgreSQL bootstrap;
+  charm alone leaves the wildcard failure intact. Integrate both under D43
+  and record the PoC commits here; no PoC reintegration has occurred.
+  Live-controller QA steps have not been run. The review's manifest-base
+  legacy-transform diagnostic/tests and table-specific unset errors are
+  published, with the exact contextual reply. No threads were resolved.
 
-### Nullable primary-key split validation (2026-10-30)
+### Nullable primary-key base refresh (2026-10-30)
+
+Refreshed upstream and the local `4.1` base to `8369e6e2a9` (merged
+integer-schema PR #23680). Rebased charm commits to `7001a1b74b` and
+`ba21f48ad3`; restacked exposure to `4d9518117c` and `f31de64e52`.
+Both branches retain only their assigned concern. Original split heads are
+preserved in `backup/charm-before-base-refresh-20261030` and
+`backup/exposure-before-base-refresh-20261030`. Upstream integer conversions,
+full-row tests and schema changes were retained, not replaced by older
+generated files. The exposure transform conflict was resolved by generation
+from the combined schema; regeneration is idempotent on both branches.
+
+Verification on the refreshed revisions:
+
+- Base and final stack each passed
+  `timeout 600s make go-build GOFLAGS=-p=2` with existing `_deps`, building
+  all six linux/amd64 agent/client targets. Dependencies were not installed.
+- Charm: `make run-go-tests` with
+  `TEST_PACKAGES="./generate/export ./domain/schema ./domain/modelimport/... ./domain/recovery/..."`
+  and `TEST_ARGS="-race -count=1 -p=2 -timeout=8m"` passed all nine packages.
+  Focused charm import stress: 132 completed runs, zero failures before
+  the intentional 31-second timeout.
+- Final exposure: `make run-go-tests` with
+  `TEST_PACKAGES="./generate/export ./domain/schema ./domain/application ./domain/application/service ./domain/modelimport/... ./domain/recovery/... ./domain/network/state ./domain/removal/state/model"`,
+  `TEST_ARGS="-race -count=1 -p=2 -timeout=12m"` and `TEST_FILTER=Test`
+  passed all 13 packages. The first redirected attempt had no package-result
+  evidence; the explicit Test selector rerun above established coverage.
+- Exposure state: `TEST_PACKAGES="./domain/application/state"`,
+  `TEST_ARGS="-race -count=1 -p=2 -timeout=4m"`,
+  `TEST_FILTER=TestExposedStateSuite` passed (10.5 seconds).
+  Exposure watcher stress: 6 completed runs, zero failures before the
+  intentional 31-second timeout. Temporary stress binaries were removed.
+- Both `make pre-check` invocations passed but skipped static analysis;
+  explicit `golangci-lint run --build-tags=dqlite,libsqlite3` over the affected
+  package sets reported zero issues. Non-generated Go files were checked
+  with gci and the worktrees are clean.
+- Scoped diff whitespace checks pass. Full branch `git diff --check` reports
+  two new generated `WHEN ` lines inheriting the existing trigger template's
+  trailing space. They were left generator-consistent, not hand-edited or
+  used to expand this PR into a trigger-formatting refactor.
+- IDE build validation succeeds for the open base project, with limited
+  diagnostics; the unopened exposure/charm worktrees rely on actual Go
+  compilation/tests and the successful binary builds. Live-controller QA,
+  PostgreSQL tests and the entire application-state suite were not rerun.
+
+Publication completed after explicit approval of all content/actions:
+
+- Atomically force-updated `jameinel/juju:4.1-nullable-primary-keys` from
+  `43eed70758` to `ba21f48ad3` using an explicit lease; pushed the new
+  `4.1-application-exposure-scope` branch at `f31de64e52`.
+- Replaced the title/body of
+  [juju/juju#23710](https://github.com/juju/juju/pull/23710) with the reviewed
+  charm-only description.
+- Created [juju/juju#23723](https://github.com/juju/juju/pull/23723), not draft,
+  targeting `4.1` with the reviewed stacked exposure description.
+- Posted the [contextual reply](https://github.com/juju/juju/pull/23710#issuecomment-6527752522),
+  restricted by a sub-agent to the review's three suggestions and actual
+  changes. It does not discuss the independent lookup-key plan.
+- Read both PRs and the comment back and verified exact approved bodies,
+  titles, branch heads, base `4.1` and non-draft status. New-head CI has not
+  been assessed. No review threads were resolved or plan changes pushed.
+
+Further published edits require fresh explicit approval.
+
+### Nullable primary-key split validation (2026-10-30, pre-refresh)
 
 Approved local split: charm-only `4df04695d8` for juju/juju#23710, exposure
-`3c90a7ded3` stacked on it. Base `9ea82c03bd` is deliberately retained for
-this extraction; current upstream has subsequently merged the integer
-schema work. Refresh/rebase/regenerate and revalidate before publication;
-the current GitHub merge-conflict status is not resolved by this split.
+`3c90a7ded3` stacked on it. This initial extraction retained base
+`9ea82c03bd`; it was later refreshed and verified as recorded above.
+These historical results do not establish coverage of the refreshed head.
 No branches, PR content or plan changes have been pushed.
 
 Charm validation:
@@ -293,7 +437,7 @@ requiring these commits to be available.
 | U3/U5 | `e8ef9d307b` / `03743f82ff` (the latter covers changestream fixtures). |
 | U4 | `bae6008b6e` |
 | U11 | Upstream `6068fa451a` / `4992247076` (juju/juju#23688, on `04bc64ef54`); PoC cherry-picks `8f2c49c355` / `79f2e66049`. |
-| U15 | Upstream only, base `9ea82c03bd`. Original combined `33c4a2c3f3` / `43eed70758` remains published in juju/juju#23710 and preserved locally in the backup branch. Proposed unpublished split: charm `33c4a2c3f3` + `4df04695d8`; stacked exposure `9b1557f84a` + `3c90a7ded3`. No PoC reintegration. |
+| U15 | Upstream only. Original combined `43eed70758` is historical and backed up. Initial split: charm `4df04695d8`, exposure `3c90a7ded3` on `9ea82c03bd`. Published refreshed split on `8369e6e2a9`: charm `7001a1b74b` + `ba21f48ad3` in juju/juju#23710, exposure `4d9518117c` + `f31de64e52` in juju/juju#23723. No PoC reintegration. |
 | X16 change-stream query | `48f0c5e1a9` |
 | U10/X31 | `a8301140de` |
 | X34/X33 | `18886acfdf` / `e2258798fe` |

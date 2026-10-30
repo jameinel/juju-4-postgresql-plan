@@ -17,6 +17,8 @@ Describe each fix in terms of upstream behaviour and its regression tests.
 - Dedicated worktrees are allowed. Assign one branch/worktree per owner;
   never switch, reset or rebase another owner's checkout. A worktree's
   presence does not imply permission to modify it.
+- When creating the worktree add a _deps symlink back to ../juju/_deps so
+  that the dependencies can be shared rather than redownloaded in the new tree.
 - Keep one review concern per branch. Multiple commits are fine when they
   serve that concern. Shared generated files are an integration conflict,
   not automatically a reason to stack independent reviews.
@@ -52,16 +54,16 @@ row defines an upstream problem to solve, not a patch to copy.
 | `4.1-lease-migration-tests` (**landed**, PR #23686) | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
 | `4.1-crossmodel-secret-revisions` (**in review**, PR #23688) | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | Report a secret if any remote consuming unit is behind and return its latest revision once. Join through the indexed offer connection, with matching schema, migration and removal changes. Local-consumer query portability is split into `4.1-local-secret-revisions`; see the recorded scope below. |
 | `4.1-dbaccessor-pool-cleanup` | `internal/worker/dbaccessor/tracker.go`: pools opened during setup or reopen attempts are leaked when a later step fails. | Close every pool the tracker opens but does not retain, including failures setting foreign keys, model initialization and reopen ping; preserve pools successfully transferred to the worker. |
-| `4.1-nullable-primary-keys` (PR #23710; local charm-only split proposal) | `charm_container_mount` and `charm_manifest_base` have nullable composite-primary-key columns. | Require the container key; key manifest bases by manifest position, with an import diagnostic/test for duplicate positions. Local charm-only draft is not published; remote PR #23710 still contains the combined change. |
-| `4.1-application-exposure-scope` (local proposal, stacked on charm split) | `application_exposed_endpoint_cidr` / `_space` use NULL `application_endpoint_uuid` for wildcard exposure; only these exposure tables store NULL. | Move all-endpoint exposure to application-wide `application_exposed_space` / `_cidr`, mirroring bindings; require endpoint IDs in endpoint tables. Preserve readers/API/`""` wildcard behavior, split legacy import by scope, collapse duplicate wildcard rows, and avoid `remove-space --force` UNIQUE errors. Includes the combined nullable-primary-key schema guard. The local proposal is committed but unpublished. |
+| `4.1-nullable-primary-keys` (**in review**, charm-only PR #23710) | `charm_container_mount` and `charm_manifest_base` have nullable composite-primary-key columns. | Require the container key; key manifest bases by manifest position, with an import diagnostic/test for duplicate positions. Published head `ba21f48ad3` on upstream `8369e6e2a9`. |
+| `4.1-application-exposure-scope` (**in review**, PR #23723, stacked on charm) | `application_exposed_endpoint_cidr` / `_space` use NULL `application_endpoint_uuid` for wildcard exposure; only these exposure tables store NULL. | Move all-endpoint exposure to application-wide `application_exposed_space` / `_cidr`, mirroring bindings; require endpoint IDs in endpoint tables. Preserve readers/API/`""` wildcard behaviour, split legacy import by scope, collapse duplicate wildcard rows, and avoid `remove-space --force` UNIQUE errors. Includes the combined nullable-primary-key guard. Published head `f31de64e52`; land charm first and rebase before landing exposure. |
 | `4.1-agentbinary-conflict` | `RegisterAgentBinary` in `domain/agentbinary/state/{controller,model}/state.go`: queries after a primary-key conflict inside the same transaction. | Avoid the conflict in SQL (`ON CONFLICT DO NOTHING`, then compare), keeping `AlreadyExists` / `AgentBinaryImmutable`. Test new, repeated and different-object registrations. |
 | `4.1-lease-pin-conflict` | `domain/lease/state`, `PinLease`: ignoring a unique violation leaves the transaction unusable on PostgreSQL. | Resolve the pin race in SQL with `ON CONFLICT DO NOTHING`; preserve the existing result for already-pinned leases and test competing pins. |
 
 ### Schema lane
 
 The integer-schema corrections have landed. Nullable primary keys have a
-local two-PR split: charm keys for existing PR #23710 and the stacked
-exposure proposal. The binary-key, removal-boolean, keymanager, node-ID
+published two-PR split: charm keys in PR #23710 and stacked exposure in
+PR #23723. The binary-key, removal-boolean, keymanager, node-ID
 and lease-test changes have landed; do not recreate them.
 
 For schema follow-ups, inspect schema SQL under
@@ -112,22 +114,20 @@ Required checks:
 
 ## Current work queue
 
-The landed branches in the map need no further implementation. GitHub currently
-shows #23683, #23688, #23691, #23693, #23694, #23710 and #23720 open; GitHub
-is the source of truth for current review and CI status. The local U15 split is
-only a proposal:
-remote #23710 still has the combined charm/exposure change, and neither local
-split branch has been published. Its bot review asked for a legacy-transform
-test and diagnostic for duplicate manifest positions, plus table-specific
-errors from `unsetAllExposedEndpoints`; both are present in the local split
-worktrees. Replacing the combined PR still requires explicit approval. Keep work on existing upstream branches rather than
-recreating them. New independent implementation tasks are dbaccessor pool
+The landed branches in the map need no further implementation. GitHub is
+the source of truth for current review and CI status. U15 is published as
+charm-only juju/juju#23710 and stacked exposure juju/juju#23723, alongside
+open reviews #23683, #23688, #23691, #23693, #23694 and #23720. The review's
+manifest-position diagnostic/tests and table-specific unset errors are
+implemented and published in their respective PRs. Keep work on existing
+review branches rather than recreating them. New independent implementation tasks are dbaccessor pool
 cleanup, agent-binary conflict handling and lease pin conflict handling. The
 dbrepl latest-row query rewrite is queued separately as
 `4.1-dbrepl-latest-row`, following the review request on PR #23691; it is not
 covered by that PR's changestream-only rewrite. Secret latest-revision work
 follows the cross-model secret review, and lookup-key `NOT NULL` work follows
-the combined guard in `4.1-application-exposure-scope`.
+an independent `4.1-lookup-key-not-null` session; it does not need either
+U15 branch to land first.
 
 ## Nullable primary-key review split
 
@@ -154,23 +154,33 @@ second PR. No unrelated PoC work is included.
   concerns' deltas rather than choosing one whole generated file.
 - Land charm first. Until then, review exposure against the charm head;
   `juju/juju` cannot target a fork-only base branch, so the proposed PR to
-  `4.1` discloses its dependency and provides a scoped comparison. Refresh
-  the upstream base and regenerate after resolving the current merge
-  conflicts before publishing/landing; do not treat the older local base
-  as current upstream. After charm lands, rebase exposure onto `4.1`.
-- `4.1-lookup-key-not-null` follows the exposure guard, not the charm PR.
+  `4.1` discloses its dependency and provides a scoped comparison. The
+  2026-10-30 follow-up refreshed both branches onto upstream `8369e6e2a9`,
+  resolved conflicts and regenerated the stack. After charm lands, rebase
+  exposure onto `4.1` before landing it.
+- `4.1-lookup-key-not-null` is an independent follow-up with its own
+  INT-key-scoped schema guard; it does not depend on the exposure guard.
+  Coordinate global-guard tightening after integration, as described below.
   Both U15 fixes are required for PoC reintegration; charm alone does not
   repair the bootstrap's wildcard-exposure failure.
 
-Local revisions: base `9ea82c03bd`; charm head `4df04695d8` (original
-`33c4a2c3f3` plus diagnostic/generator follow-up); exposure head `3c90a7ded3`
-(scope commit `9b1557f84a` plus deletion diagnostic). Publication remains
-unapproved: GitHub still has combined `43eed70758`. Local drafts are
-[the charm PR](PR-4.1-nullable-primary-keys.md) and
-[the exposure PR](PR-4.1-application-exposure-scope.md). Original combined
-work is preserved in `backup/nullable-primary-keys-before-split-20261030`.
+Current local revisions: base `8369e6e2a9`; charm head `ba21f48ad3`
+(`7001a1b74b` + diagnostic/generator follow-up); exposure head `f31de64e52`
+(`4d9518117c` + deletion diagnostic). The pre-refresh split was based on
+`9ea82c03bd`, charm `4df04695d8` and exposure `3c90a7ded3`; those heads are
+preserved in `backup/charm-before-base-refresh-20261030` and
+`backup/exposure-before-base-refresh-20261030`. After explicit approval,
+both branch heads and exact PR descriptions were published: charm-only
+[juju/juju#23710](https://github.com/juju/juju/pull/23710), stacked exposure
+[juju/juju#23723](https://github.com/juju/juju/pull/23723), and the
+[reviewer-context-only reply](https://github.com/juju/juju/pull/23710#issuecomment-6527752522).
+Published content is recorded in [the charm PR](PR-4.1-nullable-primary-keys.md),
+[the exposure PR](PR-4.1-application-exposure-scope.md) and
+[the reply](COMMENT-4.1-nullable-primary-keys-review.md). No threads were
+resolved. New-head CI has not been assessed. Original combined work is
+preserved in `backup/nullable-primary-keys-before-split-20261030`.
 
-Validation on these local revisions: charm schema, legacy import/delta and
+Initial split validation (pre-refresh revisions): charm schema, legacy import/delta and
 recovery-state race suites passed; the generator suite passed after fixing
 a test helper typo. Exposure schema, application integration/service,
 network-state, removal-model-state, import and recovery-state race suites
@@ -187,8 +197,17 @@ changed packages. The final stacked tree also passed
 `timeout 600s make go-build GOFLAGS=-p=2` for all linux/amd64 agent/client
 targets using existing `_deps`. Live-controller QA and PostgreSQL tests
 were not run.
-Detailed commands and provenance are in
-[UPSTREAM-FIXES.md](UPSTREAM-FIXES.md#nullable-primary-key-split-validation-2026-10-30).
+Refreshed-head validation: all nine charm generator/schema/import/recovery
+race packages passed; all 13 exposure generator/schema/application/service/
+import/recovery/network/removal race packages and the focused exposure-state
+suite passed. Regeneration is idempotent. Charm-import stress reported 132
+completed runs and exposure-watcher stress 6, both with zero failures before
+intentional outer timeouts. Explicit build-tagged focused lint reported
+zero issues. The refreshed base and final stack both passed `make go-build`
+for all linux/amd64 targets. The full application-state suite and live QA
+were not rerun. Generated trigger-template trailing whitespace remains;
+scoped handwritten diff checks pass. Exact commands and provenance are in
+[UPSTREAM-FIXES.md](UPSTREAM-FIXES.md#nullable-primary-key-base-refresh-2026-10-30).
 
 ## Cross-model secret review scope and follow-up
 
@@ -244,7 +263,104 @@ unrelated changes or label observable behaviour changes as mechanical.
 | `4.1-local-secret-revisions` (**in review**, PR #23720) | `domain/secret/state/state.go`: make `InitialWatchStatementForConsumedSecretsChange` and `GetConsumedSecretURIsWithChanges` portable by selecting the latest revision explicitly. | Preserve results across multiple units/revisions and optional filters; add explicit empty-consumer cases for both methods (reviewer suggestion, not yet present in the local branch). |
 | `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret changes in PRs #23688 and #23720. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
 | `4.1-sql-standard-syntax` (**landed**, PR #23695) | Two commits. Equality: replace SQLite's `==` with `=` in `domain/keymanager/state` `DeletePublicKeysForUser`, `domain/storageprovisioning/state` `GetVolumeAttachmentIDs` and `domain/crossmodelrelation/state/model` `ValidateApplicationAndEndpointsForOffer`. Join scope: `domain/removal/state/model` `GetDetachInfoForStorageAttachment` joins a one-row aggregate CTE with a comma and then uses `JOIN ... ON` with the table before the comma; spell that join as `CROSS JOIN`. | No behaviour change. Test that removing a user's keys deletes keys no other model uses and keeps shared ones. Test detach info when the requested attachment is no longer alive and no other attachment is, so the fulfilment count is zero. Confirm no other `==` remains in production SQL. |
-| `4.1-lookup-key-not-null` | Single-column `id INT PRIMARY KEY` lookup tables lack `NOT NULL`: 48 model tables (for example `agent_stream`, `life`, `os`) and 17 controller tables (for example `cloud_type`, `lease_type`). Nothing writes a NULL ID; the writers are the schema seeds, `AllowCloudType` (a Go `int`), model import (`INSERT ... ON CONFLICT DO NOTHING`) and recovery restore. But the generated 4.1.0 export types use `ID *int64`, so import and recovery would store a NULL-keyed row from a malformed payload. Declare `id INT NOT NULL PRIMARY KEY`, regenerate the export types and narrow the guard in `domain/schema/primary_key_schema_test.go` to exempt only `INTEGER`. Follows `4.1-application-exposure-scope`, which adds the guard after the charm-key fix. | Model export types change from `*int64` to `int64`, so `to_v4_1_0` needs a delta per table (or a shared helper) that rejects a nil 4.0.12 ID. Controller export types exist only at 4.1.0 and need no deltas. Test import and recovery with valid and nil IDs. |
+| `4.1-lookup-key-not-null` (**planned, independent; separate session**) | 65 single-column `id INT PRIMARY KEY` tables allow NULL: 48 model and 17 controller at upstream `8369e6e2a9`. Export generation maps them to `ID *int64`. SQLite's INT is not the rowid-aliasing INTEGER type. | Declare `id INT PRIMARY KEY NOT NULL`, regenerate to `ID int64`, validate legacy IDs without inventing zero, and preserve seed/import/recovery behaviour. Start from refreshed upstream `4.1`, not either U15 branch. Add an INT-key-scoped guard that does not require unrelated composite keys to be fixed. See the self-contained task below. |
+
+## Lookup-key NOT NULL task (separate session)
+
+Approved on 2026-10-30 as an **independent** review concern. Do not implement
+it during the charm/exposure review session. Start `4.1-lookup-key-not-null`
+in its own worktree from freshly fetched upstream `4.1`; the inspected base
+was `8369e6e2a9` (includes the merged integer-schema PR #23680).
+
+### Contract and bounded scope
+
+- Find every single-column primary key whose declared type is exactly
+  `INT` and whose `pragma_table_info` notnull flag is zero. At the inspected
+  base this is 48 model tables and 17 controller tables, all named `id`.
+  Examples: model `agent_stream`, `life`, `os`, charm lookups and status
+  lookups; controller `cloud_type`, `lease_type`, permission lookups and
+  `upgrade_state_type`. Both schemas include `change_log_edit_type` and
+  `change_log_namespace`. Re-inventory at the session's actual base.
+- Change these declarations in `domain/schema/{model,controller}/sql/`
+  to `id INT PRIMARY KEY NOT NULL`. Leave INTEGER rowid keys, composite
+  keys, historical release DDL and 4.0.12 export types unchanged. Confirm
+  the then-current beta/schema-upgrade policy before editing base patches.
+- Run `make rebuild-export`. `generate/export/main.go` already maps INT to
+  int64 and adds a pointer only when NOT NULL is absent, so no blanket
+  primary-key/type-generator override is needed. Regenerate export types,
+  import/transform and recovery from this branch's own schema. Only these
+  65 key fields should lose their pointers, alongside required generated
+  consumers; preserve unrelated nullable attributes.
+- Ordinary seed rows and `domain/cloud/state.AllowCloudType` already write
+  integer IDs. Preserve their IDs and seeded-import `ON CONFLICT DO NOTHING`
+  behaviour. Zero is a valid lookup ID, not evidence that an ID is missing.
+- For imported 4.0.12 lookup rows, add typed deltas (sharing a small helper
+  if useful) that preserve every column and reject nil IDs with table/row
+  context and the appropriate invalid-payload classification. A populated
+  pointer containing zero must succeed. Struct-shape changes automatically
+  trigger delta generation: no dependency on the charm constraint-only
+  generator enhancement exists.
+- Respect `generate/modelimport/main.go`'s target-local exclusions.
+  `change_log_edit_type` and `change_log_namespace` are exported but are
+  not imported from the source. Preserve their existing exclusion contract;
+  do not reintroduce their rows merely because their generated types change.
+- Controller types exist only at 4.1.0 and require no legacy controller
+  delta. Model/controller 4.1.0 YAML decoding in `domain/export/payload.go`
+  currently uses `yaml.Unmarshal`, which can turn explicit NULL or omitted
+  scalar fields into zero. Validate presence/nullability of the changed IDs
+  before losing that distinction, where those rows are consumed. Do not
+  claim an int64 field or SQL NOT NULL alone rejects malformed wire IDs,
+  and do not broaden this into validation of every existing scalar field.
+- Recovery's `domain/recovery/service/decode.go` already checks raw column
+  presence and rejects NULL for non-pointer scalars. Verify this through
+  generated model/controller dump decode and replay, rather than assuming
+  generation establishes the new contract.
+
+### Independence and integration
+
+This task changes lookup keys, not charm/exposure keys. Shared SQL files
+(such as `0015-charm.sql`), generated export/transform/recovery files and
+changestream namespaces are merge conflicts, not semantic prerequisites.
+The independent branch owns a new `lookup_primary_key_schema_test.go`
+(or equivalent existing scoped suite) asserting NOT NULL for single-column
+INT primary keys in both schemas. It must pass on upstream even while the
+four U15 composite-key tables remain unfixed; do not import the schema-wide
+U15 guard and introduce a hidden dependency.
+
+If the exposure guard has landed by the session's base, tighten it to exempt
+only single-column INTEGER keys as part of this concern. Otherwise retain
+its current INT exemption on the exposure branch, and reconcile it when
+lookup and exposure changes meet: regenerate the combined schema, remove
+the INT exemption, and run both scoped/global guards. Do not narrow the
+global guard before the lookup declarations land, or make either independent
+PR include the other's schema fix. Keep this integration obligation explicit
+in the future PR description/handoff.
+
+### Required checks and stop conditions
+
+- Test fresh model/controller schemas reject NULL INT keys and retain valid
+  seed IDs. Assert the count/set of affected declarations and generated
+  non-pointer fields; don't just test one lookup table.
+- Exercise each consumed legacy lookup type's complete row through its
+  delta, including nil versus populated zero, multiple rows and non-ID
+  nullable attributes. Use representative real legacy decode -> transform
+  -> import -> export round trips for model persistence, including duplicate
+  existing seed rows and a valid non-seed row where permitted.
+- Test 4.1.0 model/controller raw YAML with valid zero/non-zero, explicit
+  NULL and omitted IDs at the actual decoder boundary; excluded source
+  changestream rows must stay excluded. Typed Go rows cannot represent the
+  difference between missing and zero after decoding.
+- Test model/controller recovery dump round trips, explicit NULL/missing
+  ID rejection and no partial replay on failure. Do not alter immutable-table
+  replay/bootstrap requirements to accommodate fixtures.
+- Run race-enabled schema/export/import/recovery and relevant cloud-state
+  suites; stress suites using goroutines per repository guidance. Run gci,
+  focused lint, build and regeneration-idempotence checks. After conflicts,
+  regenerate from the combined schema and rerun the boundary tests.
+- Stop for changed release policy, newly discovered nullable-key writers,
+  or a representation that cannot be preserved. Record base, inventory,
+  commits, validation and guard-integration status. No PostgreSQL work or
+  unrelated composite-key cleanup belongs in this branch.
 
 Further candidates need named files and tests before dispatch: explicit
 upsert targets/qualification, explicit CTE membership subqueries and
