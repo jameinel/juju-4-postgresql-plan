@@ -2,17 +2,18 @@
 
 Published after explicit approval on 2026-10-30:
 https://github.com/juju/juju/pull/23723
-Base: `4.1`; head: `jameinel:4.1-application-exposure-scope` at `f31de64e52`.
-The title/body match the approved publication; this metadata is local only.
+Base: `4.1`; head: `jameinel:4.1-application-exposure-scope` at `4e66f7c449`.
+Review fixes, the body below and the approved reply were published after
+explicit approval on 2026-10-30; reply: https://github.com/juju/juju/pull/23723#issuecomment-6531441845
 
 Depends on juju/juju#23710 (charm keys); land that PR first. This branch is
 stacked on its charm-only local head. Until the parent lands, GitHub's
 comparison to `4.1` includes both PRs: review the exposure-only changes at
 https://github.com/jameinel/juju/compare/4.1-nullable-primary-keys...4.1-application-exposure-scope
 Rebase onto upstream `4.1` after the charm PR lands.
-Current upstream base: `8369e6e2a9`; charm parent: `ba21f48ad3`;
-exposure head: `f31de64e52`. Stacking keeps the combined primary-key guard
-passing without mixing the two review concerns.
+Current upstream base: `8369e6e2a9`; charm parent: `ba21f48ad3`.
+Stacking keeps the combined primary-key guard passing without mixing the
+two review concerns.
 
 The endpoint exposure tables use a NULL endpoint UUID to mean all
 endpoints. SQLite permits NULL inside the composite primary key and treats
@@ -30,32 +31,45 @@ versus per-endpoint bindings:
 - `v_application_exposed_endpoint` combines all four tables and still
   reports application-wide rows with a NULL endpoint. Readers, the API
   and the `""` wildcard endpoint remain unchanged.
-- Writers route wildcard rows to the new tables; unexposing an application
-  clears all four transactionally. Errors identify the failed query/table.
+- Writers route wildcard rows to the new tables; `deleteAllExposure` clears
+  all four transactionally when unexposing an application. Errors name the
+  failed table without embedding SQL.
 - `WatchApplicationExposed` watches all four tables via change-log triggers.
+  Tests exercise each namespace independently, including wildcard CIDRs,
+  so deletion events cannot mask missing subscriptions. The empty-namespace
+  guard deliberately rejects alternative state implementations that violate
+  the documented non-empty namespace contract.
   Application removal clears application-wide rows before deleting the app.
 - Space removal still refuses wildcard exposure without `--force`. Forced
   removal moves exposure to `alpha`, deleting the removed-space row instead
   when exposure to `alpha` already exists. This fixes a pre-existing UNIQUE
   failure for endpoint exposure and duplicate wildcard exposure rows.
+  Deduplication and reset errors identify the failed exposure table;
+  failure-injection tests verify both operations roll back earlier changes.
 - Regenerated 4.1.0 export/import/recovery code carries both scopes. Legacy
   4.0.12 deltas split exposure by scope and collapse duplicate wildcard
   rows permitted by the old key; endpoint-specific rows are preserved.
 - `TestPrimaryKeySchemaSuite` guards model and controller schemas after
-  both PRs. Single-column INT lookup keys remain exempt and are a separate
-  independent follow-up (`4.1-lookup-key-not-null`). That review will own
-  an INT-key-scoped guard; the global guard is tightened when both land.
+  both PRs. Single-column INT lookup keys remain exempt here; independent
+  juju/juju#23724 supplies an INT-key-scoped guard. When the exposure and
+  lookup changes are integrated, regenerate from the combined schema and
+  remove the global guard's INT exemption, retaining only the INTEGER rowid
+  exemption. Run both scoped and global guards.
 
 ### Schema policy and scope
 
 Edit the beta-only 4.1 base schema in place, as in juju/juju#23690 and
 juju/juju#23682. The 4.1.0 payload is unreleased; no post-patch is registered.
 Earlier 4.1-beta controllers cannot upgrade in place across these hash
-changes. 4.0 models reach 4.1 via migration and the validated deltas.
+changes. Once a 4.1 release candidate ships, subsequent schema changes must
+use new patches rather than further in-place edits. 4.0 models reach 4.1
+via migration and the validated deltas.
 Historical release DDL and 4.0 export types stay unchanged.
 
-Charm-key implementation belongs to juju/juju#23710. `port_range`'s nullable
-relation wildcard is not a primary key and is outside this PR.
+Charm-key implementation and its generator metadata review suggestion
+belong to juju/juju#23710; this follow-up does not change the parent PR's
+generator. `port_range`'s nullable relation wildcard is not a primary key
+and is outside this PR.
 
 ## Checklist
 
@@ -87,10 +101,28 @@ stack both passed `make go-build` for all linux/amd64 targets. The entire
 application-state suite was not rerun (the initial pre-refresh broad run
 hit its cumulative timeout); live QA below has not been run.
 
+Review-follow-up validation also passed:
+
+```sh
+make run-go-tests \
+  TEST_PACKAGES="./domain/application/service ./domain/application/state ./domain/application ./domain/network/state" \
+  TEST_ARGS="-race -count=1 -p=2 -timeout=4m" \
+  TEST_FILTER='"TestExposedStateSuite|TestSpaceDeleteSuite|TestApplicationWatcherServiceSuite|TestWatcherSuite/TestWatchApplicationExposed"'
+```
+
+This covers the full exposure-state, space-deletion and application-watcher
+service suites, plus the exposure watcher integration tests. Focused lint
+with `dqlite,libsqlite3` build tags reported zero issues; `make go-build`,
+import formatting and diff checks passed. `make pre-check` passed but skips
+static analysis by default; the explicit focused lint supplies that check.
+The strengthened exposure watcher completed 6 stress runs without failures
+before its intentional outer timeout.
+
 Verify both scopes through writes, reads, watcher events, unexpose,
 application removal, force space removal, legacy transform/import/export
-and recovery. The failure-injection regression checks the error identifies
-each of the four deletion tables and preceding deletions roll back.
+and recovery. Failure-injection tests verify that errors name the failed
+table and preceding changes roll back for all four unexpose deletion tables
+and for deduplication and reset of each exposure-space table.
 
 ### Live QA (proposed, not run)
 
