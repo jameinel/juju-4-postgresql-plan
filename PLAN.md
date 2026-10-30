@@ -148,9 +148,16 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next: unblock the PostgreSQL bootstrap. 09-functional run 1 failed on U15
-(nullable primary key for the wildcard exposed endpoint, X44, needs a
-design choice) and U16 (`RegisterAgentBinary` after a conflict, X18); see
-[the run log](stages/09-bootstrap.md#09-functional-run-log). A proposed
+(nullable primary key for the wildcard exposed endpoint, X44) and U16
+(`RegisterAgentBinary` after a conflict, X18); see
+[the run log](stages/09-bootstrap.md#09-functional-run-log). U15 is split
+into two upstream reviews: `4.1-nullable-primary-keys` keeps the charm-key
+fix in juju/juju#23710; `4.1-application-exposure-scope` is stacked on it
+and owns the wildcard exposure fix and combined primary-key guard. The
+split and second PR are committed locally (`charm=4df04695d8`,
+`exposure=3c90a7ded3`), not published or reintegrated. See [the review scope](UPSTREAM-PLAN.md#nullable-primary-key-review-split).
+Both fixes are needed before the next PostgreSQL bootstrap; the charm
+PR alone does not fix wildcard exposure. A proposed
 [same-database guard](stages/09-bootstrap.md#09-same-db-guard-stop-two-controllers-sharing-one-database-proposed)
 is recorded and not scheduled. The top is `08=950bba743e`. 08-delete-locks
 is done ([result](stages/08-dbaccessor.md#08-delete-locks-result)):

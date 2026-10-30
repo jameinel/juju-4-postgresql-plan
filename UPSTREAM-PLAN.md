@@ -10,9 +10,10 @@ Describe each fix in terms of upstream behaviour and its regression tests.
 
 - Refresh and record the upstream 4.1 base (`B`). Check current code and
   existing reviews for completed work before implementing anything.
-- Start each independent branch from `B`. Use the existing
-  `4.1-sqlite-integers` branch for its assigned extension, preserving its
-  current commits and review history; coordinate changes with its owner.
+- Start each independent branch from `B`. The integer-schema work on
+  `4.1-sqlite-integers` is merged; do not duplicate it or add unrelated
+  work to that branch. For a separately approved follow-up, branch from a
+  refreshed upstream `4.1` and preserve the merged branch's history.
 - Dedicated worktrees are allowed. Assign one branch/worktree per owner;
   never switch, reset or rebase another owner's checkout. A worktree's
   presence does not imply permission to modify it.
@@ -27,16 +28,12 @@ Describe each fix in terms of upstream behaviour and its regression tests.
 
 ## Existing integer branch
 
-PR #23680 on `4.1-sqlite-integers` contains the lookup-ID corrections and
-revision-updater unit-count fix. Check its current state before changing it;
-do not duplicate those fixes. The relation-status integer correction is a
-separate commit on that branch, reusing its legacy-ID parsing helpers and
-extending its import fixtures.
-
-The 2026-10-29 review follow-up adds full-row conversion coverage, invalid-ID
-error classification, explicit view row counts and developer schema-evolution
-documentation. Verified and committed as `0e9be8ddd7`; awaiting publication.
-Details and evidence are in
+PR #23680 on `4.1-sqlite-integers` merged to upstream `4.1` on
+2026-10-30. Its head `0e9be8ddd7` includes the lookup-ID and relation-status
+integer corrections, revision-updater unit-count fix, and review follow-up
+(full-row conversion coverage, invalid-ID classification, explicit view row
+counts and schema-evolution documentation). Do not recreate or duplicate
+these changes. The review evidence is in
 [COMMENT-4.1-sqlite-integers-review.md](COMMENT-4.1-sqlite-integers-review.md).
 
 ## Candidate branch map
@@ -46,7 +43,7 @@ row defines an upstream problem to solve, not a patch to copy.
 
 | Branch | Change and entry points | Required result |
 |---|---|---|
-| `4.1-sqlite-integers` (existing; PR #23680 open) | `relation_status_type.id` and `relation_status.relation_status_type_id`: TEXT declarations disagree with integer writers and lookup values. | INT declarations, matching export types and legacy string-ID conversion; preserve the existing unit-count and lookup-ID fixes. |
+| `4.1-sqlite-integers` (**landed**, PR #23680) | `relation_status_type.id` and `relation_status.relation_status_type_id`: TEXT declarations disagree with integer writers and lookup values. | INT declarations, matching export types and legacy string-ID conversion; preserve the existing unit-count and lookup-ID fixes. |
 | `4.1-binary-key-columns` (**landed**, PR #23682) | `user_activation_key.activation_key`, eight `bakery_config` key columns and `macaroon_root_key.root_key`: raw bytes declared TEXT. | BLOB declarations and consistent storage/export/recovery representations, including legacy compatibility. |
 | `4.1-removal-force-boolean` (**landed**, PR #23690) | `removal.force`: INT declaration despite boolean writers/readers. | BOOLEAN declaration, boolean export type and validated 4.0.12 integer conversion. |
 | `4.1-model-config-precedence` (**in review**, PR #23683) | `v_model_config` and `domain/modelconfig/state`: duplicate agent stream/version rows let row ordering choose the winner. | Authoritative `agent_version` values win regardless of config contents or row order. |
@@ -55,18 +52,19 @@ row defines an upstream problem to solve, not a patch to copy.
 | `4.1-lease-migration-tests` (**landed**, PR #23686) | `domain/lease/state/migration_test.go`: ignored seed errors can invalidate test setup. | Assert setup success and genuinely test held/expired leases with appropriate timestamp fixtures. |
 | `4.1-crossmodel-secret-revisions` (**in review**, PR #23688) | `domain/crossmodelrelation/state/model/secrets.go`: grouped queries select an arbitrary consuming unit's revision. | Report a secret if any remote consuming unit is behind and return its latest revision once. Join through the indexed offer connection, with matching schema, migration and removal changes. Local-consumer query portability is split into `4.1-local-secret-revisions`; see the recorded scope below. |
 | `4.1-dbaccessor-pool-cleanup` | `internal/worker/dbaccessor/tracker.go`: pools opened during setup or reopen attempts are leaked when a later step fails. | Close every pool the tracker opens but does not retain, including failures setting foreign keys, model initialization and reopen ping; preserve pools successfully transferred to the worker. |
-| `4.1-nullable-primary-keys` (**in review**, PR #23710) | Model schema tables with a nullable primary-key column: `application_exposed_endpoint_cidr` / `_space` (`NULL application_endpoint_uuid` means the wildcard endpoint; writers in `domain/application/state/exposed.go`, readers through `v_application_exposed_endpoint`), `charm_container_mount`, and `charm_manifest_base`. SQLite accepts NULLs and does not enforce uniqueness over them. Only the exposure tables store NULL. | Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings; the endpoint tables require the endpoint. `charm_container_mount` requires the container key; `charm_manifest_base` is keyed on its manifest position. Readers, the API and the `""` wildcard are unchanged. The 4.0.12 import splits exposure rows by scope and removes duplicate wildcard rows. `remove-space --force` no longer fails on exposure to both the removed space and `alpha`. A schema test rejects nullable primary key columns. |
+| `4.1-nullable-primary-keys` (PR #23710; local charm-only split proposal) | `charm_container_mount` and `charm_manifest_base` have nullable composite-primary-key columns. | Require the container key; key manifest bases by manifest position, with an import diagnostic/test for duplicate positions. Local charm-only draft is not published; remote PR #23710 still contains the combined change. |
+| `4.1-application-exposure-scope` (local proposal, stacked on charm split) | `application_exposed_endpoint_cidr` / `_space` use NULL `application_endpoint_uuid` for wildcard exposure; only these exposure tables store NULL. | Move all-endpoint exposure to application-wide `application_exposed_space` / `_cidr`, mirroring bindings; require endpoint IDs in endpoint tables. Preserve readers/API/`""` wildcard behavior, split legacy import by scope, collapse duplicate wildcard rows, and avoid `remove-space --force` UNIQUE errors. Includes the combined nullable-primary-key schema guard. The local proposal is committed but unpublished. |
 | `4.1-agentbinary-conflict` | `RegisterAgentBinary` in `domain/agentbinary/state/{controller,model}/state.go`: queries after a primary-key conflict inside the same transaction. | Avoid the conflict in SQL (`ON CONFLICT DO NOTHING`, then compare), keeping `AlreadyExists` / `AgentBinaryImmutable`. Test new, repeated and different-object registrations. |
 | `4.1-lease-pin-conflict` | `domain/lease/state`, `PinLease`: ignoring a unique violation leaves the transaction unusable on PostgreSQL. | Resolve the pin race in SQL with `ON CONFLICT DO NOTHING`; preserve the existing result for already-pinned leases and test competing pins. |
 
 ### Schema lane
 
-The only schema correction ready for implementation is the relation-status
-integer extension on `4.1-sqlite-integers`; nullable primary keys are in
-review (PR #23710). The binary-key, removal-boolean, keymanager, node-ID and
-lease-test changes have landed; do not recreate them.
+The integer-schema corrections have landed. Nullable primary keys have a
+local two-PR split: charm keys for existing PR #23710 and the stacked
+exposure proposal. The binary-key, removal-boolean, keymanager, node-ID
+and lease-test changes have landed; do not recreate them.
 
-For the integer extension, inspect schema SQL under
+For schema follow-ups, inspect schema SQL under
 `domain/schema/{model,controller}/`, generated export types under
 `domain/export/types/`, and legacy conversion code under
 `domain/modelimport/transformer/transforms/to_v4_1_0/`. Assign shared
@@ -114,16 +112,83 @@ Required checks:
 
 ## Current work queue
 
-The landed branches in the map need no further implementation. The active
-reviews are #23680, #23683, #23688, #23691, #23693, #23694 and #23710;
-update their base or resolve review feedback on their existing branches
-rather than recreating them. New independent implementation tasks are
-dbaccessor pool cleanup, agent-binary conflict handling and lease pin
-conflict handling. The dbrepl latest-row query rewrite is queued separately
-as `4.1-dbrepl-latest-row`, following the review request on PR #23691; it
-is not covered by that PR's changestream-only rewrite. Secret latest-revision
-work follows the cross-model secret review, and lookup-key `NOT NULL` work
-follows #23710.
+The landed branches in the map need no further implementation. GitHub currently
+shows #23683, #23688, #23691, #23693, #23694, #23710 and #23720 open; GitHub
+is the source of truth for current review and CI status. The local U15 split is
+only a proposal:
+remote #23710 still has the combined charm/exposure change, and neither local
+split branch has been published. Its bot review asked for a legacy-transform
+test and diagnostic for duplicate manifest positions, plus table-specific
+errors from `unsetAllExposedEndpoints`; both are present in the local split
+worktrees. Replacing the combined PR still requires explicit approval. Keep work on existing upstream branches rather than
+recreating them. New independent implementation tasks are dbaccessor pool
+cleanup, agent-binary conflict handling and lease pin conflict handling. The
+dbrepl latest-row query rewrite is queued separately as
+`4.1-dbrepl-latest-row`, following the review request on PR #23691; it is not
+covered by that PR's changestream-only rewrite. Secret latest-revision work
+follows the cross-model secret review, and lookup-key `NOT NULL` work follows
+the combined guard in `4.1-application-exposure-scope`.
+
+## Nullable primary-key review split
+
+The 2026-10-30 review of juju/juju#23710 requests separate charm-key and
+application-exposure PRs. The approved local split keeps the existing
+`4.1-nullable-primary-keys` branch/PR for charm keys and places exposure on
+`4.1-application-exposure-scope`, stacked on the charm branch. This is an
+explicit exception to the independent-base agreement: the schema-wide
+primary-key guard passes only with both concerns fixed and belongs to the
+second PR. No unrelated PoC work is included.
+
+- Charm PR: `0015-charm.sql`, charm schema regressions, mount export type,
+  legacy mount and manifest-position deltas, generator support for a
+  constraint-only delta, matching generated transforms/recovery and tests.
+  Duplicate manifest positions halt with charm UUID and both indices rather
+  than a raw UNIQUE error; nullable attributes remain valid.
+- Exposure PR: `0019-application.sql`, four-table exposure writes/view,
+  watcher namespaces/triggers, export/import/recovery, application removal,
+  space checks/reset-to-alpha, their tests and the combined primary-key
+  guard. Deletion errors identify the failed SQL/table; failed deletions
+  roll back preceding tables in the same transaction.
+- Each branch was regenerated from its own schema; the exposure tree was
+  regenerated after restacking on the charm follow-up, retaining both
+  concerns' deltas rather than choosing one whole generated file.
+- Land charm first. Until then, review exposure against the charm head;
+  `juju/juju` cannot target a fork-only base branch, so the proposed PR to
+  `4.1` discloses its dependency and provides a scoped comparison. Refresh
+  the upstream base and regenerate after resolving the current merge
+  conflicts before publishing/landing; do not treat the older local base
+  as current upstream. After charm lands, rebase exposure onto `4.1`.
+- `4.1-lookup-key-not-null` follows the exposure guard, not the charm PR.
+  Both U15 fixes are required for PoC reintegration; charm alone does not
+  repair the bootstrap's wildcard-exposure failure.
+
+Local revisions: base `9ea82c03bd`; charm head `4df04695d8` (original
+`33c4a2c3f3` plus diagnostic/generator follow-up); exposure head `3c90a7ded3`
+(scope commit `9b1557f84a` plus deletion diagnostic). Publication remains
+unapproved: GitHub still has combined `43eed70758`. Local drafts are
+[the charm PR](PR-4.1-nullable-primary-keys.md) and
+[the exposure PR](PR-4.1-application-exposure-scope.md). Original combined
+work is preserved in `backup/nullable-primary-keys-before-split-20261030`.
+
+Validation on these local revisions: charm schema, legacy import/delta and
+recovery-state race suites passed; the generator suite passed after fixing
+a test helper typo. Exposure schema, application integration/service,
+network-state, removal-model-state, import and recovery-state race suites
+passed before the restack. After restacking, all generator/import/recovery
+packages and the focused exposure-state race suite passed. A broad
+application-state suite hit its cumulative 8-minute timeout during
+`TestUnitStateSuite/TestGetUnitWorkloadVersion`; it is not a full green run.
+Charm-import stress reported 12 completed runs and exposure-watcher stress
+6, both with zero failures before the intentional outer timeout. Both
+`make pre-check` invocations passed but skipped static analysis; explicit
+focused `golangci-lint` runs reported zero issues. IDE build validation was
+unavailable for these unopened worktrees; the Go race suites compiled the
+changed packages. The final stacked tree also passed
+`timeout 600s make go-build GOFLAGS=-p=2` for all linux/amd64 agent/client
+targets using existing `_deps`. Live-controller QA and PostgreSQL tests
+were not run.
+Detailed commands and provenance are in
+[UPSTREAM-FIXES.md](UPSTREAM-FIXES.md#nullable-primary-key-split-validation-2026-10-30).
 
 ## Cross-model secret review scope and follow-up
 
@@ -132,17 +197,20 @@ query fix, indexed offer-connection schema/export/import/recovery changes,
 consumer cleanup, and their regression tests together.
 
 The independent local-consumer query portability change is split out onto
-`4.1-local-secret-revisions`, based on `9ea82c03bd`, for its own PR. It owns
-only `domain/secret/state/state.go` methods
+`4.1-local-secret-revisions`, based on `9ea82c03bd`, and published as
+[PR #23720](https://github.com/juju/juju/pull/23720). It owns only
+`domain/secret/state/state.go` methods
 `InitialWatchStatementForConsumedSecretsChange` and
 `GetConsumedSecretURIsWithChanges`, and
 `TestConsumedSecretsChangesMultipleUnitsAndRevisions` in `state_test.go`.
 The regression passes with both the original SQLite SQL and the portable
-SQL; the full secret-state race suite and focused lint pass. The
+SQL; the full secret-state race suite and focused lint passed locally. The
 schema-dependent remote-consumer fixture stays in `juju/juju#23688`.
-The cross-model review follow-up is committed as `29fc497b6e`; the
-extracted local-query change is committed as `369fb64c2d`. The separate
-PR is drafted, not published.
+The cross-model review follow-up is committed as `29fc497b6e`; the extracted
+local-query change is committed as `369fb64c2d`. PR #23720 remains open; its
+review suggests explicitly testing the empty-consumer result from both
+local-query methods; those cases are not yet present in the local branch. See
+GitHub for current CI status.
 
 Do not confuse this extracted change with `4.1-secret-latest-revision`
 below: that task covers five other latest-revision queries and remains
@@ -171,11 +239,12 @@ unrelated changes or label observable behaviour changes as mechanical.
 | `4.1-dbrepl-latest-row` (**queued**, follow-up to PR #23691) | `internal/worker/dbrepl/worker.go` (review location: line 680): replace `SELECT MAX(c.id), t.edit_type, n.namespace, changed, created_at ... GROUP BY c.namespace_id, c.changed` with a CTE selecting the latest ID per namespace/changed key, then join back to that change-log row. Join `change_log_edit_type` in the outer select to retain `t.edit_type`, as well as the namespace lookup. | Keep all returned fields from the selected latest row and preserve coalescing, query bounds, ordering and replication progress. Add regressions in `internal/worker/dbrepl/worker_test.go` for repeated changes to one key with differing edit types/timestamps, multiple keys/namespaces, empty results and query-boundary cases; verify the replicated payload and progress, not only the SQL result. Behaviour-preserving tests must pass with both old and rewritten SQL. Run the affected package tests with race/stress coverage. Confirm the query is still outstanding before dispatch; use a separate branch/worktree, not the PR #23691 owner's checkout. |
 | `4.1-blockcommand-order` (**landed**, PR #23692) | `domain/blockcommand/state`: replace implicit `rowid` ordering with explicit block-type order. | Preserve and test the agreed explicit order. |
 | `4.1-operation-query-portability` (**in review**, PR #23693) | `domain/operation/state`: boolean parameter comparisons and text-based size expressions. | Separate commits; preserve filtering and pruning thresholds, including value-type coverage. |
-| `4.1-objectstore-conflicts` (**in review**, PR #23694; sentinel follow-up published, new-head CI pending) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Return the documented `objectstoreerrors.ErrMetadataUUIDAlreadyExists` sentinel when a UUID exists with different hashes or size, distinct from `ErrHashAndSizeAlreadyExists`. Test hash and size-only UUID conflicts, duplicate UUID reuse, unchanged metadata/paths/hints, and wrapped sentinel propagation through both service put methods. |
+| `4.1-objectstore-conflicts` (**in review**, PR #23694; sentinel follow-up published) | `domain/objectstore/state`: use one conflict clause instead of separate clauses for each hash. | Return the documented `objectstoreerrors.ErrMetadataUUIDAlreadyExists` sentinel when a UUID exists with different hashes or size, distinct from `ErrHashAndSizeAlreadyExists`. Test hash and size-only UUID conflicts, duplicate UUID reuse, unchanged metadata/paths/hints, and wrapped sentinel propagation through both service put methods. |
 | `4.1-sql-test-literals` (**landed**, PR #23696) | SQL test helpers and production SQL: single-quoted strings instead of SQLite's double-quoted-string fallback. | Bound the file set; preserve fixture and query meaning and coordinate overlapping owners. |
-| `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret change in PR #23688. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
+| `4.1-local-secret-revisions` (**in review**, PR #23720) | `domain/secret/state/state.go`: make `InitialWatchStatementForConsumedSecretsChange` and `GetConsumedSecretURIsWithChanges` portable by selecting the latest revision explicitly. | Preserve results across multiple units/revisions and optional filters; add explicit empty-consumer cases for both methods (reviewer suggestion, not yet present in the local branch). |
+| `4.1-secret-latest-revision` | `domain/secret/state/state.go`: `updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and `getSecretsRevisionExpiryChanges` read ungrouped columns beside `MAX(revision)` and rely on SQLite returning them from the latest-revision row. Select the latest revision explicitly instead. This follows the consumed-secret changes in PRs #23688 and #23720. | Show the results are unchanged with several revisions, expiry and rotation rows, and both owner kinds. Tests must pass against the old and the new queries. |
 | `4.1-sql-standard-syntax` (**landed**, PR #23695) | Two commits. Equality: replace SQLite's `==` with `=` in `domain/keymanager/state` `DeletePublicKeysForUser`, `domain/storageprovisioning/state` `GetVolumeAttachmentIDs` and `domain/crossmodelrelation/state/model` `ValidateApplicationAndEndpointsForOffer`. Join scope: `domain/removal/state/model` `GetDetachInfoForStorageAttachment` joins a one-row aggregate CTE with a comma and then uses `JOIN ... ON` with the table before the comma; spell that join as `CROSS JOIN`. | No behaviour change. Test that removing a user's keys deletes keys no other model uses and keeps shared ones. Test detach info when the requested attachment is no longer alive and no other attachment is, so the fulfilment count is zero. Confirm no other `==` remains in production SQL. |
-| `4.1-lookup-key-not-null` | Single-column `id INT PRIMARY KEY` lookup tables lack `NOT NULL`: 48 model tables (for example `agent_stream`, `life`, `os`) and 17 controller tables (for example `cloud_type`, `lease_type`). Nothing writes a NULL ID; the writers are the schema seeds, `AllowCloudType` (a Go `int`), model import (`INSERT ... ON CONFLICT DO NOTHING`) and recovery restore. But the generated 4.1.0 export types use `ID *int64`, so import and recovery would store a NULL-keyed row from a malformed payload. Declare `id INT NOT NULL PRIMARY KEY`, regenerate the export types and narrow the guard in `domain/schema/primary_key_schema_test.go` to exempt only `INTEGER`. Follows `4.1-nullable-primary-keys`, which adds the guard. | Model export types change from `*int64` to `int64`, so `to_v4_1_0` needs a delta per table (or a shared helper) that rejects a nil 4.0.12 ID. Controller export types exist only at 4.1.0 and need no deltas. Test import and recovery with valid and nil IDs. |
+| `4.1-lookup-key-not-null` | Single-column `id INT PRIMARY KEY` lookup tables lack `NOT NULL`: 48 model tables (for example `agent_stream`, `life`, `os`) and 17 controller tables (for example `cloud_type`, `lease_type`). Nothing writes a NULL ID; the writers are the schema seeds, `AllowCloudType` (a Go `int`), model import (`INSERT ... ON CONFLICT DO NOTHING`) and recovery restore. But the generated 4.1.0 export types use `ID *int64`, so import and recovery would store a NULL-keyed row from a malformed payload. Declare `id INT NOT NULL PRIMARY KEY`, regenerate the export types and narrow the guard in `domain/schema/primary_key_schema_test.go` to exempt only `INTEGER`. Follows `4.1-application-exposure-scope`, which adds the guard after the charm-key fix. | Model export types change from `*int64` to `int64`, so `to_v4_1_0` needs a delta per table (or a shared helper) that rejects a nil 4.0.12 ID. Controller export types exist only at 4.1.0 and need no deltas. Test import and recovery with valid and nil IDs. |
 
 Further candidates need named files and tests before dispatch: explicit
 upsert targets/qualification, explicit CTE membership subqueries and
@@ -192,9 +261,6 @@ is `87ac64185e`; the branch base is `04bc64ef54`. Upstream `4.1` was checked
 at `7ce6f49c04`; this review fix does not rebase or modify another owner's
 checkout. The approved PR description is published, together with the
 [review reply](https://github.com/juju/juju/pull/23694#issuecomment-6510378577).
-New-head CI is running; the previous head's green checks are not evidence
-for this follow-up.
-
 - The explicit SQL table/projection-alias request is already implemented
   and its review thread is resolved. Keep that fix.
 - The remaining suggestion is addressed by the documented UUID-conflict
@@ -243,12 +309,11 @@ Process steps for this review:
 2. Completed: received explicit approval to push the commit to
    `jameinel/juju:4.1-objectstore-conflicts`, replace the description of
    `juju/juju#23694`, and post the exact reviewed reply there.
-3. Completed: published only those approved updates and checked new-head
-   CI, which is pending. The installed `gh pr edit` failed on deprecated
-   classic-project GraphQL fields; the approved description was published
-   using `gh api --method PATCH repos/juju/juju/pulls/23694` instead.
-   Next: confirm new-head CI completes successfully. No review threads were
-   changed; further published edits/resolutions need approval.
+3. Completed: published only those approved updates. The installed
+   `gh pr edit` failed on deprecated classic-project GraphQL fields; the
+   approved description was published using
+   `gh api --method PATCH repos/juju/juju/pulls/23694` instead. No review
+   threads were changed; further published edits/resolutions need approval.
 4. After the PR lands, reconcile the PoC's UUID-reuse classification with
    the upstream sentinel; do not treat UUID reuse as content already stored.
    That integration work is separate from this review fix.
