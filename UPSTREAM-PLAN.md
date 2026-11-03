@@ -32,6 +32,37 @@ Neither is prerequisite reading for an assigned task.
 - Stop for unresolved behaviour, unexpected dependencies or ownership
   conflicts. Do not weaken tests to make a patch pass.
 
+### Validation without repeated full static analysis
+
+For routine code changes, run the affected tests (with `-race` and stress
+when concurrency requires them), format touched Go files with `gci`,
+check the diff, and run the repository-configured linters on affected
+packages rather than invoking every repository-wide analysis:
+
+```sh
+golangci-lint run -c .golangci.yml ./path/to/affected/package/...
+go run ./scripts/txncheck/main.go "$PWD"
+```
+
+The scoped `golangci-lint` command checks tests but not the whole repo;
+the separate `txncheck` walks Go source repository-wide and is cheap
+(about 0.6 seconds and 64 MB RSS with a warm cache in the lookup-key
+checkout). It can catch transaction-test issues the package linter
+misses. Neither command replaces schema, dependency, licence or
+vulnerability checks. Check that the binaries are on `PATH`; an absent
+tool is not a successful lint run.
+
+`make pre-check` skips static analysis unless invoked as
+`STATIC_ANALYSIS=1 make pre-check`. The full run includes other checks
+and runs `govulncheck` across `github.com/juju/juju/...` when that tool
+is installed; it can take substantial time and memory. Do not repeat
+it for each small, local follow-up when affected tests, scoped lint,
+txncheck and PR CI provide the needed feedback. Run it locally when
+dependencies or relevant vulnerable call paths change, when an
+advisory appears, before release/integration milestones, and
+periodically to catch drift that scoped checks and CI might miss.
+Review the GitHub checks; a skipped or failing check is not a pass.
+
 ## Open reviews: finish on existing branches
 
 Do not recreate these implementations. Verify outstanding review requests,
@@ -45,7 +76,7 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Complete review/CI and land charm first. Required container key, manifest-position key and duplicate-position import diagnostics/tests are implemented; do not redo them. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Review against charm, then rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. Table-specific errors are implemented; assess new-head CI. |
 | `4.1-local-secret-revisions`, #23720 | U11 follow-up | Add review regressions in `domain/secret/state/state_test.go`: multiple behind secrets for one unit, empty/nonexistent units, initial-query -> changes-query round trip and explicit nil results. Exercise both `InitialWatchStatementForConsumedSecretsChange` and `GetConsumedSecretURIsWithChanges`; tests must pass with old and portable SQL. |
-| `4.1-lookup-key-not-null`, #23724 | U17 | Expand nullable payload validation and factor typed lookup deltas; use the focused checklist below. Independent of both U15 branches. |
+| `4.1-lookup-key-not-null`, #23724 | U17 | Finish review/CI. A schema-derived decoder-inventory guard and direct `NotValid` classification have been added; retain explicit typed lookup deltas. Independent of both U15 branches. |
 
 ### Nullable primary-key review split
 
@@ -66,6 +97,24 @@ Never generalize this exception to secret content, grants or core model data.
 Names below are proposed branches, not permission to modify existing owners'
 worktrees. Start independently from refreshed `B`, except the secret task's
 review sequencing noted below. Confirm each site is still outstanding.
+
+### `4.1-install-dependencies` — developer tooling
+
+On a separate branch, update `make install-dependencies` to install or verify
+the tools needed for the repository's normal build, formatting, tests and
+static analysis: `shellcheck`, `gci`, `golangci-lint`, `stress`, and
+`libsqlite3-dev`. The current target already installs `libsqlite3-dev`, but
+running `STATIC_ANALYSIS=1 make pre-check` without it fails compiling
+`go-sqlite3` (`sqlite3.h` missing); without `shellcheck`, the test harness
+stops before linting. Static analysis also reports `shfmt` missing (shell
+analysis disabled), `go-licenses` missing (licence analysis skipped), and
+`govulncheck` missing (vulnerability analysis disabled).
+Inventory other required or skipped tools and include them where appropriate,
+using the versions and installation conventions supported by the target
+branch. Ensure installed executables are on the PATH used by checks.
+Do not silently require new privileges or mix this tooling change into the
+operation query review. Validate on a clean environment and a repeated
+invocation, then run the checks that previously failed or were skipped.
 
 ### `4.1-dbaccessor-pool-cleanup` — U14
 
@@ -126,10 +175,13 @@ Do not replace explicit schema constraints with generator inference.
 
 Remaining review/acceptance checklist:
 
-- Factor a small typed-delta helper; exercise every consumed legacy lookup
-  type's full row, multiple rows, nullable non-ID fields, nil IDs and valid
-  zero. Reject missing IDs with table/row context and invalid-payload
-  classification; never invent zero. No legacy controller delta is needed.
+- Keep the explicit typed-delta methods: a generic loop still needs an ID
+  accessor and field-mapping closure in every method, obscuring each
+  conversion. `requiredLookupID` already centralises NULL rejection.
+  Exercise every consumed legacy lookup type's full row, multiple rows,
+  nullable non-ID fields, nil IDs and valid zero. Reject missing IDs with
+  table/row context and invalid-payload classification; never invent zero.
+  No legacy controller delta is needed.
 - In `domain/export/payload.go`, validate consumed 4.1.0 model/controller
   raw YAML IDs before scalar decoding loses NULL/omitted versus zero.
   Test valid zero/non-zero, NULL and missing IDs at the actual boundary;
