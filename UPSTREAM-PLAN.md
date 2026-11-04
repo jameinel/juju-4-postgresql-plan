@@ -4,12 +4,17 @@ Use this standalone queue for a stock upstream 4.1 checkout. Read the shared
 rules, assigned task and target repository's AGENTS.md/contribution guidance;
 no PoC checkout, configuration or test setup is required.
 
-This is the recorded 2026-10-30 status snapshot. Check upstream code, GitHub
-reviews and CI before acting; implementation, landing and PoC reintegration
-are different states. Keep this document focused on pending actions.
+Check upstream code, GitHub reviews and CI before acting; implementation,
+landing and PoC reintegration are different states. Keep this document
+focused on pending actions.
 [UPSTREAM-DONE.md](UPSTREAM-DONE.md) records implemented work and rationale;
 [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) owns finding/provenance/status mappings.
 Neither is prerequisite reading for an assigned task.
+
+Status checked against GitHub on 2026-11-04: 9 open reviews and 14 merged
+PRs. Current heads, merge revisions and the CI snapshot are in
+[the register](UPSTREAM-FIXES.md#upstream-review-status); implemented scope
+and historical validation are in UPSTREAM-DONE.md.
 
 ## Working agreement
 
@@ -32,6 +37,37 @@ Neither is prerequisite reading for an assigned task.
 - Stop for unresolved behaviour, unexpected dependencies or ownership
   conflicts. Do not weaken tests to make a patch pass.
 
+### Validation without repeated full static analysis
+
+For routine code changes, run the affected tests (with `-race` and stress
+when concurrency requires them), format touched Go files with `gci`,
+check the diff, and run the repository-configured linters on affected
+packages rather than invoking every repository-wide analysis:
+
+```sh
+golangci-lint run -c .golangci.yml ./path/to/affected/package/...
+go run ./scripts/txncheck/main.go "$PWD"
+```
+
+The scoped `golangci-lint` command checks tests but not the whole repo;
+the separate `txncheck` walks Go source repository-wide and is cheap
+(about 0.6 seconds and 64 MB RSS with a warm cache in the lookup-key
+checkout). It can catch transaction-test issues the package linter
+misses. Neither command replaces schema, dependency, licence or
+vulnerability checks. Check that the binaries are on `PATH`; an absent
+tool is not a successful lint run.
+
+`make pre-check` skips static analysis unless invoked as
+`STATIC_ANALYSIS=1 make pre-check`. The full run includes other checks
+and runs `govulncheck` across `github.com/juju/juju/...` when that tool
+is installed; it can take substantial time and memory. Do not repeat
+it for each small, local follow-up when affected tests, scoped lint,
+txncheck and PR CI provide the needed feedback. Run it locally when
+dependencies or relevant vulnerable call paths change, when an
+advisory appears, before release/integration milestones, and
+periodically to catch drift that scoped checks and CI might miss.
+Review the GitHub checks; a skipped or failing check is not a pass.
+
 ## Open reviews: finish on existing branches
 
 Do not recreate these implementations. Verify outstanding review requests,
@@ -39,15 +75,15 @@ CI and mergeability; validate any follow-up against the current head.
 
 | Branch / PR | Finding | Remaining action / acceptance contract |
 |---|---|---|
-| `4.1-model-config-precedence`, #23683 | U7 | Complete review/CI. `v_model_config` and `domain/modelconfig/state` must exclude competing agent stream/version rows; test config values sorting before and after authoritative values and one effective value per key. |
-| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Complete remote-query review/CI in `domain/crossmodelrelation/state/model/secrets.go`. Report any-unit-behind secrets, latest revision once, via indexed offer connections. Cover no/current/behind/mixed consumers, multiple secrets/revisions, prefix collisions and filtering; assert revisions and no duplicates. Keep schema/import/recovery/cleanup together. |
-| `4.1-operation-query-portability`, #23693 | X34/X33 | Complete review/CI in `domain/operation/state`; keep boolean comparisons and text-size expressions in separate commits. Verify filtering/pruning thresholds across value types. |
-| `4.1-nullable-primary-keys`, #23710 | U15, charm | Complete review/CI and land charm first. Required container key, manifest-position key and duplicate-position import diagnostics/tests are implemented; do not redo them. |
-| `4.1-application-exposure-scope`, #23723 | U15, exposure | Review against charm, then rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. Table-specific errors are implemented; assess new-head CI. |
-| `4.1-local-secret-revisions`, #23720 | U11 follow-up | Add review regressions in `domain/secret/state/state_test.go`: multiple behind secrets for one unit, empty/nonexistent units, initial-query -> changes-query round trip and explicit nil results. Exercise both `InitialWatchStatementForConsumedSecretsChange` and `GetConsumedSecretURIsWithChanges`; tests must pass with old and portable SQL. |
-| `4.1-lookup-key-not-null`, #23724 | U17 | Expand nullable payload validation and factor typed lookup deltas; use the focused checklist below. Independent of both U15 branches. |
-| `4.1-dbaccessor-pool-cleanup`, juju/juju#23726 | U14 | Complete review/CI on `ee55bab5f4`, independently based on `e22f5666d0`. Startup/replacement cleanup and nine regressions are implemented; preserve retained-pool ownership and successful transfer. Review is required and CI is still running; do not recreate the implementation. |
-| `4.1-dbrepl-latest-row`, juju/juju#23730 | X16, separate REPL query | Complete review/CI on `49a1bdf808`, independently based on `e22f5666d0`. Preserve `.change-stream` fields, per-namespace/key latest IDs, `id > 0` and ordering. Four regressions pass with old/new SQL on SQLite/Dqlite; do not recreate the implementation. No replication state is involved. |
+| `4.1-model-config-precedence`, [#23683](https://github.com/juju/juju/pull/23683) | U7 | Review follow-ups are published and CI is green; obtain remaining approval. Preserve authoritative agent-table values, import filtering and one effective value per key. |
+| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Connection-scoped uniqueness and cleanup follow-ups are implemented; the refreshed head is mergeable and CI is running. Assess that head and obtain approval. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together. |
+| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Commit identity/message and rebase requests are addressed; submission checks pass. Triage default-bases smoke and cancelled macOS CI, then complete review. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
+| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Finish review and resolve the cancelled macOS/aggregate CI failure; land charm first. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
+| `4.1-application-exposure-scope`, [#23723](https://github.com/juju/juju/pull/23723) | U15, exposure | Finish review and triage bundles smoke. Rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. |
+| `4.1-lookup-key-not-null`, [#23724](https://github.com/juju/juju/pull/23724) | U17 | CI is green; obtain approval. Schema-derived decoder inventory, direct `NotValid` classification and the transaction-test fix are implemented. Retain explicit typed deltas and the 65-key scope; later reconcile the combined guard with exposure. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Implementation and regressions exist in both state packages. Triage default-bases smoke and obtain approval. Preserve `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Do not recreate the fix. |
+| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Triage bundles/revision smoke and obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | CI is green with one approval; obtain remaining approval. Explicit namespace conflict targets and qualified updates are implemented. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
 
 ### Nullable primary-key review split
 
@@ -69,92 +105,47 @@ Names below are proposed branches, not permission to modify existing owners'
 worktrees. Start independently from refreshed `B`, except the secret task's
 review sequencing noted below. Confirm each site is still outstanding.
 
-### `4.1-agentbinary-conflict` — U16 / X18
+### `4.1-install-dependencies` — developer tooling
 
-**Implemented locally / awaiting review (2026-10-30):** Copilot session
-`2b06495a-18f9-4418-ba5c-b2e8fd908dd1` owns branch
-`4.1-agentbinary-conflict` and worktree
-`/home/jameinel/dev/go/src/github.com/juju/4.1-agentbinary-conflict`.
-Refreshed upstream 4.1 base: `e22f5666d0861d3c84e8465c1ff86fbd23f58f48`.
-Published implementation: `323807680f7a5249f65d2d7378c0c2158cb3edee`.
-Comment-only follow-up `6a66e5ed1be4cc0bde5fee269b6da1f87da56440` describes
-registration/immutability rather than naming a SQL backend; committed and
-pushed after approval. Worktree clean; formatting/diff checks passed.
-Tests not rerun for the comment-only follow-up.
-Pushed to `jameinel/juju:4.1-agentbinary-conflict`; approved PR published:
-[juju/juju#23728](https://github.com/juju/juju/pull/23728), targeting `4.1`.
-Approved revised description published and verified against
-`PR-4.1-agentbinary-conflict.md`; it focuses on the operation and its
-rationale. Scope is
-`domain/agentbinary/state/{controller,model}` only; no other checkout owned.
-Plan completed: checked upstream/reviews, added targeted conflict-safe
-inserts and affected-row checks, preserved error sentinels and immutability,
-and tested same-transaction writes and rollback for both conflict cases.
-Validation used shared `_deps` and stock dqlite fixtures only:
-
-- `make run-go-tests` with
-  `TEST_PACKAGES='./domain/agentbinary/state/controller ./domain/agentbinary/state/model'`,
-  `TEST_FILTER='Test.*StateSuite/TestAdd'`, `TEST_ARGS='-p 2 -race'`: passed.
-- Same command without `TEST_FILTER`: both full state race suites passed.
-- Each package compiled with `make run-go-tests`,
-  `TEST_ARGS='-p 2 -race -c -o <session-binary>'`; then
-  `timeout 31 stress -p 2 -timeout 30s <session-binary> -test.run <suite/TestAdd>`:
-  controller 30/model 20 completed iterations, zero reported failures;
-  bounded runs ended at the outer timeout. Binaries removed afterwards.
-- `make pre-check`: passed; its default skips static analysis.
-- `RUN_SUBTEST=run_go make static-analysis STATIC_ANALYSIS_JOB=test_static_analysis_go`:
-  Go lint passed. Other static-analysis jobs/full repository tests not run.
-- `gofmt`, prescribed `gci` ordering, and `git diff --check`: passed.
-
-Remaining: upstream review/CI and landing; not landed or PoC-reconciled.
-Do not duplicate this branch; consult later tasks for current assignments.
-
-Both `domain/agentbinary/state/{controller,model}/state.go`
-`RegisterAgentBinary` paths SELECT after a primary-key error, which aborts
-a PostgreSQL transaction. Use `ON CONFLICT DO NOTHING`, then compare,
-preserving `AlreadyExists` / `AgentBinaryImmutable`, retries and idempotency.
-Test new, repeated and different-object registrations in both state suites;
-verify the conflict path leaves the transaction usable.
-
-### `4.1-lease-pin-conflict` — X18
-
-**Claimed / in progress (2026-10-30):** Copilot session
-`a646e393-debb-413a-851c-ca78d13c9a23` owns branch
-`4.1-lease-pin-conflict` and worktree
-`/home/jameinel/dev/go/src/github.com/juju/4.1-lease-pin-conflict`.
-Base `B` = `e22f5666d0` (upstream/4.1, PR #23722 merge); no existing
-upstream PR found. Scope is `domain/lease/state` only. Plan:
-check upstream code/PRs for existing work, replace unique-violation
-handling in `PinLease` with `ON CONFLICT DO NOTHING`, add competing-pin and
-transaction-usability regressions, run focused then package validation.
-Other sessions may take `4.1-dbrepl-latest-row` or later independent
-tasks; do not duplicate this claim.
-Status: `373ab4f422` pushed to `origin/4.1-lease-pin-conflict`; opened
-juju/juju#23729 from [PR-4.1-lease-pin-conflict.md](PR-4.1-lease-pin-conflict.md).
-Awaiting review/CI. Lint clean. Tests:
-`make run-go-tests TEST_PACKAGES=./domain/lease/state/...` with
-`-race -count=3` (pass; also pass on old SQL, as SQLite keeps the txn
-usable) and `-race -count=20 -run TestStateSuite/TestPin` (pass).
-
-`domain/lease/state` `PinLease` ignores a unique violation. Resolve competing
-pins in SQL with `ON CONFLICT DO NOTHING`, preserving the existing
-already-pinned result. Test competing pins and continued transaction use.
-This is portability, not a current dqlite defect; keep production timing
-changes out of this branch.
+On a separate branch, update `make install-dependencies` to install or verify
+the tools needed for the repository's normal build, formatting, tests and
+static analysis: `shellcheck`, `gci`, `golangci-lint`, `stress`, and
+`libsqlite3-dev`. The current target already installs `libsqlite3-dev`, but
+running `STATIC_ANALYSIS=1 make pre-check` without it fails compiling
+`go-sqlite3` (`sqlite3.h` missing); without `shellcheck`, the test harness
+stops before linting. Static analysis also reports `shfmt` missing (shell
+analysis disabled), `go-licenses` missing (licence analysis skipped), and
+`govulncheck` missing (vulnerability analysis disabled).
+Inventory other required or skipped tools and include them where appropriate,
+using the versions and installation conventions supported by the target
+branch. Ensure installed executables are on the PATH used by checks.
+Do not silently require new privileges or mix this tooling change into the
+operation query review. Validate on a clean environment and a repeated
+invocation, then run the checks that previously failed or were skipped.
 
 ### `4.1-secret-latest-revision`
 
-After the consumed-secret reviews (#23688/#23720), independently rewrite
+After the remaining consumed-secret review (#23688), independently rewrite
 five queries in `domain/secret/state/state.go`: `updateSecret`,
 `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and
 `getSecretsRevisionExpiryChanges`. Explicitly select the latest revision
 instead of relying on ungrouped columns beside MAX. Existing and new SQL
 must pass regressions with multiple revisions, expiry/rotation rows and
-both owner kinds. This does not duplicate #23720's two local queries.
+both owner kinds. This does not duplicate the two local queries landed in
+#23720.
 
-**Blocked (2026-10-30):** #23688 and #23720 remain open (REVIEW_REQUIRED;
-#23688 DIRTY) and touch `domain/secret/state/{state,state_test}.go`.
-Not claimed; X7 was dispatched instead.
+Not claimed. #23720 has landed; #23688 remains open. Check its current
+head and file ownership before dispatching this independent rewrite.
+
+## Existing unpublished implementations
+
+These branches were verified locally on 2026-11-04 and packaged for
+transfer. Neither exists on `jameinel/juju`; do not redo the implementation.
+The clean CTE worktree was removed; its branch/commits are retained.
+The dirty IIF and sequence worktrees remain. Restore instructions and
+the exact bundle/patch inventory are in
+[the transfer record](UPSTREAM-FIXES.md#transfer-artifacts-and-cleanup).
+Historical validation below is not validation of the uncommitted changes.
 
 ### `4.1-drop-iif` — X7
 
@@ -178,7 +169,8 @@ race tests, stress and lint; update draft PR locally.
 Status: query commit `08b9cc0d7c` (one-line `state.go` change, amended from
 the CASE version `6b5aa7348d`) is local only:
 not pushed and no PR. No upstream PR was found. Schema-view commit in
-progress.
+progress: the three view replacements are uncommitted in
+`domain/schema/controller/sql/0007-model.sql`, verified on 2026-11-04.
 `model_migration_import.model_uuid` is unique, so the join returns at most
 one row. Existing tests already cover all four
 activated × claim combinations (`TestCheckModelExistsNotActivated`,
@@ -190,6 +182,8 @@ so avoid `(` and `|`); `./domain/model/state/... ./domain/model/service/...`
 and `test_static_analysis_go` passed. Draft:
 [PR-4.1-drop-iif.md](PR-4.1-drop-iif.md).
 Remaining: approval to push to `jameinel/juju` and open against `4.1`.
+First finish and validate the schema-view changes and revise the draft:
+its current text describes only the query and explicitly excludes DDL.
 
 ## Lookup-key NOT NULL task (separate session)
 
@@ -200,12 +194,17 @@ Recheck inventory at the actual base; leave INTEGER rowid keys, composite
 keys, historical DDL, 4.0.12 export types and unrelated nullable fields alone.
 Do not replace explicit schema constraints with generator inference.
 
-Remaining review/acceptance checklist:
+Implementation, regression coverage and recorded live migration QA are in
+UPSTREAM-DONE.md. Remaining work is review/CI and later combined-guard
+reconciliation. Preserve this acceptance contract on further changes:
 
-- Factor a small typed-delta helper; exercise every consumed legacy lookup
-  type's full row, multiple rows, nullable non-ID fields, nil IDs and valid
-  zero. Reject missing IDs with table/row context and invalid-payload
-  classification; never invent zero. No legacy controller delta is needed.
+- Keep the explicit typed-delta methods: a generic loop still needs an ID
+  accessor and field-mapping closure in every method, obscuring each
+  conversion. `requiredLookupID` already centralises NULL rejection.
+  Exercise every consumed legacy lookup type's full row, multiple rows,
+  nullable non-ID fields, nil IDs and valid zero. Reject missing IDs with
+  table/row context and invalid-payload classification; never invent zero.
+  No legacy controller delta is needed.
 - In `domain/export/payload.go`, validate consumed 4.1.0 model/controller
   raw YAML IDs before scalar decoding loses NULL/omitted versus zero.
   Test valid zero/non-zero, NULL and missing IDs at the actual boundary;
@@ -224,7 +223,7 @@ Remaining review/acceptance checklist:
   Stop for release-policy changes, new nullable-key writers or incompatible
   representations. No PostgreSQL-only work belongs in this review.
 
-## CTE membership subqueries — X24
+## Existing CTE membership implementation — X24
 
 **Implemented locally / awaiting publication approval (2026-10-30):** Copilot session
 `767870f3-0997-48f4-a415-c1efab02d088` reserves branch
@@ -259,7 +258,8 @@ Local implementation commit: `8ce0410f515a9b46bc09ba006c108852267eb8e7`.
 All eleven expressions use explicit single-column membership subqueries;
 existing CTEs, joins, lifecycle guards and transaction behavior are preserved.
 Added `TestGetConsumerRelationUnitsChangeDepartureScope` for empty/partial/full
-membership and cross-relation/application isolation. Worktree clean.
+membership and cross-relation/application isolation. The worktree was clean
+and was removed on 2026-11-04 after the commit was packaged for transfer.
 
 Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
 - Focused regressions across all four affected state packages passed with
@@ -276,12 +276,13 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
 - `gofmt`, prescribed `gci` and `git diff --check` passed. Inventory found no
   remaining uppercase SQL `IN table/cte` shorthand outside comments.
 
-PR description prepared locally in this session's
-`files/PR-4.1-cte-membership-subqueries.md`. No push or PR yet; publication
+PR description recovered from the original session into
+[PR-4.1-cte-membership-subqueries.md](PR-4.1-cte-membership-subqueries.md).
+No push or PR yet; publication
 requires explicit approval. Not landed or PoC-reconciled. No PostgreSQL tests,
 full repository suite or live deployment/migration QA were run.
 
-## Sequence allocation upsert — X3/X4
+## Unpublished sequence review follow-up — X3/X4
 
 **Published / review follow-up in progress (2026-10-30):**
 Copilot session `9a4e0037-1cb5-464c-9f9e-d07769103e2b` owns branch
@@ -291,7 +292,8 @@ Base `B`: `e22f5666d0861d3c84e8465c1ff86fbd23f58f48` (refreshed upstream/4.1).
 Published commit: `cfa867609013e22c6ec36a215be50ff80e13c397`.
 Verified upstream PR: juju/juju#23731, targeting `4.1`.
 Validated local review follow-up commit:
-`74aabf93b4ec4337caf5344fb553e9e33c3b5f38`. Worktree clean; this follow-up
+`74aabf93b4ec4337caf5344fb553e9e33c3b5f38`. At that checkpoint the
+worktree was clean; this follow-up
 has not been pushed or commented publicly. Do not duplicate this implementation.
 Other X3/X4 operations remain available for independent scoping.
 
@@ -327,9 +329,10 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
   project; standard package/test-binary compilation passed instead.
 
 Not run: PostgreSQL execution, full repository suites or controller
-bootstrap/migration integration QA. Local PR draft with exact destination,
-proposed title/body and validation is retained at
-`/home/jameinel/.copilot/session-state/9a4e0037-1cb5-464c-9f9e-d07769103e2b/files/PR-4.1-sequence-upsert-target.txt`.
+bootstrap/migration integration QA. The original session's local PR draft
+is preserved in
+[PR-4.1-sequence-upsert-target.md](PR-4.1-sequence-upsert-target.md).
+Its creation metadata is historical: the PR already exists.
 Review follow-up agreed with the user: retain both allocator entry points,
 comment on the upsert's first-use/rollback rationale and fixture limitations,
 and send concurrent-test results only after the entire transaction succeeds.
@@ -349,7 +352,16 @@ TEST_ARGS='-p 2 -race -c -o <session-binary>'` (tags `dqlite,libsqlite3`).
 completed 36 runs with zero failures; two active at the final report, outer
 timeout status 124 as intended. Binary removed; formatting/diff checks pass.
 No PostgreSQL execution or broader integration QA added.
-Draft response is local at the same session's `files/review-response-23731.txt`.
+The original session's unpublished response is preserved in
+[COMMENT-4.1-sequence-upsert-review.md](COMMENT-4.1-sequence-upsert-review.md).
+It records final refactor lint, compilation and stress as pending; resolve
+that evidence gap before making new validation claims or publishing.
+Verified on 2026-11-04: the branch still points to unpublished
+`74aabf93b4`; the common allocator / `RETURNING` refactor and its tests
+are uncommitted in `sequence.go` and `sequence_test.go`. The validation
+above is historical session evidence, not a fresh check of that dirty
+worktree. GitHub still points to `cfa8676090`; its green CI does not cover
+either local follow-up.
 Remaining: obtain approval before pushing the follow-up
 or posting the exact response; complete upstream review/CI, landing and
 PoC reconciliation.
@@ -364,9 +376,10 @@ split conflicts by operation and preserve retries, idempotency and errors.
 |---|---|
 | X7 | Dispatched as `4.1-drop-iif` above. |
 | X24 | Implemented locally by session `767870f3-0997-48f4-a415-c1efab02d088` as `4.1-cte-membership-subqueries`; see its validation/publication status above. Do not duplicate. |
-| X3/X4 | Sequence allocation implemented locally as `4.1-sequence-upsert-target`; see validation and ownership below. Other operations remain unclaimed; keep distinct from landed objectstore and queued agentbinary/lease work. |
+| X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
+| X16 dbrepl output follow-up | Feedback on juju/juju#23730 suggests extracting the duplicated row scanning and tabwriter output from `changeLog` and `changeStream` in `internal/worker/dbrepl/worker.go` into a shared helper taking the query and arguments. Preserve each command's SQL, output and error handling; check current upstream code and exercise both commands. Keep separate from the latest-row SQL task. |
 
 Not stock-upstream tasks: the PostgreSQL `constraint.allocate_public_ip`
 export-type mismatch needs backend-aware generation; the intentional
@@ -383,12 +396,12 @@ Review the description/comment distinction independently of SQL changes.
 Do not implement PoC integration in stock-upstream worktrees. After landing,
 hand merged revisions to the integration owner using UPSTREAM-INTEGRATION.md
 and update the register. Explicit outstanding obligations: both U15 fixes,
-U17 guard integration, independent reconciliation of #23688/#23720 despite
-existing PoC cherry-picks, and #23694's UUID-conflict sentinel (not content
-already stored). After U14 #23726 lands, compare its final cleanup/tests with
-PoC `b6a7690d80` and retain the PostgreSQL tracker/backend adaptations; the
-open upstream PR is not yet reconciled. Keep other landed-fix status in the
-register; upstream landing alone does not mark it complete.
+U16's agent-binary fix, U17 guard integration, reconciliation of landed
+#23720 and #23726 against
+their existing PoC implementations, independent reconciliation of #23688
+after it lands, and #23694's UUID-conflict sentinel (not content already
+stored). Keep all other landed-fix reconciliation status in the register;
+upstream landing alone does not mark it complete.
 
 ## Dispatch
 

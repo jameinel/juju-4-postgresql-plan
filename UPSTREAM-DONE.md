@@ -2,7 +2,9 @@
 
 This records implemented upstream work, decisions and validation, including
 changes still in review. **Implemented is not landed or reintegrated.**
-Statuses below are the recorded 2026-10-30 snapshot, not a fresh GitHub check.
+The landed/in-review inventories are synchronized with GitHub on
+2026-11-04. Validation and publication narratives retain their recorded
+dates and revisions; they are not new checks of the latest heads.
 
 - [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md): remaining work and acceptance checks.
 - [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md): finding register, source provenance,
@@ -25,6 +27,9 @@ and test runs below do not establish coverage of later revisions.
 | `4.1-lease-migration-tests`, #23686 | U4 | Assert seed success and use bound timestamps so held/expired lease tests exercise actual rows rather than silently passing on empty setup. |
 | `4.1-removal-force-boolean`, #23690 | U9 | Match boolean writers/readers with BOOLEAN storage and bool exports; convert legacy 0/1 and reject other integers. |
 | `4.1-changestream-latest-row`, #23691 | X16 | Explicitly select the latest change ID and join to its row, avoiding ungrouped columns beside MAX. This does not fix the separate dbrepl query. |
+| `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
+| `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
+| `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
 | `4.1-sql-standard-syntax`, #23695 | X37/X38 | Standard equality and an explicit CROSS JOIN to the one-row fulfilment aggregate. Cover unused/shared-key deletion and zero-fulfilment detach info. A third commit changes storage lifecycle trigger equality. |
@@ -40,6 +45,21 @@ PR #23691 merged on 2026-10-30 as `ece31c289c6a`; PR #23694 merged that day
 as `75ddfcbaf0b3`. Other landed heads and historical source mappings remain
 in [the register](UPSTREAM-FIXES.md#upstream-review-status).
 
+PR [#23730](https://github.com/juju/juju/pull/23730) merged on 2026-11-04
+as `f7b596bf5cb9b51aa44ec000d09b9f495aac29ad`, at head `49a1bdf808`.
+The latest-row SQL task is complete. Extracting the duplicated dbrepl row
+scanning and tabwriter output remains a separate candidate in
+UPSTREAM-PLAN.md. No PoC integration was performed; dbrepl remains outside
+the PostgreSQL PoC scope.
+
+PR [#23720](https://github.com/juju/juju/pull/23720) merged on 2026-11-04
+as `edb2aef5b9f1e4cf7c5ceb890fd137d922048c30`, at head `ee07d7ccb5`.
+PR [#23726](https://github.com/juju/juju/pull/23726) merged that day
+as `5259edff4329ca4a1de80d77e0d614b832d4ad72`, at head `ee55bab5f4`.
+Both tasks are complete upstream. Their landed patches still need
+reconciliation against the earlier PoC implementations; no integration or
+equivalence verification was performed as part of this tracking update.
+
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
 check. Released 4.0.15 DDL is unchanged. Do not describe this as preserving
@@ -50,14 +70,14 @@ all earlier-beta database compatibility.
 | Branch / PR | Finding | Implemented scope and rationale |
 |---|---|---|
 | `4.1-model-config-precedence`, #23683 | U7 | Exclude agent stream/version from competing config rows so authoritative `agent_version` values win regardless of UNION sorting or row order. |
-| `4.1-operation-query-portability`, #23693 | X34/X33 | Separate boolean-comparison and text-size-expression commits, preserving filtering and pruning thresholds. Text size is not a backend-independent stored-bytes measure. |
-| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Any remote unit behind makes a secret reportable; return its latest revision once and join through indexed offer connections rather than application-name prefixes. |
-| `4.1-local-secret-revisions`, #23720 | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods; this is not the five-query latest-revision task. |
+| `4.1-operation-query-portability`, #23693 | X34/X33 | Portable boolean comparisons and text-size expressions, plus the reviewed fix that treats each NULL column as zero instead of discarding the entire row from the estimate. Filtering is preserved; size/pruning decisions for nullable rows intentionally change. Text size is not stored bytes. |
+| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Any remote unit behind makes a secret reportable; return its latest revision once through indexed offer connections. Tracking uniqueness and upserts are scoped by `(offer_connection_uuid, secret_id, unit_name)`; synthetic-unit cleanup uses one CTE-backed DELETE. |
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Require mount container keys and key manifest bases by manifest position, retaining nullable attributes. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
-| `4.1-dbaccessor-pool-cleanup`, juju/juju#23726 | U14 | Close failed startup and unretained replacement pools, preserving original errors and caller ownership of retained/successfully transferred pools. |
-| `4.1-dbrepl-latest-row`, juju/juju#23730 | X16, separate REPL query | Select latest change IDs explicitly and join their rows/lookup fields, preserving the `.change-stream` output and lower bound. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration in both databases, preserving idempotency, immutability and transaction usability. |
+| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Resolve competing pins with the explicit lease/entity conflict target. Preserve repeated-pin and missing-lease behaviour; reset the test helper's captured results on transaction retries. This is portability, not a current dqlite defect. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly and qualify the sequence value in single/batch allocation upserts. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
 
 Remaining review actions belong in the plan, not this history. GitHub is the
 source of truth for live review, CI and merge status.
@@ -73,9 +93,9 @@ branch was pushed and published as
 [juju/juju#23730](https://github.com/juju/juju/pull/23730), from
 `jameinel:4.1-dbrepl-latest-row` to `juju/juju:4.1`. The
 [local PR text](PR-4.1-dbrepl-latest-row.md) matches the published title/body.
-The open PR is not landed or reconciled with the PoC. Other owners'
-worktrees and task claims were preserved; shared planning edits remain
-uncommitted.
+The PR subsequently merged on 2026-11-04 as `f7b596bf5cb9`; the detailed
+validation below records the original implementation, not a new test run.
+No PoC integration was performed; dbrepl remains outside the PoC scope.
 
 The assigned plan incorrectly described replication payload/progress.
 Inspection showed that `changeStream` serves the interactive
@@ -249,10 +269,58 @@ QA and PostgreSQL integration tests were not run for this upstream branch.
 
 PoC Stage 8 already implements U14 as `b6a7690d80`. This independent
 upstream implementation is not a cherry-pick or a PoC reconciliation.
-After landing, compare the final cleanup and tests with that commit while
-preserving later tracker/backend adaptations, using the integration
-procedure. Outstanding review/CI belongs in the plan; provenance and
-reconciliation status belong in the register.
+PR juju/juju#23726 has now landed as `5259edff43`; compare its final
+cleanup and tests with that commit while preserving later tracker/backend
+adaptations, using the integration procedure. This reconciliation remains
+pending; provenance and reconciliation status belong in the register.
+
+## Agent-binary and lease-pin publication evidence
+
+These are historical 2026-10-30 implementation checks, not new validation
+of current PR heads. Both independent branches started at upstream
+`e22f5666d0861d3c84e8465c1ff86fbd23f58f48` with shared `_deps`.
+
+Session `2b06495a-18f9-4418-ba5c-b2e8fd908dd1` implemented
+`4.1-agentbinary-conflict` in `../4.1-agentbinary-conflict`, restricted to
+`domain/agentbinary/state/{controller,model}`. Implementation
+`323807680f7a5249f65d2d7378c0c2158cb3edee` and comment-only follow-up
+`6a66e5ed1be4cc0bde5fee269b6da1f87da56440` were pushed after approval
+as juju/juju#23728. The revised description was approved and verified
+against [the local text](PR-4.1-agentbinary-conflict.md).
+
+Conflict-safe inserts and affected-row checks preserve error sentinels and
+immutability. New tests cover same-transaction writes after both conflict
+cases, original mapping retention and probe-write rollback. Validation:
+
+- `make run-go-tests` with
+  `TEST_PACKAGES='./domain/agentbinary/state/controller ./domain/agentbinary/state/model'`,
+  `TEST_FILTER='Test.*StateSuite/TestAdd'`, `TEST_ARGS='-p 2 -race'`: passed.
+- The same command without `TEST_FILTER`: both full state race suites passed.
+- Each package compiled with `make run-go-tests`,
+  `TEST_ARGS='-p 2 -race -c -o <session-binary>'`, then ran with
+  `timeout 31 stress -p 2 -timeout 30s <session-binary> -test.run <suite/TestAdd>`.
+  Controller completed 30 iterations and model 20, zero reported failures
+  before intentional outer timeouts. Binaries were removed.
+- `make pre-check` passed but skipped static analysis.
+  `RUN_SUBTEST=run_go make static-analysis STATIC_ANALYSIS_JOB=test_static_analysis_go`
+  passed, as did `gofmt`, prescribed `gci` and `git diff --check`.
+  Other static-analysis jobs and full repository tests were not run.
+
+Tests were not rerun for the comment-only follow-up; formatting/diff checks
+passed. It describes immutable registration rather than naming a backend.
+Validation used stock dqlite fixtures; no PoC reconciliation was performed.
+
+Session `a646e393-debb-413a-851c-ca78d13c9a23` implemented
+`4.1-lease-pin-conflict` in `../4.1-lease-pin-conflict`, restricted to
+`domain/lease/state`. Initial published commit `373ab4f422` opened
+juju/juju#23729 using [the local description](PR-4.1-lease-pin-conflict.md).
+`make run-go-tests TEST_PACKAGES=./domain/lease/state/...` passed with
+`-race -count=3` and `-race -count=20 -run TestStateSuite/TestPin`; lint
+was clean. Regressions also passed with the old SQL because SQLite keeps
+the transaction usable after the caught constraint failure. This is
+portability, not a current dqlite defect; no production timing change
+belongs in this branch. Later published follow-ups moved its head to
+`c55d5839e5`; the historical checks above do not establish its validation.
 
 ## Nullable primary-key review split
 
@@ -288,20 +356,24 @@ exposure. No unrelated PoC code was included.
   not semantic prerequisites. Its INT-key-scoped guard can pass before U15;
   the global guard must eventually exempt only rowid-aliasing INTEGER keys.
 
-Published refreshed revisions: base `8369e6e2a9`, charm `ba21f48ad3`
-(`7001a1b74b` plus diagnostic/generator follow-up), exposure `f31de64e52`
+2026-10-30 publication (historical revisions): base `8369e6e2a9`, charm
+`ba21f48ad3` (`7001a1b74b` plus diagnostic/generator follow-up),
+exposure `f31de64e52`
 (`4d9518117c` plus deletion diagnostic). Earlier split heads were charm
 `4df04695d8` and exposure `3c90a7ded3` on `9ea82c03bd`, preserved in
 `backup/charm-before-base-refresh-20261030` and
 `backup/exposure-before-base-refresh-20261030`. Original combined work is in
 `backup/nullable-primary-keys-before-split-20261030`.
+Later review follow-ups and rebases changed the branch tips; the register
+owns the current heads.
 
 After explicit approval, both heads and exact descriptions were published:
 [charm description](PR-4.1-nullable-primary-keys.md),
 [exposure description](PR-4.1-application-exposure-scope.md), and
 [context-only reply](COMMENT-4.1-nullable-primary-keys-review.md).
-No review threads were resolved. Exposure targets upstream `4.1` because
-GitHub cannot target the fork-only charm base; its description discloses
+No review threads were resolved at that publication. Exposure targets
+upstream `4.1` because GitHub cannot target the fork-only charm base;
+its description discloses
 the stack and scoped comparison. Charm must land before exposure is rebased
 and landed. Both fixes are required for PoC bootstrap reintegration.
 
@@ -316,8 +388,9 @@ in `TestUnitStateSuite/TestGetUnitWorkloadVersion`; it was not a full green
 run. Charm-import stress reported 12 completed runs and exposure-watcher
 stress 6, zero failures before intentional outer timeouts.
 
-Refreshed heads: nine charm and 13 exposure generator/schema/import/recovery
-and affected consumer race packages passed, as did focused exposure-state.
+2026-10-30 refreshed heads: nine charm and 13 exposure generator/schema/
+import/recovery and affected consumer race packages passed, as did focused
+exposure-state.
 Charm-import stress reported 132 completed runs and exposure-watcher stress
 6, zero failures before intentional outer timeouts. Regeneration was
 idempotent. Base and final stack passed `timeout 600s make go-build
@@ -360,16 +433,17 @@ current recorded PR heads are in the register. Remote schema-dependent
 fixtures stay in #23688. Its watcher still scopes by offered application;
 per-connection watcher scoping is separate follow-up.
 
-Both patches were cherry-picked into `pg-poc/05-queries` on 2026-10-26 with
-matching patch IDs. That does not mean their eventual upstream merges are
-reconciled. The register records PostgreSQL results and the separate
-remaining secret-state fixture failures.
+Earlier versions of both patches were cherry-picked into `pg-poc/05-queries`
+on 2026-10-26 with matching patch IDs. That does not establish reconciliation
+with #23720's landed head or the eventual #23688 merge. The register records
+PostgreSQL results and the separate remaining secret-state fixture failures.
 
 ## Lookup-key NOT NULL decisions
 
-PR #23724 (`3157cdb288`) is independent on refreshed `8369e6e2a9`, not
-stacked on U15. At that base, SQLite CREATE TABLE/`pragma_table_info`
-inventory found 48 model and 17 controller single-column `id INT PRIMARY
+The initial #23724 implementation (`3157cdb288`) was independent on
+refreshed `8369e6e2a9`, not stacked on U15. At that base, SQLite
+CREATE TABLE/`pragma_table_info` inventory found 48 model and 17 controller
+single-column `id INT PRIMARY
 KEY` declarations permitting NULL. INT is not the rowid-aliasing INTEGER
 spelling, and duplicate NULL lookup keys were possible.
 
@@ -381,14 +455,20 @@ Consumed 4.0.12 model rows need typed deltas preserving every field and
 validating before dereference; 4.0.12 types and historical DDL remain
 unchanged. Controller exports start at 4.1.0, so no legacy controller delta
 is required. Source changestream lookup rows remain excluded from import.
-Recovery already validates presence/NULL against scalar fields; real
-model/controller decode/replay still needs evidence after generation.
+Recovery validates presence/NULL against scalar fields; model/controller
+decode/replay and persistence regressions cover the regenerated types.
 
-The review requests expanded nullable payload validation and a generic
-helper for typed lookup deltas. Implementation is not proof those requests
-are complete. The register holds the table inventory; remaining acceptance
-checks and scoped/global guard integration are in the plan. No PostgreSQL
-experiment was performed for U17 in the recorded session.
+The published follow-up at `4e7341392f` adds a DDL-derived decoder-inventory
+cross-check, direct `coreerrors.NotValid` classification, and the schema
+guard's assertion outside its transaction. The proposed generic helper was
+tried and reverted: each table still needed typed ID-accessor and mapping
+closures, while `requiredLookupID` already centralizes NULL rejection.
+Retain explicit deltas. The seven previously non-NULL keys are deliberate
+inventory exceptions, not an expansion of this 65-key fix.
+The [review response](https://github.com/juju/juju/pull/23724#issuecomment-6618410549)
+records successful live 4.0-to-4.1 and 4.1-to-4.1 migrations. That does not
+establish PoC integration. Remaining review/CI and combined-guard
+reconciliation belong in the plan; the register owns current disposition.
 
 ## Objectstore review follow-up
 
