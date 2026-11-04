@@ -83,7 +83,7 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-lookup-key-not-null`, [#23724](https://github.com/juju/juju/pull/23724) | U17 | CI is green; obtain approval. Schema-derived decoder inventory, direct `NotValid` classification and the transaction-test fix are implemented. Retain explicit typed deltas and the 65-key scope; later reconcile the combined guard with exposure. |
 | `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Implementation and regressions exist in both state packages. Triage default-bases smoke and obtain approval. Preserve `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Do not recreate the fix. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Triage bundles/revision smoke and obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
-| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | CI is green with one approval; obtain remaining approval. Explicit namespace conflict targets and qualified updates are implemented. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Assess the published test/comment follow-up at `74aabf93b4`; new-head CI/review has not been assessed. The common-allocator/RETURNING refactor remains uncommitted, not part of this head. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
 
 ### Nullable primary-key review split
 
@@ -137,10 +137,17 @@ both owner kinds. This does not duplicate the two local queries landed in
 Not claimed. #23720 has landed; #23688 remains open. Check its current
 head and file ownership before dispatching this independent rewrite.
 
-## Existing unpublished implementations
+## Existing implementations and published tracking references
 
-These branches were verified locally on 2026-11-04 and packaged for
-transfer. Neither exists on `jameinel/juju`; do not redo the implementation.
+Committed local work was published to `jameinel/juju` on 2026-11-04.
+Continue these branches rather than redoing the implementations.
+
+| Branch / tracking reference | Published committed snapshot | Remaining local work |
+|---|---|---|
+| [4.1-drop-iif](https://github.com/jameinel/juju/tree/4.1-drop-iif) | [08b9cc0d7c](https://github.com/jameinel/juju/commit/08b9cc0d7cfa3a0ce260cbd41fbb8118f133094d): model connection-info query | Three schema-view replacements remain uncommitted in the transfer patch. No upstream PR yet. |
+| [4.1-cte-membership-subqueries](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries) | [8ce0410f51](https://github.com/jameinel/juju/commit/8ce0410f515a9b46bc09ba006c108852267eb8e7): eleven membership expressions and departure-scope regression | No uncommitted code. Review the draft and obtain approval before opening an upstream PR. |
+| [4.1-sequence-upsert-target](https://github.com/jameinel/juju/tree/4.1-sequence-upsert-target), [juju/juju#23731](https://github.com/juju/juju/pull/23731) | [74aabf93b4](https://github.com/jameinel/juju/commit/74aabf93b4ec4337caf5344fb553e9e33c3b5f38): successful-transaction result collection and comments | Common-allocator/RETURNING refactor and tests remain uncommitted in the transfer patch; review response remains unpublished. |
+
 The clean CTE worktree was removed; its branch/commits are retained.
 The dirty IIF and sequence worktrees remain. Restore instructions and
 the exact bundle/patch inventory are in
@@ -167,8 +174,8 @@ consumers (cloud, removal, status, controllerupgrader, model, secretbackend)
 race tests, stress and lint; update draft PR locally.
 
 Status: query commit `08b9cc0d7c` (one-line `state.go` change, amended from
-the CASE version `6b5aa7348d`) is local only:
-not pushed and no PR. No upstream PR was found. Schema-view commit in
+the CASE version `6b5aa7348d`) is published on the branch linked above,
+without an upstream PR. Schema-view commit in
 progress: the three view replacements are uncommitted in
 `domain/schema/controller/sql/0007-model.sql`, verified on 2026-11-04.
 `model_migration_import.model_uuid` is unique, so the join returns at most
@@ -181,8 +188,8 @@ so avoid `(` and `|`); `./domain/model/state/... ./domain/model/service/...`
 `-race` passed; stress 32 runs/0 failures in 30s. `gofmt`/`git diff --check`
 and `test_static_analysis_go` passed. Draft:
 [PR-4.1-drop-iif.md](PR-4.1-drop-iif.md).
-Remaining: approval to push to `jameinel/juju` and open against `4.1`.
-First finish and validate the schema-view changes and revise the draft:
+Remaining: finish and validate the schema-view changes and revise the draft,
+then obtain approval to publish those changes and open against `4.1`:
 its current text describes only the query and explicitly excludes DDL.
 
 ## Lookup-key NOT NULL task (separate session)
@@ -225,7 +232,7 @@ reconciliation. Preserve this acceptance contract on further changes:
 
 ## Existing CTE membership implementation — X24
 
-**Implemented locally / awaiting publication approval (2026-10-30):** Copilot session
+**Implemented 2026-10-30 / branch published 2026-11-04:** Copilot session
 `767870f3-0997-48f4-a415-c1efab02d088` reserves branch
 `4.1-cte-membership-subqueries` and dedicated worktree
 `/home/jameinel/dev/go/src/github.com/juju/4.1-cte-membership-subqueries`.
@@ -278,11 +285,11 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
 
 PR description recovered from the original session into
 [PR-4.1-cte-membership-subqueries.md](PR-4.1-cte-membership-subqueries.md).
-No push or PR yet; publication
-requires explicit approval. Not landed or PoC-reconciled. No PostgreSQL tests,
+The committed branch is published and linked above; no upstream PR yet.
+Opening the PR requires explicit approval. Not landed or PoC-reconciled. No PostgreSQL tests,
 full repository suite or live deployment/migration QA were run.
 
-## Unpublished sequence review follow-up — X3/X4
+## Sequence review follow-up — X3/X4
 
 **Published / review follow-up in progress (2026-10-30):**
 Copilot session `9a4e0037-1cb5-464c-9f9e-d07769103e2b` owns branch
@@ -293,8 +300,9 @@ Published commit: `cfa867609013e22c6ec36a215be50ff80e13c397`.
 Verified upstream PR: juju/juju#23731, targeting `4.1`.
 Validated local review follow-up commit:
 `74aabf93b4ec4337caf5344fb553e9e33c3b5f38`. At that checkpoint the
-worktree was clean; this follow-up
-has not been pushed or commented publicly. Do not duplicate this implementation.
+worktree was clean. This follow-up was published on 2026-11-04 to the
+existing branch/PR linked above; no review response was posted.
+Do not duplicate this implementation.
 Other X3/X4 operations remain available for independent scoping.
 
 Scope: `domain/sequence/state/{sequence.go,sequence_test.go,state_test.go}`
@@ -356,13 +364,13 @@ The original session's unpublished response is preserved in
 [COMMENT-4.1-sequence-upsert-review.md](COMMENT-4.1-sequence-upsert-review.md).
 It records final refactor lint, compilation and stress as pending; resolve
 that evidence gap before making new validation claims or publishing.
-Verified on 2026-11-04: the branch still points to unpublished
+Verified on 2026-11-04: the branch points to published
 `74aabf93b4`; the common allocator / `RETURNING` refactor and its tests
 are uncommitted in `sequence.go` and `sequence_test.go`. The validation
 above is historical session evidence, not a fresh check of that dirty
-worktree. GitHub still points to `cfa8676090`; its green CI does not cover
-either local follow-up.
-Remaining: obtain approval before pushing the follow-up
+worktree. The older green CI snapshot at `cfa8676090` does not cover the
+published follow-up or the uncommitted refactor; assess new-head CI.
+Remaining: validate the refactor and obtain approval before publishing it
 or posting the exact response; complete upstream review/CI, landing and
 PoC reconciliation.
 

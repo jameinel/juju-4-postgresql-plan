@@ -256,9 +256,9 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `6a66e5ed1b` | open; default-bases smoke fails; approval required; not integrated into PoC |
 | `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; static check fixed; bundles/revision smoke fail; approval required |
 | `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
-| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `cfa8676090` | open; CI green; one approval, more required |
-| `4.1-drop-iif` | X7 | not published | local `08b9cc0d7c` plus uncommitted DDL | existing implementation; finish schema-view validation and revise draft before publication approval |
-| `4.1-cte-membership-subqueries` | X24 | not published | local `8ce0410f51` | implemented and historically validated; publication approval pending |
+| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `74aabf93b4` | open; test/comment follow-up published 2026-11-04; new-head CI/review unassessed; allocator refactor still uncommitted |
+| `4.1-drop-iif` | X7 | [published branch](https://github.com/jameinel/juju/tree/4.1-drop-iif); no PR | `08b9cc0d7c` plus uncommitted DDL | query published 2026-11-04; finish schema-view validation and revise draft before further publication approval |
+| `4.1-cte-membership-subqueries` | X24 | [published branch](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries); no PR | `8ce0410f51` | implementation published 2026-11-04; historically validated; upstream PR approval pending |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | X16 | not proposed | | not implemented; follows remaining #23688 review |
 
@@ -285,8 +285,8 @@ Notes:
 - juju/juju#23685 also fixes the upgrade test half of U5.
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
-- X7 and X24 have existing local branches but have not been proposed
-  upstream; continue those implementations in UPSTREAM-PLAN.md.
+- X7 and X24 have published fork branches but no upstream PR;
+  continue those implementations through the tracking links in UPSTREAM-PLAN.md.
   X18 is represented by the
   U16 agent-binary review and the separate `PinLease` review above.
 - U16, `PinLease` and sequence allocation already have independent review
@@ -405,6 +405,25 @@ current work before cherry-picking or incorporating changes. Do not reset
 existing branches to these older bases. The local drafts above preserve
 the scope, rationale and historical validation needed to finish each task.
 No implementation branch or planning changes were pushed during cleanup.
+
+#### Committed-branch publication after cleanup
+
+On 2026-11-04, published the exact committed IIF and CTE snapshots as
+`jameinel/juju:4.1-drop-iif` (`08b9cc0d7c`) and
+`jameinel/juju:4.1-cte-membership-subqueries` (`8ce0410f51`), and
+fast-forwarded `4.1-sequence-upsert-target` / juju/juju#23731 from
+`cfa8676090` to `74aabf93b4`. Verified the remote refs.
+Tracking links and remaining actions are in
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#existing-implementations-and-published-tracking-references).
+No uncommitted code, PR descriptions or review responses were published.
+The existing transfer bundle and patches remain valid snapshots.
+
+The other active 4.1/PoC branch commits are already reachable through fetched
+remote refs, except the superseded operation commits `820aa88f88` and
+`e463565601`. Those are already public in GitHub's history; the current
+operation PR head is `0fb2eb7194`. Do not overwrite that newer branch with
+the obsolete local tip. Historical backup and unrelated 2.9/3.6 experiment
+branches are not publication targets for this handoff.
 
 ### Nullable primary-key base refresh (2026-10-30)
 
