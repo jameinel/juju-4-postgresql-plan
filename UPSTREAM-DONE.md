@@ -27,6 +27,8 @@ and test runs below do not establish coverage of later revisions.
 | `4.1-removal-force-boolean`, #23690 | U9 | Match boolean writers/readers with BOOLEAN storage and bool exports; convert legacy 0/1 and reject other integers. |
 | `4.1-changestream-latest-row`, #23691 | X16 | Explicitly select the latest change ID and join to its row, avoiding ungrouped columns beside MAX. This does not fix the separate dbrepl query. |
 | `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
+| `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
+| `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
 | `4.1-sql-standard-syntax`, #23695 | X37/X38 | Standard equality and an explicit CROSS JOIN to the one-row fulfilment aggregate. Cover unused/shared-key deletion and zero-fulfilment detach info. A third commit changes storage lifecycle trigger equality. |
@@ -49,6 +51,14 @@ scanning and tabwriter output remains a separate candidate in
 UPSTREAM-PLAN.md. No PoC integration was performed; dbrepl remains outside
 the PostgreSQL PoC scope.
 
+PR [#23720](https://github.com/juju/juju/pull/23720) merged on 2026-11-04
+as `edb2aef5b9f1e4cf7c5ceb890fd137d922048c30`, at head `ee07d7ccb5`.
+PR [#23726](https://github.com/juju/juju/pull/23726) merged that day
+as `5259edff4329ca4a1de80d77e0d614b832d4ad72`, at head `ee55bab5f4`.
+Both tasks are complete upstream. Their landed patches still need
+reconciliation against the earlier PoC implementations; no integration or
+equivalence verification was performed as part of this tracking update.
+
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
 check. Released 4.0.15 DDL is unchanged. Do not describe this as preserving
@@ -61,7 +71,6 @@ all earlier-beta database compatibility.
 | `4.1-model-config-precedence`, #23683 | U7 | Exclude agent stream/version from competing config rows so authoritative `agent_version` values win regardless of UNION sorting or row order. |
 | `4.1-operation-query-portability`, #23693 | X34/X33 | Separate boolean-comparison and text-size-expression commits, preserving filtering and pruning thresholds. Text size is not a backend-independent stored-bytes measure. |
 | `4.1-crossmodel-secret-revisions`, #23688 | U11 | Any remote unit behind makes a secret reportable; return its latest revision once and join through indexed offer connections rather than application-name prefixes. |
-| `4.1-local-secret-revisions`, #23720 | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods; this is not the five-query latest-revision task. |
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Require mount container keys and key manifest bases by manifest position, retaining nullable attributes. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
@@ -175,10 +184,10 @@ current recorded PR heads are in the register. Remote schema-dependent
 fixtures stay in #23688. Its watcher still scopes by offered application;
 per-connection watcher scoping is separate follow-up.
 
-Both patches were cherry-picked into `pg-poc/05-queries` on 2026-10-26 with
-matching patch IDs. That does not mean their eventual upstream merges are
-reconciled. The register records PostgreSQL results and the separate
-remaining secret-state fixture failures.
+Earlier versions of both patches were cherry-picked into `pg-poc/05-queries`
+on 2026-10-26 with matching patch IDs. That does not establish reconciliation
+with #23720's landed head or the eventual #23688 merge. The register records
+PostgreSQL results and the separate remaining secret-state fixture failures.
 
 ## Lookup-key NOT NULL decisions
 

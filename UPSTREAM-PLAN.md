@@ -4,9 +4,9 @@ Use this standalone queue for a stock upstream 4.1 checkout. Read the shared
 rules, assigned task and target repository's AGENTS.md/contribution guidance;
 no PoC checkout, configuration or test setup is required.
 
-This is the recorded 2026-10-30 status snapshot. Check upstream code, GitHub
-reviews and CI before acting; implementation, landing and PoC reintegration
-are different states. Keep this document focused on pending actions.
+Check upstream code, GitHub reviews and CI before acting; implementation,
+landing and PoC reintegration are different states. Keep this document
+focused on pending actions.
 [UPSTREAM-DONE.md](UPSTREAM-DONE.md) records implemented work and rationale;
 [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) owns finding/provenance/status mappings.
 Neither is prerequisite reading for an assigned task.
@@ -75,7 +75,6 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-operation-query-portability`, #23693 | X34/X33 | Complete review/CI in `domain/operation/state`; keep boolean comparisons and text-size expressions in separate commits. Verify filtering/pruning thresholds across value types. |
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Complete review/CI and land charm first. Required container key, manifest-position key and duplicate-position import diagnostics/tests are implemented; do not redo them. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Review against charm, then rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. Table-specific errors are implemented; assess new-head CI. |
-| `4.1-local-secret-revisions`, #23720 | U11 follow-up | Add review regressions in `domain/secret/state/state_test.go`: multiple behind secrets for one unit, empty/nonexistent units, initial-query -> changes-query round trip and explicit nil results. Exercise both `InitialWatchStatementForConsumedSecretsChange` and `GetConsumedSecretURIsWithChanges`; tests must pass with old and portable SQL. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Finish review/CI. A schema-derived decoder-inventory guard and direct `NotValid` classification have been added; retain explicit typed lookup deltas. Independent of both U15 branches. |
 
 ### Nullable primary-key review split
@@ -116,15 +115,6 @@ Do not silently require new privileges or mix this tooling change into the
 operation query review. Validate on a clean environment and a repeated
 invocation, then run the checks that previously failed or were skipped.
 
-### `4.1-dbaccessor-pool-cleanup` — U14
-
-`internal/worker/dbaccessor/tracker.go` leaks pools opened but not retained.
-Close them on foreign-keys pragma failure, model-initialization failure and
-replacement-pool reopen ping failure; preserve ownership of retained pools.
-Inject each failure in `tracker_test.go`, assert every unretained pool closes
-and successfully transferred pools remain usable. Upstream is not started;
-the register's PoC implementation is not an upstream merge.
-
 ### `4.1-agentbinary-conflict` — U16 / X18
 
 Both `domain/agentbinary/state/{controller,model}/state.go`
@@ -144,13 +134,14 @@ changes out of this branch.
 
 ### `4.1-secret-latest-revision`
 
-After the consumed-secret reviews (#23688/#23720), independently rewrite
+After the remaining consumed-secret review (#23688), independently rewrite
 five queries in `domain/secret/state/state.go`: `updateSecret`,
 `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and
 `getSecretsRevisionExpiryChanges`. Explicitly select the latest revision
 instead of relying on ungrouped columns beside MAX. Existing and new SQL
 must pass regressions with multiple revisions, expiry/rotation rows and
-both owner kinds. This does not duplicate #23720's two local queries.
+both owner kinds. This does not duplicate the two local queries landed in
+#23720.
 
 ## Lookup-key NOT NULL task (separate session)
 
@@ -218,10 +209,11 @@ Review the description/comment distinction independently of SQL changes.
 Do not implement PoC integration in stock-upstream worktrees. After landing,
 hand merged revisions to the integration owner using UPSTREAM-INTEGRATION.md
 and update the register. Explicit outstanding obligations: both U15 fixes,
-U17 guard integration, independent reconciliation of #23688/#23720 despite
-existing PoC cherry-picks, and #23694's UUID-conflict sentinel (not content
-already stored). Keep all other landed-fix reconciliation status in the
-register; upstream landing alone does not mark it complete.
+U17 guard integration, reconciliation of landed #23720 and #23726 against
+their existing PoC implementations, independent reconciliation of #23688
+after it lands, and #23694's UUID-conflict sentinel (not content already
+stored). Keep all other landed-fix reconciliation status in the register;
+upstream landing alone does not mark it complete.
 
 ## Dispatch
 
@@ -232,7 +224,7 @@ selection does not authorise work on other branches.
 
 Example assignment:
 
-> In stock upstream Juju 4.1 at <base>, implement the dbaccessor pool-cleanup
+> In stock upstream Juju 4.1 at <base>, implement the developer-tooling
 > task from UPSTREAM-PLAN.md on <branch> in <worktree>. Use only that
 > checkout's code and test infrastructure. Add the specified regressions,
 > run its normal validation, and report the diff and results. Stop for
