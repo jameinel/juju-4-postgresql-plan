@@ -11,6 +11,11 @@ focused on pending actions.
 [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) owns finding/provenance/status mappings.
 Neither is prerequisite reading for an assigned task.
 
+Status checked against GitHub on 2026-11-04: 9 open reviews and 14 merged
+PRs. Current heads, merge revisions and the CI snapshot are in
+[the register](UPSTREAM-FIXES.md#upstream-review-status); implemented scope
+and historical validation are in UPSTREAM-DONE.md.
+
 ## Working agreement
 
 - Refresh and record the upstream 4.1 base (`B`). Check current code and
@@ -70,12 +75,15 @@ CI and mergeability; validate any follow-up against the current head.
 
 | Branch / PR | Finding | Remaining action / acceptance contract |
 |---|---|---|
-| `4.1-model-config-precedence`, #23683 | U7 | Complete review/CI. `v_model_config` and `domain/modelconfig/state` must exclude competing agent stream/version rows; test config values sorting before and after authoritative values and one effective value per key. |
-| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Complete remote-query review/CI in `domain/crossmodelrelation/state/model/secrets.go`. Report any-unit-behind secrets, latest revision once, via indexed offer connections. Cover no/current/behind/mixed consumers, multiple secrets/revisions, prefix collisions and filtering; assert revisions and no duplicates. Keep schema/import/recovery/cleanup together. |
-| `4.1-operation-query-portability`, #23693 | X34/X33 | Complete review/CI in `domain/operation/state`; keep boolean comparisons and text-size expressions in separate commits. Verify filtering/pruning thresholds across value types. |
-| `4.1-nullable-primary-keys`, #23710 | U15, charm | Complete review/CI and land charm first. Required container key, manifest-position key and duplicate-position import diagnostics/tests are implemented; do not redo them. |
-| `4.1-application-exposure-scope`, #23723 | U15, exposure | Review against charm, then rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. Table-specific errors are implemented; assess new-head CI. |
-| `4.1-lookup-key-not-null`, #23724 | U17 | Finish review/CI. A schema-derived decoder-inventory guard and direct `NotValid` classification have been added; retain explicit typed lookup deltas. Independent of both U15 branches. |
+| `4.1-model-config-precedence`, [#23683](https://github.com/juju/juju/pull/23683) | U7 | Review follow-ups are published and CI is green; obtain remaining approval. Preserve authoritative agent-table values, import filtering and one effective value per key. |
+| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Connection-scoped uniqueness and cleanup follow-ups are implemented; the refreshed head is mergeable and CI is running. Assess that head and obtain approval. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together. |
+| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Commit identity/message and rebase requests are addressed; submission checks pass. Triage default-bases smoke and cancelled macOS CI, then complete review. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
+| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Finish review and resolve the cancelled macOS/aggregate CI failure; land charm first. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
+| `4.1-application-exposure-scope`, [#23723](https://github.com/juju/juju/pull/23723) | U15, exposure | Finish review and triage bundles smoke. Rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. |
+| `4.1-lookup-key-not-null`, [#23724](https://github.com/juju/juju/pull/23724) | U17 | CI is green; obtain approval. Schema-derived decoder inventory, direct `NotValid` classification and the transaction-test fix are implemented. Retain explicit typed deltas and the 65-key scope; later reconcile the combined guard with exposure. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Implementation and regressions exist in both state packages. Triage default-bases smoke and obtain approval. Preserve `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Do not recreate the fix. |
+| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Triage bundles/revision smoke and obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | CI is green with one approval; obtain remaining approval. Explicit namespace conflict targets and qualified updates are implemented. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
 
 ### Nullable primary-key review split
 
@@ -115,23 +123,6 @@ Do not silently require new privileges or mix this tooling change into the
 operation query review. Validate on a clean environment and a repeated
 invocation, then run the checks that previously failed or were skipped.
 
-### `4.1-agentbinary-conflict` — U16 / X18
-
-Both `domain/agentbinary/state/{controller,model}/state.go`
-`RegisterAgentBinary` paths SELECT after a primary-key error, which aborts
-a PostgreSQL transaction. Use `ON CONFLICT DO NOTHING`, then compare,
-preserving `AlreadyExists` / `AgentBinaryImmutable`, retries and idempotency.
-Test new, repeated and different-object registrations in both state suites;
-verify the conflict path leaves the transaction usable.
-
-### `4.1-lease-pin-conflict` — X18
-
-`domain/lease/state` `PinLease` ignores a unique violation. Resolve competing
-pins in SQL with `ON CONFLICT DO NOTHING`, preserving the existing
-already-pinned result. Test competing pins and continued transaction use.
-This is portability, not a current dqlite defect; keep production timing
-changes out of this branch.
-
 ### `4.1-secret-latest-revision`
 
 After the remaining consumed-secret review (#23688), independently rewrite
@@ -152,7 +143,9 @@ Recheck inventory at the actual base; leave INTEGER rowid keys, composite
 keys, historical DDL, 4.0.12 export types and unrelated nullable fields alone.
 Do not replace explicit schema constraints with generator inference.
 
-Remaining review/acceptance checklist:
+Implementation, regression coverage and recorded live migration QA are in
+UPSTREAM-DONE.md. Remaining work is review/CI and later combined-guard
+reconciliation. Preserve this acceptance contract on further changes:
 
 - Keep the explicit typed-delta methods: a generic loop still needs an ID
   accessor and field-mapping closure in every method, obscuring each
@@ -189,7 +182,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 |---|---|
 | X7 | `GetModelConnectionInfo`: replace IIF with CASE. Identify its production path and fixtures; verify identical NULL/value behaviour. Not proposed upstream. |
 | X24 | Replace SQLite `x IN cte` with explicit SELECT membership subqueries. Inventory remaining sites and bound tests/file ownership. Not proposed upstream. |
-| X3/X4 | Explicit upsert targets (`domain/sequence`) and qualified conflict expressions. Identify remaining operations; keep distinct from landed objectstore and queued agentbinary/lease work. |
+| X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
 | X16 dbrepl output follow-up | Feedback on juju/juju#23730 suggests extracting the duplicated row scanning and tabwriter output from `changeLog` and `changeStream` in `internal/worker/dbrepl/worker.go` into a shared helper taking the query and arguments. Preserve each command's SQL, output and error handling; check current upstream code and exercise both commands. Keep separate from the latest-row SQL task. |
@@ -209,7 +202,8 @@ Review the description/comment distinction independently of SQL changes.
 Do not implement PoC integration in stock-upstream worktrees. After landing,
 hand merged revisions to the integration owner using UPSTREAM-INTEGRATION.md
 and update the register. Explicit outstanding obligations: both U15 fixes,
-U17 guard integration, reconciliation of landed #23720 and #23726 against
+U16's agent-binary fix, U17 guard integration, reconciliation of landed
+#23720 and #23726 against
 their existing PoC implementations, independent reconciliation of #23688
 after it lands, and #23694's UUID-conflict sentinel (not content already
 stored). Keep all other landed-fix reconciliation status in the register;

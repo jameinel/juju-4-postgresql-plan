@@ -2,8 +2,9 @@
 
 This records implemented upstream work, decisions and validation, including
 changes still in review. **Implemented is not landed or reintegrated.**
-Unless explicitly dated otherwise, statuses below are the recorded
-2026-10-30 snapshot, not a fresh GitHub check.
+The landed/in-review inventories are synchronized with GitHub on
+2026-11-04. Validation and publication narratives retain their recorded
+dates and revisions; they are not new checks of the latest heads.
 
 - [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md): remaining work and acceptance checks.
 - [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md): finding register, source provenance,
@@ -69,11 +70,14 @@ all earlier-beta database compatibility.
 | Branch / PR | Finding | Implemented scope and rationale |
 |---|---|---|
 | `4.1-model-config-precedence`, #23683 | U7 | Exclude agent stream/version from competing config rows so authoritative `agent_version` values win regardless of UNION sorting or row order. |
-| `4.1-operation-query-portability`, #23693 | X34/X33 | Separate boolean-comparison and text-size-expression commits, preserving filtering and pruning thresholds. Text size is not a backend-independent stored-bytes measure. |
-| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Any remote unit behind makes a secret reportable; return its latest revision once and join through indexed offer connections rather than application-name prefixes. |
+| `4.1-operation-query-portability`, #23693 | X34/X33 | Portable boolean comparisons and text-size expressions, plus the reviewed fix that treats each NULL column as zero instead of discarding the entire row from the estimate. Filtering is preserved; size/pruning decisions for nullable rows intentionally change. Text size is not stored bytes. |
+| `4.1-crossmodel-secret-revisions`, #23688 | U11 | Any remote unit behind makes a secret reportable; return its latest revision once through indexed offer connections. Tracking uniqueness and upserts are scoped by `(offer_connection_uuid, secret_id, unit_name)`; synthetic-unit cleanup uses one CTE-backed DELETE. |
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Require mount container keys and key manifest bases by manifest position, retaining nullable attributes. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration in both databases, preserving idempotency, immutability and transaction usability. |
+| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Resolve competing pins with the explicit lease/entity conflict target. Preserve repeated-pin and missing-lease behaviour; reset the test helper's captured results on transaction retries. This is portability, not a current dqlite defect. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly and qualify the sequence value in single/batch allocation upserts. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
 
 Remaining review actions belong in the plan, not this history. GitHub is the
 source of truth for live review, CI and merge status.
@@ -112,20 +116,24 @@ exposure. No unrelated PoC code was included.
   not semantic prerequisites. Its INT-key-scoped guard can pass before U15;
   the global guard must eventually exempt only rowid-aliasing INTEGER keys.
 
-Published refreshed revisions: base `8369e6e2a9`, charm `ba21f48ad3`
-(`7001a1b74b` plus diagnostic/generator follow-up), exposure `f31de64e52`
+2026-10-30 publication (historical revisions): base `8369e6e2a9`, charm
+`ba21f48ad3` (`7001a1b74b` plus diagnostic/generator follow-up),
+exposure `f31de64e52`
 (`4d9518117c` plus deletion diagnostic). Earlier split heads were charm
 `4df04695d8` and exposure `3c90a7ded3` on `9ea82c03bd`, preserved in
 `backup/charm-before-base-refresh-20261030` and
 `backup/exposure-before-base-refresh-20261030`. Original combined work is in
 `backup/nullable-primary-keys-before-split-20261030`.
+Later review follow-ups and rebases changed the branch tips; the register
+owns the current heads.
 
 After explicit approval, both heads and exact descriptions were published:
 [charm description](PR-4.1-nullable-primary-keys.md),
 [exposure description](PR-4.1-application-exposure-scope.md), and
 [context-only reply](COMMENT-4.1-nullable-primary-keys-review.md).
-No review threads were resolved. Exposure targets upstream `4.1` because
-GitHub cannot target the fork-only charm base; its description discloses
+No review threads were resolved at that publication. Exposure targets
+upstream `4.1` because GitHub cannot target the fork-only charm base;
+its description discloses
 the stack and scoped comparison. Charm must land before exposure is rebased
 and landed. Both fixes are required for PoC bootstrap reintegration.
 
@@ -140,8 +148,9 @@ in `TestUnitStateSuite/TestGetUnitWorkloadVersion`; it was not a full green
 run. Charm-import stress reported 12 completed runs and exposure-watcher
 stress 6, zero failures before intentional outer timeouts.
 
-Refreshed heads: nine charm and 13 exposure generator/schema/import/recovery
-and affected consumer race packages passed, as did focused exposure-state.
+2026-10-30 refreshed heads: nine charm and 13 exposure generator/schema/
+import/recovery and affected consumer race packages passed, as did focused
+exposure-state.
 Charm-import stress reported 132 completed runs and exposure-watcher stress
 6, zero failures before intentional outer timeouts. Regeneration was
 idempotent. Base and final stack passed `timeout 600s make go-build
@@ -191,9 +200,10 @@ PostgreSQL results and the separate remaining secret-state fixture failures.
 
 ## Lookup-key NOT NULL decisions
 
-PR #23724 (`3157cdb288`) is independent on refreshed `8369e6e2a9`, not
-stacked on U15. At that base, SQLite CREATE TABLE/`pragma_table_info`
-inventory found 48 model and 17 controller single-column `id INT PRIMARY
+The initial #23724 implementation (`3157cdb288`) was independent on
+refreshed `8369e6e2a9`, not stacked on U15. At that base, SQLite
+CREATE TABLE/`pragma_table_info` inventory found 48 model and 17 controller
+single-column `id INT PRIMARY
 KEY` declarations permitting NULL. INT is not the rowid-aliasing INTEGER
 spelling, and duplicate NULL lookup keys were possible.
 
@@ -205,14 +215,20 @@ Consumed 4.0.12 model rows need typed deltas preserving every field and
 validating before dereference; 4.0.12 types and historical DDL remain
 unchanged. Controller exports start at 4.1.0, so no legacy controller delta
 is required. Source changestream lookup rows remain excluded from import.
-Recovery already validates presence/NULL against scalar fields; real
-model/controller decode/replay still needs evidence after generation.
+Recovery validates presence/NULL against scalar fields; model/controller
+decode/replay and persistence regressions cover the regenerated types.
 
-The review requests expanded nullable payload validation and a generic
-helper for typed lookup deltas. Implementation is not proof those requests
-are complete. The register holds the table inventory; remaining acceptance
-checks and scoped/global guard integration are in the plan. No PostgreSQL
-experiment was performed for U17 in the recorded session.
+The published follow-up at `4e7341392f` adds a DDL-derived decoder-inventory
+cross-check, direct `coreerrors.NotValid` classification, and the schema
+guard's assertion outside its transaction. The proposed generic helper was
+tried and reverted: each table still needed typed ID-accessor and mapping
+closures, while `requiredLookupID` already centralizes NULL rejection.
+Retain explicit deltas. The seven previously non-NULL keys are deliberate
+inventory exceptions, not an expansion of this 65-key fix.
+The [review response](https://github.com/juju/juju/pull/23724#issuecomment-6618410549)
+records successful live 4.0-to-4.1 and 4.1-to-4.1 migrations. That does not
+establish PoC integration. Remaining review/CI and combined-guard
+reconciliation belong in the plan; the register owns current disposition.
 
 ## Objectstore review follow-up
 

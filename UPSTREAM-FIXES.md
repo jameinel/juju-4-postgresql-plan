@@ -63,22 +63,24 @@ portability suites to be green.
 | U8 | latent | Controller schema: `user_activation_key.activation_key`, the eight `bakery_config` key columns, `macaroon_root_key.root_key` | Declared `TEXT` but bound as raw random bytes (activation key, bakery key pairs, `dbrootkeystore` root keys). SQLite stores them as BLOBs regardless; `domain/schema/storage.go` `binaryTextColumns` and recovery carried the mismatch, and exports typed them as strings. PostgreSQL rejects them (DIALECT.md X11), breaking `add-user`, the bootstrap worker's bakery initialisation and macaroon minting. | Fixed, Stage 6, `fix(schema): store random key bytes in blob columns`. The columns become `BLOB` in place; the 4.1 controller export types become `[]byte`. Upstream, drop the `domain/schema/postgresql/` paths from the commit. |
 | U9 | latent | Model schema `removal.force` | Declared `INT` while every writer binds a Go bool or `FALSE` and every reader scans a bool. SQLite stores booleans as integers, so the mismatch was hidden, and exports carried the flag as an integer. PostgreSQL rejects a boolean for `bigint` (DIALECT.md X25). | Fixed, Stage 6, `fix(schema): declare the removal force flag as boolean`. `BOOLEAN NOT NULL DEFAULT FALSE` in place; the 4.1 export type becomes `bool` and the 4.0.12 import delta converts 0 / 1 and rejects other values. Upstream, drop the `domain/schema/postgresql/` paths from the commit. |
 | U10 | portability | `domain/blockcommand/state` `GetBlocks` | Ordered by `rowid`, an implicit SQLite column that PostgreSQL lacks (DIALECT.md X31). On dqlite the order was insertion order. | Fixed, Stage 5, `fix(blockcommand): order blocks by type instead of rowid` (D31). dqlite order changes to type order; `TestGetBlocksOrderedByType` fails with `rowid`. |
-| U11 | latent | `domain/crossmodelrelation/state/model/secrets.go` (two queries) | Group by `sruc.secret_id` but select `sr.uuid` and test `sruc.current_revision` in `HAVING`, so with several consuming units SQLite picks an arbitrary unit row (DIALECT.md X16). Also uses `instr` (X30). | Implemented upstream on open PR juju/juju#23688, branch `4.1-crossmodel-secret-revisions`. A secret is reported if any remote consuming unit is behind, and the initial query returns its latest revision once. Consumers are joined through indexed `offer_connection_uuid`, not a textual application prefix. The independent local-consumer query portability fix, [PR #23720](https://github.com/juju/juju/pull/23720) (`4.1-local-secret-revisions`, head `ee07d7ccb5`), merged 2026-11-04 as `edb2aef5b9`; its review regressions and redundant-DISTINCT removal are complete. Earlier versions of both patches were cherry-picked onto `pg-poc/05-queries` on 2026-10-26 (`8f2c49c355` / `79f2e66049`, identical patch IDs at that time), so PoC work is not blocked on review. Reconciliation of landed #23720 is pending; reconcile #23688 independently after it lands under UPSTREAM-INTEGRATION.md. PostgreSQL at `08=c5f185e6f6`: `TestModelSecretsSuite` 29/29 and the two new watcher tests pass. Of the five consumed-secret `stateSuite` tests, two pass; three fail in fixture setup on separate `domain/secret/state` X16 sites (DIALECT.md). |
+| U11 | latent | `domain/crossmodelrelation/state/model/secrets.go` (two queries) | Group by `sruc.secret_id` but select `sr.uuid` and test `sruc.current_revision` in `HAVING`, so with several consuming units SQLite picks an arbitrary unit row (DIALECT.md X16). Also uses `instr` (X30). | Implemented upstream on open [PR #23688](https://github.com/juju/juju/pull/23688), branch `4.1-crossmodel-secret-revisions`, head `aa6cad849c`. A secret is reported if any remote consuming unit is behind, and the initial query returns its latest revision once through indexed offer connections. Tracking uniqueness/upserts use `(offer_connection_uuid, secret_id, unit_name)`; synthetic-unit cleanup uses one CTE-backed DELETE. The independent local-consumer fix, [PR #23720](https://github.com/juju/juju/pull/23720) (`4.1-local-secret-revisions`, head `ee07d7ccb5`), merged 2026-11-04 as `edb2aef5b9`; review regressions and redundant-DISTINCT removal are complete. Earlier versions were cherry-picked onto `pg-poc/05-queries` on 2026-10-26 (`8f2c49c355` / `79f2e66049`, matching patch IDs then). Reconcile landed #23720 and later #23688 independently under UPSTREAM-INTEGRATION.md; current upstream follow-ups are not established as integrated. Historical PostgreSQL evidence at `08=c5f185e6f6`: `TestModelSecretsSuite` 29/29 and two new watcher tests pass; two of five local consumed-secret tests pass, while three fail in fixtures on separate secret-state X16 sites. |
 | U12 | latent | Model schema `relation_status_type.id`, `relation_status.relation_status_type_id` | Declared `TEXT` while the seed rows, `EncodeRelationStatus` and every writer use integers and the offer view compares with `1`. SQLite coercion hid it, and exports carried the ids as strings. pgx will not encode a Go int for `TEXT` (DIALECT.md X23). | Fixed, Stage 6, `fix(schema): declare relation status type ids as integers` (D30). 4.1 export types become `int64`; the 4.0.12 import delta parses the legacy strings. |
 | U13 | bug | `domain/keymanager/state` `ensureUserPublicKey` | Read the new key id with `LastInsertId`. When the `INSERT ... SELECT` inserted nothing because the fingerprint hash algorithm was unknown, SQLite returned the connection's previous rowid, so the model could be linked to an unrelated key. | Fixed, Stage 5, `fix(keymanager): return new public key ids from the insert` (D36, DIALECT.md X35). An unknown algorithm returns an error; new test. |
 | U14 | bug | `internal/worker/dbaccessor/tracker.go` | Leaked database pools. `openDatabase` did not close the pool when setting the foreign keys pragma failed; `newTrackedDBWorker` did not close it when model initialisation failed; `ensureDBAliveAndOpenIfRequired` never closed replacement pools it opened during reopen attempts that then failed their ping. Each leak kept a pool open until the process exited. | Fixed in PoC Stage 8 at `b6a7690d80` `fix(dbaccessor): close databases the tracker opens but does not keep`. Historical PoC validation: four new tests fail without the fix; race-enabled stress 214 runs, 0 failures. The tracker files at the original `pg-poc/08` base matched upstream `04bc64ef54`. [PR #23726](https://github.com/juju/juju/pull/23726) (`4.1-dbaccessor-pool-cleanup`, head `ee55bab5f4`) merged 2026-11-04 as `5259edff43`. Reconciliation of the landed patch against the existing PoC fix remains pending. |
-| U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. **Implemented upstream first, not yet in the PoC:** two-PR split published after explicit approval on 2026-10-30. `4.1-nullable-primary-keys` retains the charm changes for juju/juju#23710 at `ba21f48ad3`; `4.1-application-exposure-scope` is stacked exposure PR juju/juju#23723 at `f31de64e52`. Both are based on upstream `8369e6e2a9`. Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings, and the endpoint tables require the endpoint; `v_application_exposed_endpoint` still reports wildcard rows with a NULL endpoint. `charm_container_mount.charm_container_key` becomes `NOT NULL`; `charm_manifest_base` is keyed on `(charm_uuid, array_index, nested_array_index)` and rejects duplicate legacy positions with an identifying diagnostic. The exposure PR owns the combined schema guard. The `to_v4_1_0` deltas split 4.0.12 exposure rows by scope and remove duplicate wildcard rows. Also fixes `remove-space --force` failing with a UNIQUE error when an endpoint is exposed to both `alpha` and the removed space. `TestPrimaryKeySchemaSuite` guards both schemas. |
-| U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found, not fixed (Stage 9, 2026-10-28):** bootstrap retries after the U15 failure re-register the binary and fail with 25P02. Fix like the other X18 sites: `ON CONFLICT DO NOTHING` and compare after, or check first. |
-| U17 | latent | 48 model and 17 controller single-column `id INT PRIMARY KEY` tables at `8369e6e2a9` | SQLite permits NULL keys; exported `*int64` IDs allow malformed payload rows to reach persistence. | Implemented on independent branch `4.1-lookup-key-not-null`, PR juju/juju#23724 (`3157cdb288`); open for review. Declares `INT PRIMARY KEY NOT NULL`, regenerates `int64`, and validates legacy/wire/recovery boundaries. |
+| U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. | **Implemented upstream first, not yet in the PoC:** the initial split was published on 2026-10-30 from upstream `8369e6e2a9`. Current heads are charm `838abf41ea` in [#23710](https://github.com/juju/juju/pull/23710) and exposure `4e66f7c449` in [#23723](https://github.com/juju/juju/pull/23723); both remain open, and exposure must be rebased/regenerated after charm lands. Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings, and endpoint tables require the endpoint; the view still reports wildcard rows with a NULL endpoint. Mount container keys become `NOT NULL`; manifest bases use `(charm_uuid, array_index, nested_array_index)` and reject duplicate legacy positions with an identifying diagnostic. Exposure owns the combined schema guard. Legacy deltas split exposure scope and deduplicate wildcard rows; space removal also avoids alpha-duplicate UNIQUE failures. |
+| U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found in Stage 9 (2026-10-28):** retries after the U15 failure re-register the binary and fail with 25P02. | Implemented upstream on open [PR #23728](https://github.com/juju/juju/pull/23728), branch `4.1-agentbinary-conflict`, head `6a66e5ed1b`. Both paths use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration, preserving `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Not integrated into the PoC; its bootstrap blocker remains. |
+| U17 | latent | 48 model and 17 controller single-column `id INT PRIMARY KEY` tables at `8369e6e2a9` | SQLite permits NULL keys; exported `*int64` IDs allow malformed payload rows to reach persistence. | Implemented on independent branch `4.1-lookup-key-not-null`, [PR #23724](https://github.com/juju/juju/pull/23724), head `4e7341392f`; open for approval. Declares `INT PRIMARY KEY NOT NULL`, regenerates scalar IDs, validates payload/recovery boundaries and cross-checks decoder inventory against DDL. Explicit typed deltas and the 65-key scope are retained. No PoC integration is recorded. |
 | U18 | tooling | `Makefile` `install-dependencies`; static-analysis prerequisites | `install-dependencies` covers Go snap and `libsqlite3-dev`, but not `shellcheck`, `gci`, `golangci-lint` or `stress`. Without `shellcheck`, `STATIC_ANALYSIS=1 make pre-check` stops at dependency checks; without SQLite headers it fails schema generation with `sqlite3.h` missing. The run also reports skipped `go-licenses`, `shfmt` and `govulncheck` checks when those tools are absent. | Found 2026-11-03; not implemented. Independently inventory required and skipped development tools, add appropriate installation/verification to `make install-dependencies`, and validate clean and repeated installs plus the affected checks. See `4.1-install-dependencies` in UPSTREAM-PLAN.md. |
 
 ### U17: nullable INT lookup primary keys (independent PR in review)
 
 **Class:** latent. **Status:** implemented as independent PR
 [juju/juju#23724](https://github.com/juju/juju/pull/23724), based on refreshed
-upstream 4.1 rather than stacked on either U15 PR. The review has requested
-additional validation of nullable payload handling and a generic helper for
-typed lookup deltas.
+upstream 4.1 rather than stacked on either U15 PR. The published follow-up
+at `4e7341392f` adds schema-derived decoder-inventory checks, direct
+`NotValid` classification and the transaction-test fix. The proposed
+generic helper was tried and reverted; retain explicit typed deltas.
+Remaining work is approval/CI and later combined-guard reconciliation.
 
 At upstream `8369e6e2a9`, 65 tables have a single-column `id INT PRIMARY KEY`
 with no explicit NOT NULL: **48 model, 17 controller**. The inventory was
@@ -96,27 +98,27 @@ would hide rather than repair the storage declaration.
 
 Ordinary seed rows and `domain/cloud/state.AllowCloudType` already write
 integer IDs. Payload import/recovery are alternative producers: nullable
-legacy IDs can currently reach the database. The fix rejects absent IDs rather than inventing a zero (zero is a real
-seed ID). For 4.0.12 model
-lookup types, generated struct-shape changes require typed deltas; preserve
+legacy IDs can reach the database without this fix. It rejects absent IDs
+rather than inventing zero (a real seed ID). For 4.0.12 model lookup types,
+generated struct-shape changes require typed deltas; preserve
 all fields and validate consumed rows before dereferencing. Controller
 export types start at 4.1.0, so no legacy controller delta is required.
 Source changestream lookup rows are excluded by model import and must remain
 excluded; they are not a reason to reintroduce source namespace IDs.
 
-Representation checks for the separate session:
+Implemented representation safeguards:
 
-- `domain/export/payload.go` currently uses `yaml.Unmarshal`; a new scalar
-  int64 alone cannot distinguish NULL/missing input from populated zero.
-  Verify and validate changed consumed IDs at the raw 4.1.0 model/controller
-  decode boundary, scoped to this change, before that distinction is lost.
-- Recovery's `domain/recovery/service/decode.go:decodeRows` explicitly
-  validates column presence and NULL versus scalar fields. Verify both model
-  and controller dump decode/replay after regeneration, including failure
-  atomicity; don't assume the generated type is the whole fix.
-- Preserve seeded-import conflict behaviour and every supported non-ID
-  representation. Test all consumed legacy lookup types, valid zero,
-  nil/omitted IDs, and representative real persistence round trips.
+- `decodeLookupPayload` validates raw YAML before scalar decoding loses
+  NULL/omitted versus zero. A DDL-derived inventory test ties its lists to
+  the 65 changed keys, with changelog exclusions and the seven previously
+  non-NULL keys recorded as deliberate exceptions.
+- Recovery validates column presence and NULL versus scalar fields;
+  model/controller decode/replay and failure atomicity have regressions.
+- Explicit deltas retain full rows, nullable non-ID fields and valid zero,
+  while rejecting absent IDs with table/row context and `NotValid`.
+  Seeded-import conflict behaviour and target-local changelog exclusions
+  remain covered. Recorded live 4.0-to-4.1 and 4.1-to-4.1 migrations passed;
+  that is not PoC reconciliation evidence.
 
 **No semantic dependency on U15:** only shared schema/generated files and
 integration of the schema guard overlap. Use an INT-key-scoped schema guard
@@ -125,9 +127,8 @@ while unrelated charm/exposure keys remain nullable). If the exposure guard
 has landed, narrow its exception to single-column INTEGER keys with the
 lookup fix. Otherwise tighten it when the independent changes are combined,
 regenerate and validate both guards. U15's two branches and PoC bootstrap
-requirements remain unchanged. No implementation or PostgreSQL experiment
-was performed for U17 in this session. The standalone scope and acceptance
-checks are in
+requirements remain unchanged. No PoC integration or PostgreSQL experiment
+is recorded for U17. The standalone scope and acceptance checks are in
 [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#lookup-key-not-null-task-separate-session).
 
 Inventory at the inspected base (all affected columns are `id`):
@@ -171,8 +172,10 @@ observable dqlite change (notably X36's reused-UUID error):
 - X34: boolean flags compared with integers (`fix(operation): compare
   operation query flags with booleans`).
 - X33: `octet_length` of non-text values (`fix(operation): measure pruned
-  operation sizes as text`). Follow-up: a stored-bytes measure such as
-  `pg_column_size` needs backend-aware state code.
+  operation sizes as text`). Upstream #23693 also fixes NULL-column sums:
+  NULL contributes zero rather than making the whole row ignored. That
+  changes the estimate and is not reconciled into the PoC. A stored-bytes
+  measure such as `pg_column_size` remains separate backend-aware work.
 - X36: several `ON CONFLICT` clauses (`fix(objectstore): use a single
   conflict clause when putting metadata`). In the PoC a reused uuid
   returns `ErrHashAndSizeAlreadyExists`. The published review
@@ -210,7 +213,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   rolls back only the failing statement, so this was correct on dqlite;
   PostgreSQL aborts the whole transaction. Fixed as portability on
   Stage 5, `fix(lease): resolve lease pin conflicts in sql`, with
-  `ON CONFLICT DO NOTHING` (DIALECT.md X18).
+  `ON CONFLICT DO NOTHING` (DIALECT.md X18). The independent upstream
+  implementation is in open PR #23729.
 - `TestSetAPIAddressesSharedPeerRollsBack` violates
   `controller_peer_address.controller_id NOT NULL` on purpose to force a
   rollback. The service never builds a shared peer projection. Only the
@@ -218,44 +222,50 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 - Unqualified columns in `ON CONFLICT ... DO UPDATE` `SET` / `WHERE`
   clauses, and `ON CONFLICT DO UPDATE` with no conflict target
   (`domain/sequence`), are ambiguous or invalid only on PostgreSQL
-  (DIALECT.md X3, X4). Fixed as portability on Stage 5.
+  (DIALECT.md X3, X4). Fixed as portability on Stage 5; the independent
+  upstream sequence fix is in open PR #23731.
 
 ## Upstream review status
 
-Baseline snapshot refreshed from GitHub on 2026-10-30; later dated entries
-record individual updates. Every listed PR targets
-`juju/juju` branch `4.1` from `jameinel/juju`. Head hashes are short SHA
+Snapshot refreshed from GitHub on 2026-11-04: 9 open and 14 merged PRs.
+Every listed PR targets `juju/juju` branch `4.1` from `jameinel/juju`.
+Head hashes are short SHA
 prefixes; check GitHub before acting because review and CI status can change.
 
 | Branch | Findings | PR | Head | Status |
 |---|---|---|---|---|
-| `4.1-sqlite-integers` | U1, U2, U12 | juju/juju#23680 | `0e9be8ddd7` | merged 2026-10-30 |
-| `4.1-binary-key-columns` | U8 | juju/juju#23682 | `de69a748a6` | merged |
-| `4.1-model-config-precedence` | U7 | juju/juju#23683 | `3c27c2371e` | open |
-| `4.1-keymanager-insert-id` | U13 | juju/juju#23684 | `d490585ad7` | merged |
-| `4.1-controller-node-id-text` | U3, U5 | juju/juju#23685 | `55ee33f048` | merged |
-| `4.1-lease-migration-tests` | U4 | juju/juju#23686 | `7e3e903650` | merged |
-| `4.1-crossmodel-secret-revisions` | U11 | juju/juju#23688 | `375ac766cb` | open |
-| `4.1-removal-force-boolean` | U9 | juju/juju#23690 | `f39572e43b` | merged |
-| `4.1-changestream-latest-row` | X16 | juju/juju#23691 | `9e28053164` | merged 2026-10-30; merge `ece31c289c6a` |
-| `4.1-dbrepl-latest-row` | X16 | [juju/juju#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5cb9` |
-| `4.1-blockcommand-order` | U10/X31 | juju/juju#23692 | `495768b0aa` | merged |
-| `4.1-operation-query-portability` | X34, X33 | juju/juju#23693 | `e463565601` | open |
-| `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `53feca2259` | merged 2026-10-30; merge `75ddfcbaf0b3` |
-| `4.1-sql-standard-syntax` | X37, X38 | juju/juju#23695 | `13003d8680` | merged |
-| `4.1-sql-test-literals` | U6 | juju/juju#23696 | `11ff0981e0` | merged |
-| `4.1-nullable-primary-keys` | U15 (charm keys) | juju/juju#23710 | `ba21f48ad3` on `8369e6e2a9` | open; charm-only update published, new-head CI not assessed |
-| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | juju/juju#23723 | `f31de64e52`, stacked on charm-only `ba21f48ad3` | open; published, new-head CI not assessed |
+| `4.1-sqlite-integers` | U1, U2, U12 | [#23680](https://github.com/juju/juju/pull/23680) | `0e9be8ddd7` | merged 2026-10-30; merge `8369e6e2a9` |
+| `4.1-binary-key-columns` | U8 | [#23682](https://github.com/juju/juju/pull/23682) | `de69a748a6` | merged 2026-10-27; merge `fa1743d544` |
+| `4.1-model-config-precedence` | U7 | [#23683](https://github.com/juju/juju/pull/23683) | `f50dfe4257` | open; CI green; approval required |
+| `4.1-keymanager-insert-id` | U13 | [#23684](https://github.com/juju/juju/pull/23684) | `d490585ad7` | merged 2026-10-27; merge `f0adf0150d` |
+| `4.1-controller-node-id-text` | U3, U5 | [#23685](https://github.com/juju/juju/pull/23685) | `55ee33f048` | merged 2026-10-27; merge `6e98deb0e0` |
+| `4.1-lease-migration-tests` | U4 | [#23686](https://github.com/juju/juju/pull/23686) | `7e3e903650` | merged 2026-10-27; merge `146df46e46` |
+| `4.1-crossmodel-secret-revisions` | U11 | [#23688](https://github.com/juju/juju/pull/23688) | `aa6cad849c` | open; mergeable; refreshed-head CI pending; approval required |
+| `4.1-removal-force-boolean` | U9 | [#23690](https://github.com/juju/juju/pull/23690) | `f39572e43b` | merged 2026-10-27; merge `9ea82c03bd` |
+| `4.1-changestream-latest-row` | X16 | [#23691](https://github.com/juju/juju/pull/23691) | `9e28053164` | merged 2026-10-30; merge `ece31c289c` |
+| `4.1-blockcommand-order` | U10/X31 | [#23692](https://github.com/juju/juju/pull/23692) | `495768b0aa` | merged 2026-10-27; merge `b36f88d99c` |
+| `4.1-operation-query-portability` | X34, X33 | [#23693](https://github.com/juju/juju/pull/23693) | `0fb2eb7194` | open; CLA/commit/static checks pass; default-bases smoke fails, macOS cancelled; review required |
+| `4.1-objectstore-conflicts` | X36 | [#23694](https://github.com/juju/juju/pull/23694) | `53feca2259` | merged 2026-10-30; merge `75ddfcbaf0` |
+| `4.1-sql-standard-syntax` | X37, X38 | [#23695](https://github.com/juju/juju/pull/23695) | `13003d8680` | merged 2026-10-27; merge `302b44cc2c` |
+| `4.1-sql-test-literals` | U6 | [#23696](https://github.com/juju/juju/pull/23696) | `11ff0981e0` | merged 2026-10-27; merge `1696e6128d` |
+| `4.1-nullable-primary-keys` | U15 (charm keys) | [#23710](https://github.com/juju/juju/pull/23710) | `838abf41ea` | open; macOS cancelled/aggregate CI fails; approval required; land before exposure |
+| `4.1-local-secret-revisions` | U11 follow-up | [#23720](https://github.com/juju/juju/pull/23720) | `ee07d7ccb5` | merged 2026-11-04; merge `edb2aef5b9`; PoC reconciliation pending |
+| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | [#23723](https://github.com/juju/juju/pull/23723) | `4e66f7c449` | open; bundles smoke fails; approval required; rebase/regenerate after charm lands |
+| `4.1-lookup-key-not-null` | U17 | [#23724](https://github.com/juju/juju/pull/23724) | `4e7341392f` | open; CI green; approval required; independent of U15 |
 | `4.1-dbaccessor-pool-cleanup` | U14 | [juju/juju#23726](https://github.com/juju/juju/pull/23726) | `ee55bab5f4` | merged 2026-11-04; merge `5259edff43`; PoC reconciliation pending |
-| `4.1-agentbinary-conflict` | U16 | not started | | not started |
-| `4.1-lease-pin-conflict` | X18 | not started | | not started |
-| `4.1-secret-latest-revision` | | not started | | not started |
-| `4.1-lookup-key-not-null` | U17 | juju/juju#23724 | `3157cdb288` | open; independent of U15 |
-| `4.1-local-secret-revisions` | U11 follow-up | [juju/juju#23720](https://github.com/juju/juju/pull/23720) | `ee07d7ccb5` | merged 2026-11-04; merge `edb2aef5b9`; PoC reconciliation pending |
+| `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `6a66e5ed1b` | open; default-bases smoke fails; approval required; not integrated into PoC |
+| `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; static check fixed; bundles/revision smoke fail; approval required |
+| `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
+| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `cfa8676090` | open; CI green; one approval, more required |
+| `4.1-install-dependencies` | U18 | not proposed | | not implemented |
+| `4.1-secret-latest-revision` | X16 | not proposed | | not implemented; follows remaining #23688 review |
 
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
+- No unresolved inline review threads were reported for the nine open PRs;
+  all still require approval. CI states above are a revision-specific
+  snapshot, not evidence of PoC acceptance or a diagnosis of failing jobs.
 - juju/juju#23730 completes the separate dbrepl latest-row SQL task. No PoC
   integration was performed; dbrepl remains outside the PostgreSQL PoC
   scope. The duplicated output-helper refactor remains a separate candidate
@@ -267,17 +277,18 @@ Notes:
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
 - X7 and X24 have not been proposed upstream. X18 is represented by the
-  U16 agent-binary task and the separate `PinLease` task above.
-- U16, `PinLease`, `4.1-secret-latest-revision` and
-  `4.1-lookup-key-not-null` are standalone 4.1 tasks in UPSTREAM-PLAN.md.
+  U16 agent-binary review and the separate `PinLease` review above.
+- U16, `PinLease` and sequence allocation already have independent review
+  branches; continue those rather than starting new implementations.
+  Developer tooling and the five-query latest-secret rewrite remain new
+  implementation tasks in UPSTREAM-PLAN.md.
 - U15 was written upstream first, with no PoC source commit. The published
   split keeps charm keys in juju/juju#23710 and exposure scope in stacked
   juju/juju#23723. Both are needed before the next PostgreSQL bootstrap;
   charm alone leaves the wildcard failure intact. Integrate both under D43
   and record the PoC commits here; no PoC reintegration has occurred.
-  Live-controller QA steps have not been run. The review's manifest-base
-  legacy-transform diagnostic/tests and table-specific unset errors are
-  published, with the exact contextual reply. No threads were resolved.
+  Validation/publication details below are historical and revision-specific;
+  they do not establish coverage of the current branch heads.
 
 ### Nullable primary-key base refresh (2026-10-30)
 
@@ -419,8 +430,8 @@ and PostgreSQL tests were not run.
 ### Integer-schema review follow-up (2026-10-29)
 
 U1/U2/U12, juju/juju#23680: stronger conversion/view tests, `NotValid` errors
-and developer schema-evolution documentation; merged as `0e9be8ddd7` on
-2026-10-30. No PoC reintegration.
+and developer schema-evolution documentation; merged on 2026-10-30 at head
+`0e9be8ddd7` (merge `8369e6e2a9`). No PoC reintegration.
 Race-enabled tests, 52 stress iterations and targeted lint passed; live QA
 not run. [PR draft](PR-4.1-sqlite-integers.md) and
 [review decisions/evidence](COMMENT-4.1-sqlite-integers-review.md) hold details.
