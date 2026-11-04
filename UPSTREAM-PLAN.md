@@ -14,7 +14,8 @@ Neither is prerequisite reading for an assigned task.
 Status checked against GitHub on 2026-11-04: 9 open reviews and 14 merged
 PRs. Current heads, merge revisions and the CI snapshot are in
 [the register](UPSTREAM-FIXES.md#upstream-review-status); implemented scope
-and historical validation are in UPSTREAM-DONE.md.
+and historical validation are in UPSTREAM-DONE.md. This snapshot predates
+the opening of #23751 below.
 
 ## Working agreement
 
@@ -84,6 +85,8 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Implementation and regressions exist in both state packages. Triage default-bases smoke and obtain approval. Preserve `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Do not recreate the fix. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Triage bundles/revision smoke and obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
 | `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Assess the published test/comment follow-up at `74aabf93b4`; new-head CI/review has not been assessed. The common-allocator/RETURNING refactor remains uncommitted, not part of this head. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
+| `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Review and CI are pending; the PR is mergeable. Preserve the equivalent null-check flags in the connection query and controller views. Complete the documented functional QA and reconcile the PoC separately. |
+| `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Rebased head `02e9f73e49` is mergeable and needs review; assess remaining CI. Preserve explicit single-column CTE membership and scoped cleanup, lifecycle and departure semantics. |
 
 ### Nullable primary-key review split
 
@@ -144,53 +147,46 @@ Continue these branches rather than redoing the implementations.
 
 | Branch / tracking reference | Published committed snapshot | Remaining local work |
 |---|---|---|
-| [4.1-drop-iif](https://github.com/jameinel/juju/tree/4.1-drop-iif) | [08b9cc0d7c](https://github.com/jameinel/juju/commit/08b9cc0d7cfa3a0ce260cbd41fbb8118f133094d): model connection-info query | Three schema-view replacements remain uncommitted in the transfer patch. No upstream PR yet. |
-| [4.1-cte-membership-subqueries](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries) | [8ce0410f51](https://github.com/jameinel/juju/commit/8ce0410f515a9b46bc09ba006c108852267eb8e7): eleven membership expressions and departure-scope regression | No uncommitted code. Review the draft and obtain approval before opening an upstream PR. |
+| [4.1-drop-iif](https://github.com/jameinel/juju/tree/4.1-drop-iif), [juju/juju#23751](https://github.com/juju/juju/pull/23751) | [adf9f317a6](https://github.com/jameinel/juju/commit/adf9f317a6962f5722bb1f4e401db3e9723fd768): three controller schema-view replacements, following query commit `08b9cc0d7c` | No uncommitted code. Review and CI are pending. |
+| [4.1-cte-membership-subqueries](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries), [#23750](https://github.com/juju/juju/pull/23750) | [02e9f73e49](https://github.com/jameinel/juju/commit/02e9f73e4936d16f8acb23aaeae5e35228b315b7): rebased eleven membership expressions and departure-scope regression | No uncommitted code. Review and remaining CI pending. |
 | [4.1-sequence-upsert-target](https://github.com/jameinel/juju/tree/4.1-sequence-upsert-target), [juju/juju#23731](https://github.com/juju/juju/pull/23731) | [74aabf93b4](https://github.com/jameinel/juju/commit/74aabf93b4ec4337caf5344fb553e9e33c3b5f38): successful-transaction result collection and comments | Common-allocator/RETURNING refactor and tests remain uncommitted in the transfer patch; review response remains unpublished. |
 
-The clean CTE worktree was removed; its branch/commits are retained.
-The dirty IIF and sequence worktrees remain. Restore instructions and
-the exact bundle/patch inventory are in
+The CTE worktree was recreated for the rebase and is clean.
+The IIF worktree is clean; the dirty sequence worktree remains. Restore
+instructions and the exact bundle/patch inventory are in
 [the transfer record](UPSTREAM-FIXES.md#transfer-artifacts-and-cleanup).
-Historical validation below is not validation of the uncommitted changes.
+Historical validation below is not validation of other uncommitted changes.
 
 ### `4.1-drop-iif` — X7
 
-**Claimed / in progress (2026-10-30):** Copilot session
-`bb796609-3e14-42e7-b27a-cd63eee42f63` owns branch `4.1-drop-iif` and
-worktree `/home/jameinel/dev/go/src/github.com/juju/4.1-drop-iif`
-(renamed from `4.1-model-connection-info-case`; that name/path is gone).
-Base `B` = `e22f5666d0861d3c84e8465c1ff86fbd23f58f48` (upstream/4.1).
-Scope widened (approved): every `IIF` in non-dependency code, i.e.
-`GetModelConnectionInfo` (`domain/model/state/controller/state.go`) plus
-the three controller views in `domain/schema/controller/sql/0007-model.sql`
-(`v_model.is_controller_model`, `v_model_state.migrating`,
-`v_cloud.is_controller_cloud`). Each becomes the bare `IS [NOT] NULL`
-boolean (approved over CASE; PoC D32 used CASE, so reconciliation must
-choose). Base-DDL edit: 4.1 has only `v4.1-beta1`, no registered
-post-patches and precedent post-beta base edits. No overlap with the X24
-claim's files. Plan: one commit per area; run schema suites and view
-consumers (cloud, removal, status, controllerupgrader, model, secretbackend)
-race tests, stress and lint; update draft PR locally.
+**Published for review (2026-11-04):** [juju/juju#23751](https://github.com/juju/juju/pull/23751)
+targets `4.1` from `4.1-drop-iif`, with base
+`e22f5666d0861d3c84e8465c1ff86fbd23f58f48` and head
+`adf9f317a6962f5722bb1f4e401db3e9723fd768`. The query commit
+`08b9cc0d7c` and schema-view commit `adf9f317a6` replace all tracked
+`IIF` calls with equivalent `IS NOT NULL` predicates. The schema change
+affects `v_model_all.is_controller_model` (also projected by `v_model`),
+`v_model_state.migrating` and `v_cloud.is_controller_cloud`. The existing
+joins and filters are unchanged. Base-DDL editing was chosen because the
+local 4.1 tags contain only `v4.1-beta1` and no controller post-patches
+are registered. PoC D32 used CASE; reconciliation must choose.
 
-Status: query commit `08b9cc0d7c` (one-line `state.go` change, amended from
-the CASE version `6b5aa7348d`) is published on the branch linked above,
-without an upstream PR. Schema-view commit in
-progress: the three view replacements are uncommitted in
-`domain/schema/controller/sql/0007-model.sql`, verified on 2026-11-04.
-`model_migration_import.model_uuid` is unique, so the join returns at most
-one row. Existing tests already cover all four
-activated × claim combinations (`TestCheckModelExistsNotActivated`,
-`TestGetModelConnectionInfo*`) plus not-found, so no tests were added. They
-pass on base SQL. Validation of `08b9cc0d7c`: `make run-go-tests`
-focused `-race -count=3` (4 tests × 3 passed; `TEST_FILTER` is unquoted,
-so avoid `(` and `|`); `./domain/model/state/... ./domain/model/service/...`
-`-race` passed; stress 32 runs/0 failures in 30s. `gofmt`/`git diff --check`
-and `test_static_analysis_go` passed. Draft:
+Existing tests cover the connection-query activation/claim combinations
+and not-found path, both controller-model and controller-cloud flag values,
+and migrating flags for all import phases. No tests were added.
+On the schema-view changes, `make run-go-tests` passed with `-race` for
+schema and the cloud, model/controller, status/controller,
+removal/controller, secretbackend, keyupdater and controllerupgrader state
+packages. Schema, cloud, model/controller and status/controller also passed
+uncached (`-count=1`). Controller-model view stress completed 48 runs with
+zero failures before the bounded timeout. Scoped `golangci-lint`,
+repository `txncheck` and `git diff --check` passed; `make pre-check` used
+its default, which skips static analysis. PostgreSQL execution and the PR's
+functional migration QA have not been performed.
+
+Remaining: monitor CI and review, complete functional QA, and reconcile
+the PoC after landing. The published PR description is also saved locally at
 [PR-4.1-drop-iif.md](PR-4.1-drop-iif.md).
-Remaining: finish and validate the schema-view changes and revise the draft,
-then obtain approval to publish those changes and open against `4.1`:
-its current text describes only the query and explicitly excludes DDL.
 
 ## Lookup-key NOT NULL task (separate session)
 
@@ -232,7 +228,7 @@ reconciliation. Preserve this acceptance contract on further changes:
 
 ## Existing CTE membership implementation — X24
 
-**Implemented 2026-10-30 / branch published 2026-11-04:** Copilot session
+**PR published 2026-11-04:** Copilot session
 `767870f3-0997-48f4-a415-c1efab02d088` reserves branch
 `4.1-cte-membership-subqueries` and dedicated worktree
 `/home/jameinel/dev/go/src/github.com/juju/4.1-cte-membership-subqueries`.
@@ -265,8 +261,13 @@ Local implementation commit: `8ce0410f515a9b46bc09ba006c108852267eb8e7`.
 All eleven expressions use explicit single-column membership subqueries;
 existing CTEs, joins, lifecycle guards and transaction behavior are preserved.
 Added `TestGetConsumerRelationUnitsChangeDepartureScope` for empty/partial/full
-membership and cross-relation/application isolation. The worktree was clean
-and was removed on 2026-11-04 after the commit was packaged for transfer.
+membership and cross-relation/application isolation. The worktree was removed
+after transfer, then recreated by this session with shared `_deps`.
+Rebased without conflicts onto refreshed `upstream/4.1`
+`5259edff4329ca4a1de80d77e0d614b832d4ad72`; new local head
+`02e9f73e4936d16f8acb23aaeae5e35228b315b7`. Range-diff confirms the patch is
+unchanged. Published this head to the fork with an exact old-head lease;
+verified the remote head. Worktree clean.
 
 Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
 - Focused regressions across all four affected state packages passed with
@@ -282,12 +283,17 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
   STATIC_ANALYSIS_JOB=test_static_analysis_go`.
 - `gofmt`, prescribed `gci` and `git diff --check` passed. Inventory found no
   remaining uppercase SQL `IN table/cte` shorthand outside comments.
+- After rebasing, all four affected state-package race suites passed again;
+  `make juju` built a session-local client, and `juju version` ran successfully.
+  The client binary was removed.
 
 PR description recovered from the original session into
 [PR-4.1-cte-membership-subqueries.md](PR-4.1-cte-membership-subqueries.md).
-The committed branch is published and linked above; no upstream PR yet.
-Opening the PR requires explicit approval. Not landed or PoC-reconciled. No PostgreSQL tests,
-full repository suite or live deployment/migration QA were run.
+Approved PR [juju/juju#23750](https://github.com/juju/juju/pull/23750) is
+open, targets `4.1` and has verified head and description. GitHub reports
+mergeable with review required; LXD bundles/charms CI was still running when
+checked. Not landed or PoC-reconciled. No local PostgreSQL tests, full
+repository suite or live deployment/migration QA were run.
 
 ## Sequence review follow-up — X3/X4
 
@@ -382,7 +388,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 
 | Finding | Candidate scope / next action |
 |---|---|
-| X7 | Dispatched as `4.1-drop-iif` above. |
+| X7 | Published as #23751; follow the existing review above. |
 | X24 | Implemented locally by session `767870f3-0997-48f4-a415-c1efab02d088` as `4.1-cte-membership-subqueries`; see its validation/publication status above. Do not duplicate. |
 | X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |

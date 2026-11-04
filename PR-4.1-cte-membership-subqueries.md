@@ -25,26 +25,50 @@ This independently targets `4.1`. The operation-size review #23693 also touches
 
 ## QA steps
 
-Run the affected state-package race suites with stock SQLite/Dqlite fixtures:
+On a development machine with LXD and the dependencies for building Juju,
+from this checkout install the client and bootstrap a disposable controller
+with an agent built from the same checkout:
 
 ```sh
-make run-go-tests \
-  TEST_PACKAGES='./domain/application/state ./domain/removal/state/model ./domain/operation/state ./domain/relation/state' \
-  TEST_ARGS='-p 2 -race'
+make juju
+juju bootstrap localhost cte-qa --build-agent
+juju add-model cte-qa
+juju deploy juju-qa-test --revision 22 --channel 2.0/stable --base ubuntu@20.04
+juju deploy juju-qa-action
+juju deploy juju-qa-dummy-source
+juju deploy juju-qa-dummy-sink
 ```
 
-All four packages passed. Focused existing regressions passed before and after
-rewriting the SQL; the new departure-scope regression also passed separately
-with the original SQL.
+Wait until the units are idle without hook errors (`juju status --watch 5s`).
+Then exercise charm refresh, task completion, relation setup and teardown:
 
-`make pre-check`, Go static analysis, `gofmt`, `gci` and `git diff --check`
-passed. The race-built departure-scope regression completed 38 bounded stress
-iterations with zero reported failures; the outer timeout stopped the run
-with two iterations active. The test binary was removed.
+```sh
+juju refresh juju-qa-test --revision 23 --channel 2.0/edge
+juju integrate dummy-source dummy-sink
+juju run juju-qa-action/0 fortune length=long
+juju remove-relation dummy-source dummy-sink
+juju remove-application dummy-sink
+```
 
-PostgreSQL execution, the full repository suite and live deployment/migration
-QA were not run. The change makes these membership expressions portable; it
-does not claim the affected packages are otherwise PostgreSQL-compatible.
+Wait for refresh and removal to finish. Check `juju status` shows revision 23,
+the action completes with output, and the relation and removed application
+disappear without errors in `juju debug-log`. Destroy the disposable
+controller after inspection with `juju destroy-controller cte-qa --destroy-all-models`.
+This smoke exercise does not cover every changed query (notably storage
+attachments, Kubernetes addresses and cross-model departed units).
+
+The four affected state-package race suites passed on SQLite/Dqlite, including
+after rebasing onto current `4.1`. A client built from the rebased branch also
+ran `juju version`.
+Focused regressions passed before and after the rewrite, including the new
+departure-scope case. `make pre-check`, Go static analysis and formatting
+checks passed on the original branch. The departure-scope stress run completed
+38 iterations with zero reported failures before its outer timeout.
+
+The manual smoke steps above, PostgreSQL execution, the full repository suite
+and live migration QA were not run. The change makes these membership
+expressions portable; it does not claim the affected packages are otherwise
+PostgreSQL-compatible.
 
 ## Documentation changes
 

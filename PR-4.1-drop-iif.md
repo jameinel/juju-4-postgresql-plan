@@ -1,25 +1,14 @@
-# refactor(model): drop iif from the model connection info query
+# refactor(database): replace sqlite iif expressions
 
-`GetModelConnectionInfo` in `domain/model/state/controller` derived
-`has_import_claim` with `IIF(mmi.model_uuid IS NOT NULL, TRUE, FALSE)`.
-`IIF` is SQLite-specific, and the wrapper is redundant: `IS NOT NULL`
-already yields the boolean. This selects `mmi.model_uuid IS NOT NULL`
-directly, as other state queries already do (for example, the relation
-unit status query in `domain/relation/state`).
+Replace the SQLite-specific `IIF` expressions in the model connection
+information query and the controller schema views with `IS NOT NULL`.
+These predicates already produce the required boolean values and work
+with PostgreSQL as well as SQLite.
 
-The result is unchanged. `model_migration_import.model_uuid` has a unique
-index, so the left join yields at most one row per model, and the
-expression is never NULL. The query's other columns, its joins and its
-not-found handling are unchanged.
-
-This is a portability and readability improvement, not a fix for a
-current Dqlite defect. The existing tests already cover each combination
-of activated and not-activated models, with and without an import claim,
-plus a missing model. They pass with both the old and new SQL, so no tests
-were added.
-
-The `IIF` expressions in the controller schema views (`0007-model.sql`)
-are DDL and are deliberately left for a separate change.
+The connection query and the views retain their existing joins and
+filters. Controller-model, controller-cloud and migration flags remain
+true exactly when their respective joined rows exist. This is a
+portability change, not a fix for a known Dqlite defect.
 
 ## Checklist
 
@@ -31,19 +20,42 @@ are DDL and are deliberately left for a separate change.
 
 ## QA steps
 
-1. Run the unit tests with Dqlite enabled.
+Build and install this branch, and bootstrap two controllers on an
+available local LXD cloud:
 
 ```sh
-make run-go-tests \
-  TEST_PACKAGES="./domain/model/state/... ./domain/model/service/..." \
-  TEST_ARGS="-race"
+make install
+juju bootstrap localhost iif-source
+juju bootstrap localhost iif-target
+juju add-model -c iif-source iif-test
 ```
 
-2. Run focused static analysis.
+List the models on the source controller:
 
 ```sh
-golangci-lint run ./domain/model/...
+juju models -c iif-source --format yaml
 ```
+
+The controller model should report `is-controller: true`, and `iif-test`
+should report `is-controller: false`.
+
+Migrate the model to the target controller:
+
+```sh
+juju migrate iif-source:iif-test iif-target
+```
+
+Migration starts asynchronously. Follow its progress with
+`juju status -m iif-source:iif-test`; once it completes, check the
+destination:
+
+```sh
+juju models -c iif-target --format yaml
+juju show-model iif-target:iif-test
+```
+
+The target should list `iif-test` as a non-controller model, and
+`show-model` should return its details.
 
 ## Documentation changes
 

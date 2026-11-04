@@ -258,7 +258,7 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
 | `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `74aabf93b4` | open; test/comment follow-up published 2026-11-04; new-head CI/review unassessed; allocator refactor still uncommitted |
 | `4.1-drop-iif` | X7 | [published branch](https://github.com/jameinel/juju/tree/4.1-drop-iif); no PR | `08b9cc0d7c` plus uncommitted DDL | query published 2026-11-04; finish schema-view validation and revise draft before further publication approval |
-| `4.1-cte-membership-subqueries` | X24 | [published branch](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries); no PR | `8ce0410f51` | implementation published 2026-11-04; historically validated; upstream PR approval pending |
+| `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | rebased and PR published 2026-11-04; mergeable, review required and CI pending |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | X16 | not proposed | | not implemented; follows remaining #23688 review |
 
@@ -285,8 +285,8 @@ Notes:
 - juju/juju#23685 also fixes the upgrade test half of U5.
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
-- X7 and X24 have published fork branches but no upstream PR;
-  continue those implementations through the tracking links in UPSTREAM-PLAN.md.
+- X7 has a published fork branch but no upstream PR; X24 is in #23750.
+  Continue those implementations through the tracking links in UPSTREAM-PLAN.md.
   X18 is represented by the
   U16 agent-binary review and the separate `PinLease` review above.
 - U16, `PinLease` and sequence allocation already have independent review
