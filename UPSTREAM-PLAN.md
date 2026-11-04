@@ -142,18 +142,6 @@ already-pinned result. Test competing pins and continued transaction use.
 This is portability, not a current dqlite defect; keep production timing
 changes out of this branch.
 
-### `4.1-dbrepl-latest-row` — X16 follow-up to landed #23691
-
-In `internal/worker/dbrepl/worker.go`, replace bare-column MAX grouping with
-latest-ID selection per `(namespace_id, changed)` and a join to that row.
-Join edit-type and namespace lookups in the outer SELECT. Preserve all
-returned fields, coalescing, bounds, ordering and replication progress.
-Regressions in `worker_test.go`: repeated keys with differing edit types and
-timestamps, multiple keys/namespaces, empty results and boundary cases.
-Assert replicated payload and progress, not just SQL rows; run package
-race/stress tests. Behaviour tests must pass with old and rewritten SQL.
-This query was not covered by #23691; use a separate branch/worktree.
-
 ### `4.1-secret-latest-revision`
 
 After the consumed-secret reviews (#23688/#23720), independently rewrite
@@ -213,6 +201,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | X3/X4 | Explicit upsert targets (`domain/sequence`) and qualified conflict expressions. Identify remaining operations; keep distinct from landed objectstore and queued agentbinary/lease work. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
+| X16 dbrepl output follow-up | Feedback on juju/juju#23730 suggests extracting the duplicated row scanning and tabwriter output from `changeLog` and `changeStream` in `internal/worker/dbrepl/worker.go` into a shared helper taking the query and arguments. Preserve each command's SQL, output and error handling; check current upstream code and exercise both commands. Keep separate from the latest-row SQL task. |
 
 Not stock-upstream tasks: the PostgreSQL `constraint.allocate_public_ip`
 export-type mismatch needs backend-aware generation; the intentional

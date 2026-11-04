@@ -222,7 +222,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 
 ## Upstream review status
 
-Snapshot refreshed from GitHub on 2026-10-30. Every listed PR targets
+Baseline snapshot refreshed from GitHub on 2026-10-30; later dated entries
+record individual updates. Every listed PR targets
 `juju/juju` branch `4.1` from `jameinel/juju`. Head hashes are short SHA
 prefixes; check GitHub before acting because review and CI status can change.
 
@@ -237,6 +238,7 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-crossmodel-secret-revisions` | U11 | juju/juju#23688 | `375ac766cb` | open |
 | `4.1-removal-force-boolean` | U9 | juju/juju#23690 | `f39572e43b` | merged |
 | `4.1-changestream-latest-row` | X16 | juju/juju#23691 | `9e28053164` | merged 2026-10-30; merge `ece31c289c6a` |
+| `4.1-dbrepl-latest-row` | X16 | [juju/juju#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5cb9` |
 | `4.1-blockcommand-order` | U10/X31 | juju/juju#23692 | `495768b0aa` | merged |
 | `4.1-operation-query-portability` | X34, X33 | juju/juju#23693 | `e463565601` | open |
 | `4.1-objectstore-conflicts` | X36 | juju/juju#23694 | `53feca2259` | merged 2026-10-30; merge `75ddfcbaf0b3` |
@@ -254,6 +256,10 @@ prefixes; check GitHub before acting because review and CI status can change.
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
+- juju/juju#23730 completes the separate dbrepl latest-row SQL task. No PoC
+  integration was performed; dbrepl remains outside the PostgreSQL PoC
+  scope. The duplicated output-helper refactor remains a separate candidate
+  in UPSTREAM-PLAN.md.
 - juju/juju#23680, #23690, #23691 and #23694 are merged. The current
   GitHub snapshot has #23683, #23688, #23693, #23710, #23720, #23723 and
   #23724 open. GitHub is the source of truth for current review, mergeability

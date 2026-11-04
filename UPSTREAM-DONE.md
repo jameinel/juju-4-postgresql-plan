@@ -2,7 +2,8 @@
 
 This records implemented upstream work, decisions and validation, including
 changes still in review. **Implemented is not landed or reintegrated.**
-Statuses below are the recorded 2026-10-30 snapshot, not a fresh GitHub check.
+Unless explicitly dated otherwise, statuses below are the recorded
+2026-10-30 snapshot, not a fresh GitHub check.
 
 - [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md): remaining work and acceptance checks.
 - [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md): finding register, source provenance,
@@ -25,6 +26,7 @@ and test runs below do not establish coverage of later revisions.
 | `4.1-lease-migration-tests`, #23686 | U4 | Assert seed success and use bound timestamps so held/expired lease tests exercise actual rows rather than silently passing on empty setup. |
 | `4.1-removal-force-boolean`, #23690 | U9 | Match boolean writers/readers with BOOLEAN storage and bool exports; convert legacy 0/1 and reject other integers. |
 | `4.1-changestream-latest-row`, #23691 | X16 | Explicitly select the latest change ID and join to its row, avoiding ungrouped columns beside MAX. This does not fix the separate dbrepl query. |
+| `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
 | `4.1-sql-standard-syntax`, #23695 | X37/X38 | Standard equality and an explicit CROSS JOIN to the one-row fulfilment aggregate. Cover unused/shared-key deletion and zero-fulfilment detach info. A third commit changes storage lifecycle trigger equality. |
@@ -39,6 +41,13 @@ iterations and targeted lint passed; live QA was not run. Details:
 PR #23691 merged on 2026-10-30 as `ece31c289c6a`; PR #23694 merged that day
 as `75ddfcbaf0b3`. Other landed heads and historical source mappings remain
 in [the register](UPSTREAM-FIXES.md#upstream-review-status).
+
+PR [#23730](https://github.com/juju/juju/pull/23730) merged on 2026-11-04
+as `f7b596bf5cb9b51aa44ec000d09b9f495aac29ad`, at head `49a1bdf808`.
+The latest-row SQL task is complete. Extracting the duplicated dbrepl row
+scanning and tabwriter output remains a separate candidate in
+UPSTREAM-PLAN.md. No PoC integration was performed; dbrepl remains outside
+the PostgreSQL PoC scope.
 
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
