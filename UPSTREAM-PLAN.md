@@ -313,7 +313,40 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
-| X16 dbrepl output follow-up | Feedback on juju/juju#23730 suggests extracting the duplicated row scanning and tabwriter output from `changeLog` and `changeStream` in `internal/worker/dbrepl/worker.go` into a shared helper taking the query and arguments. Preserve each command's SQL, output and error handling; check current upstream code and exercise both commands. Keep separate from the latest-row SQL task. |
+| X16 dbrepl output follow-up | Published as [#23757](https://github.com/juju/juju/pull/23757); review, CI and live REPL QA remain. |
+
+### X16 dbrepl output follow-up
+
+Session `1fedb56c-3ba7-4099-8914-c6726b9cd337` used branch
+`4.1-dbrepl-output` and worktree `juju-4.1-dbrepl-output`, independently
+from upstream 4.1 base `08fafe7f49ee39bed52c7288e86be0df6af4adcf`
+(verified 2026-11-05). Scope: `internal/worker/dbrepl/worker.go` and
+its existing tests. Extract the shared change-log/change-stream row
+scanning and tabwriter output, preserving each query, arguments, output,
+resource handling and error reporting. Exercise both commands, including
+empty results and failures as appropriate. #23730 is merged; no open
+4.1 PR touching this package was found. Other independent tasks remain
+available.
+
+Commit `0583a1972cc6ecff30c36d8653c11066162c2770` extracts the shared
+renderer without changing either SQL query. Tests cover change-log rows
+including repeated keys and zero ID, empty and identical output for both
+commands, query-error logging, and the existing change-stream cases.
+Published as [#23757](https://github.com/juju/juju/pull/23757); review,
+CI and live REPL QA remain outstanding.
+
+Validation on this commit:
+- `make run-go-tests TEST_PACKAGES=./internal/worker/dbrepl
+  TEST_ARGS='-p 2 -race -count=1'` passed with `dqlite,libsqlite3` tags.
+- `go test -race -p 2 -count=1 ./internal/worker/dbrepl` passed with SQLite.
+- Scoped `golangci-lint`, repository `txncheck`, `gci`, `gofmt` and
+  `git diff --check` passed. `make pre-check` passed with static analysis
+  skipped; the scoped linter was run separately.
+- Actual-Dqlite race test binary stress for change commands and query-error
+  handling completed 20 runs without failures; two were active when the
+  bounded `timeout 31` ended it with status 124.
+- No live REPL, PostgreSQL, repository-wide test suite or full static
+  analysis was run.
 
 Not stock-upstream tasks: the PostgreSQL `constraint.allocate_public_ip`
 export-type mismatch needs backend-aware generation; the intentional
