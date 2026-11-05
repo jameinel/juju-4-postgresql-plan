@@ -1,30 +1,25 @@
-> Historical local draft recovered on 2026-11-04. The original metadata below
-> predates publication: juju/juju#23731 already exists at `cfa8676090`.
-> The common allocator / RETURNING changes described here are still
-> uncommitted locally. Validation claims are historical, not newly verified.
-> Any revised description or push requires fresh approval.
+> Proposed replacement description for juju/juju#23731, based on published
+> head `76b4a04f09`. This local draft has not been published. The functional
+> QA steps below have not been performed.
 
-Destination: juju/juju, base 4.1, head jameinel:4.1-sequence-upsert-target
-Action: proposed pull request; NOT published. Push and PR creation require approval.
+Destination: https://github.com/juju/juju/pull/23731
+Action: replace the PR description, subject to approval.
 Title: fix(sequence): target namespace conflicts when allocating sequence values
 
 Both sequence allocators use an upsert without a conflict target, which
-PostgreSQL does not accept for DO UPDATE. Their unqualified value expression
-also conflicts with the value column exposed by the excluded row.
+PostgreSQL does not accept for `DO UPDATE`. Their unqualified `value`
+expression is also ambiguous between the existing row and the excluded row.
 
-Target the sequence namespace primary key and qualify the existing stored
-value in a private allocator shared by NextValue and NextNValues. Use
-RETURNING to read the last allocated value from the upsert without a second
-SELECT. NextValue returns the scalar directly; NextNValues constructs the
-requested range. This keeps zero-based allocation, ordered contiguous
-batches, zero-count no-ops, rollback and namespace isolation unchanged.
-No schema or backend-specific code is introduced.
+Target the namespace primary key and qualify the stored value. Share a scalar
+allocator between `NextValue` and `NextNValues`, and use `RETURNING` to read
+the allocated value from the upsert without a separate `SELECT`. This keeps
+zero-based allocation, contiguous batches, namespace isolation and rollback
+within the caller's transaction. A zero-count batch remains a no-op.
 
-Add regressions for mixed allocations, static/prefix/empty namespaces,
-zero-count no-ops after allocation, rollback of inserts and updates,
-competing single/batch allocations, and continuation from imported sequence
-values through export. These pass with both the original and updated SQL
-on stock SQLite/Dqlite fixtures.
+Add regressions for mixed and concurrent allocations, namespace variants,
+rollback, suppressed writes, and continuation after sequence import. The
+fixtures exercise the allocation contract on SQLite/Dqlite; they do not
+establish PostgreSQL SQL acceptance or execution.
 
 ## Checklist
 
@@ -36,47 +31,54 @@ on stock SQLite/Dqlite fixtures.
 
 ## QA steps
 
-From the branch worktree with the normal Juju dependencies:
+On a Linux host with LXD configured and the Juju build dependencies installed,
+build this branch and bootstrap a disposable controller using its agent:
 
-1. Run the focused allocation and imported-sequence regressions:
+```sh
+make install
+export PATH="${GOBIN:-$(go env GOPATH)/bin}:$PATH"
+juju bootstrap localhost sequence-qa-controller --build-agent
+juju add-model sequence-qa
+juju deploy juju-qa-dummy-storage sequence-qa --storage multi-fs=2
+juju status --storage
+```
 
-   make run-go-tests TEST_PACKAGES=./domain/sequence/state \
-     TEST_FILTER='"TestSequenceSuite|TestStateSuite/TestImportedSequencesContinue"' \
-     TEST_ARGS='-p 2 -race'
+Wait for `sequence-qa/0` to be active and idle. Confirm that it has two
+distinct `multi-fs` storage instances. Add two units and inspect the model:
 
-2. Run all sequence packages:
+```sh
+juju add-unit sequence-qa -n 2
+juju status --storage
+juju storage
+```
 
-   make run-go-tests TEST_PACKAGES='./domain/sequence/...' \
-     TEST_ARGS='-p 2 -race'
+Wait for the new units to be active and idle. Confirm that their names are
+`sequence-qa/1` and `sequence-qa/2` and that the storage instances have
+distinct IDs. Remove one unit, wait until it has disappeared from status,
+and add another:
 
-Both commands use the standard dqlite,libsqlite3 build tags and passed.
-The focused regressions also passed before the production SQL change.
+```sh
+juju remove-unit sequence-qa/1
+juju status --storage
+juju add-unit sequence-qa
+juju status --storage
+```
 
-Additional validation passed:
+Confirm that the replacement is `sequence-qa/3`, not a reused unit name, and
+that storage IDs remain distinct. Check for sequence allocation errors in
+the model log, then destroy the disposable controller:
 
-- make pre-check (its default skips static analysis).
-- RUN_SUBTEST=run_go make static-analysis \
-    STATIC_ANALYSIS_JOB=test_static_analysis_go
-- make run-go-tests TEST_PACKAGES=./domain/sequence/state \
-    TEST_ARGS='-p 2 -race -c -o <session-binary>'
-- timeout 31 stress -p 2 -timeout 30s <session-binary> \
-    -test.run 'TestSequenceSuite|TestStateSuite/TestImportedSequencesContinue'
-  completed 10 runs with zero failures. The outer timeout ended the bounded
-  run with status 124; two iterations were active at the final report.
-  The temporary binary was removed.
-- gofmt, prescribed gci ordering and git diff --check.
+```sh
+juju debug-log --replay --no-tail -m sequence-qa
+juju destroy-controller sequence-qa-controller --destroy-all-models --destroy-storage
+```
 
-IDE build validation could not run because the dedicated worktree is not
-an open IDE project; the standard test runner compiled the package instead.
-No PostgreSQL execution, full repository tests or controller bootstrap/
-migration QA has been performed.
+These steps exercise SQLite/Dqlite, not PostgreSQL.
 
 ## Documentation changes
 
-No CLI/API workflow or public contract changes. Test comments describe the
-allocation and persistence guarantees being exercised.
+No CLI or API workflow changes.
 
 ## Links
 
-No upstream issue or Jira card is associated with this independently scoped
-SQL portability change.
+No associated upstream issue or Jira card.
