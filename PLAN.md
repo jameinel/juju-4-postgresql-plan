@@ -139,15 +139,34 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; `domain/secret/state` X16 sites open |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; U15/U16 cherry-picked (D43); `domain/secret/state` X16 sites open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); Stage 9 handover next |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); PostgreSQL bootstrap blocked by U15/U16 |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); U15/U16 integrated; run 2 waits for a PostgreSQL server on this machine |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: unblock the PostgreSQL bootstrap. 09-functional run 1 failed on U15
+Next: provision a PostgreSQL server on this machine (Stage 1 script; the
+user does this), validate the restacked stack on PostgreSQL, then run
+09-functional run 2.
+
+On 2026-11-05 the stack was rebased from the bottom onto upstream 4.1
+`5259edff43` (was `a8591fe1b8`), dropping the commits that landed
+upstream ([reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05)).
+The PostgreSQL DDL was regenerated at Stage 4, and U15 (juju/juju#23710,
+#23723) and U16 (juju/juju#23728) were cherry-picked onto Stage 5 under
+D43 with a second regeneration. New tips: `00=3133b016cc`,
+`01=bd7b6cb0f0`, `02=8f1c3532d6`, `03=e13f3d1ba6`, `04=4248ede57c`,
+`05=52b6ba047c`, `06=a7dc3099c3`, `07=b0829f3cca`, `08=98847cacb4`.
+Old tips are tagged `pg-poc-base-a8591fe1b8/<stage>`. Verified: adjacent
+ancestry, `go build ./...` and `go vet` on the top, the affected packages
+on the default backend only. **Not yet verified on PostgreSQL**: this
+machine has no server and `~/.config/juju-pg-poc/db-url` does not exist.
+The new tips are local only until pushed under the publication protocol.
+New upstream-only branches base on `5259edff43` or later 4.1.
+
+Historical (before the rebase): 09-functional run 1 failed on U15
 (nullable primary key for the wildcard exposed endpoint, X44) and U16
 (`RegisterAgentBinary` after a conflict, X18); see
 [the run log](stages/09-bootstrap.md#09-functional-run-log). U15 is split
@@ -156,14 +175,15 @@ fix in juju/juju#23710; `4.1-application-exposure-scope` is stacked on it
 and owns the wildcard exposure fix and combined primary-key guard. The
 split and second PR are committed locally and refreshed onto upstream
 `8369e6e2a9` (`charm=ba21f48ad3`, `exposure=f31de64e52`), published as
-juju/juju#23710 and juju/juju#23723 after explicit approval; neither is
-reintegrated into the PoC. See [the review scope](UPSTREAM-PLAN.md#nullable-primary-key-review-split).
+juju/juju#23710 and juju/juju#23723 after explicit approval; both are
+now cherry-picked onto Stage 5 (above). See [the review scope](UPSTREAM-PLAN.md#nullable-primary-key-review-split).
 U17 (65 nullable INT lookup keys) is planned as an independent follow-up
 session; it does not need either U15 review to land first.
-Both fixes are needed before the next PostgreSQL bootstrap; the charm
+Both fixes were needed before the next PostgreSQL bootstrap; the charm
 PR alone does not fix wildcard exposure. A proposed
 [same-database guard](stages/09-bootstrap.md#09-same-db-guard-stop-two-controllers-sharing-one-database-proposed)
-is recorded and not scheduled. The top is `08=950bba743e`. 08-delete-locks
+is recorded and not scheduled. The top before the rebase was
+`08=950bba743e`; hashes below are historical. 08-delete-locks
 is done ([result](stages/08-dbaccessor.md#08-delete-locks-result)):
 every PostgreSQL schema change transaction (`Schema.Ensure`,
 `DeleteSchema`) first runs the dialect's `BeginSchemaChangeSQL`, which
@@ -214,7 +234,9 @@ functionality rather than disappearing from scope.
 ## Stack workflow
 
 Every stage branch sits on the one below it in the table, in one line
-(N4, N8). The base is upstream `4.1` at `a8591fe1b8`. Stage 5 also
+(N4, N8). The base is upstream `4.1` at `5259edff43` (since 2026-11-05;
+previously `a8591fe1b8`, old tips tagged `pg-poc-base-a8591fe1b8/*`).
+Stage 5 also
 carries unchanged cherry-picks of open upstream PRs (D43; listed in
 UPSTREAM-FIXES.md). The **top** is the
 highest stage branch that exists, currently `pg-poc/08-dbaccessor`.

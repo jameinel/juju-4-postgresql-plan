@@ -409,12 +409,12 @@ Review the description/comment distinction independently of SQL changes.
 
 Do not implement PoC integration in stock-upstream worktrees. After landing,
 hand merged revisions to the integration owner using UPSTREAM-INTEGRATION.md
-and update the register. Explicit outstanding obligations: both U15 fixes,
-U16's agent-binary fix, U17 guard integration, reconciliation of landed
-#23720 and #23726 against
-their existing PoC implementations, independent reconciliation of #23688
-after it lands, and #23694's UUID-conflict sentinel (not content already
-stored). Keep all other landed-fix reconciliation status in the register;
+and update the register. Explicit outstanding obligations: U17 guard
+integration, independent reconciliation of #23688 after it lands, and
+reconciliation of the D43 cherry-picks of #23710, #23723 and #23728
+(U15/U16) when they land. Reconciled 2026-11-05 onto `5259edff43`:
+#23720, #23726 and #23694's UUID-conflict sentinel; U15/U16 cherry-picked
+(see the register's reconciliation record). Keep all other landed-fix reconciliation status in the register;
 upstream landing alone does not mark it complete.
 
 ## Dispatch

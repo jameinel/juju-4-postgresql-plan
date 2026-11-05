@@ -1,7 +1,7 @@
 # Stage 09: functional single controller and first comparison
 
 Branch `pg-poc/09-bootstrap`, to be created on `pg-poc/08-dbaccessor`.
-Status: 09-functional started 2026-10-28 (scenario fixed in D54); first PostgreSQL bootstrap fails, see the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Status: 09-functional started 2026-10-28 (scenario fixed in D54); run 1 failed on U15/U16, now integrated; run 2 waits for a PostgreSQL server (see the run log below). Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 The local attempt was aborted. On 2026-11-04 its clean worktree and local
 `pg-poc/09-bootstrap` branch were removed for the machine handoff. The
@@ -134,3 +134,14 @@ key is a bad design; see `4.1-nullable-primary-keys` in UPSTREAM-PLAN.md),
 with U16 beside it. Once both exist, cherry-pick them under D43 onto their
 owning stage (or apply a PoC-local workaround meanwhile), restack, and re-run. Expect further
 bootstrap findings; no dqlite run has been made yet.
+
+### Run 2: prerequisites (2026-11-05, not run)
+
+U15 (juju/juju#23710, #23723) and U16 (juju/juju#23728) are cherry-picked
+onto Stage 5 under D43, on the new base `5259edff43`; the top is
+`08=98847cacb4` ([record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05)).
+Run 2 waits for a PostgreSQL server on this machine: none exists, and
+`~/.config/juju-pg-poc/db-url` is absent. The user provisions it with the
+Stage 1 script. Then: validate the affected packages on PostgreSQL, create
+`pg-poc/09-bootstrap` from the top, `make juju jujuagentd`, and bootstrap
+localhost with the private `db-backend=postgresql` / `db-url` config.
