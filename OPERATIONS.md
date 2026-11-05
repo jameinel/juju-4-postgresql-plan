@@ -91,6 +91,7 @@ hang should be noticed.
 `JUJU_POSTGRESQL_TEST_URL` opts the harness into PostgreSQL (N6). Without
 it, tests use the existing SQLite/dqlite path. With it, every suite built
 on `DqliteSuite` is redirected, not just previously verified suites.
+Select packages by N16's tiers and levels (smoke, full, readiness).
 
 - Run one PostgreSQL package at a time. Do not overlap suites, stress
   workers or benchmarking on the shared server. Parallel packages also
@@ -98,6 +99,7 @@ on `DqliteSuite` is redirected, not just previously verified suites.
   one database: three packages in parallel took 20% longer than without
   the lock, and small packages about twice as long
   ([measurements](stages/08-dbaccessor.md#08-delete-locks-result)).
+  Stage 6 task 06-test-speed may lift this rule.
 - Prove backend selection after harness/environment changes: run the
   selected suite with
   `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and require a

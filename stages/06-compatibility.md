@@ -46,8 +46,9 @@ and dqlite recovery are deferred, not reported as passing. Shared 4.1 fixes
 still require upstream legacy import/export tests (D40).
 
 Before each gate run, record exact selectors, per-package budgets and
-approved skips. New blockers return to their owning task; do not expand
-the run to every discovered package or silently weaken the gate.
+approved skips. New blockers return to their owning task; do not silently
+weaken the gate. Gates use the N16 tiers and levels: the readiness level
+runs tiers A and B in full; do not add packages outside them.
 
 ## Bounded repair tasks
 
@@ -76,12 +77,48 @@ a blanket latent test defect.
 | 06-fk-check | Machine `reprovision_test.go`: SQLite `PRAGMA foreign_key_check`. | Limit only the backend-specific assertion; confirm retained PG coverage before a whole-test skip (N10). |
 | 06-status-diagnosis | `domain/status/state/model`: 48 failures, diagnosed 2026-10-26 at `08=c5f185e6f6`: all 48 are X27 round-trip precision assertions (`Since` nanoseconds versus PG microseconds; 27 via `assertStatusInfoEqual`, the rest `DeepEquals` on `Since`). No SQL errors; 125 pass. Production status code has no in-memory comparison of stored timestamps (status history filtering reads the log file). | Not a runtime blocker. Repair with 06-X27: microsecond-representable fixture times, preserving the assertions. |
 | 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips all 93 trigger and schema tests on PG. Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. |
+| 06-test-levels | Script the N16 levels: smoke (fixed core plus the domains touched by a diff), full and readiness (tiers A and B), each run on both backends with per-package logs, pass/fail/skip counts and a known-failure list for readiness. | Defined; selection from N16. Check the tier lists against `go list` when run, so new packages are not missed. |
+| 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Options measured; choose with the user before implementing. Record wall time, lock waits, peak heavyweight locks and any 53200 at several `-p` values. |
+| 06-leaseexpiry-db | `internal/worker/leaseexpiry/store.go` runs its own SQL (expiry comparison with a formatted time) but its tests use only mocks. Add a test against a real database, run on both backends. | Defined; tier A gap found 2026-11-05. |
 
 PostgreSQL import-specific work is deferred: X21 deferral, modelimport
 `typeof` checks, and the SQLite trigger in `internal/migration/abort_test.go`.
 Do not add skips to upstream tests or silently discard these findings.
 If any proves to be on a required runtime path, reconsider its scope with
 the user instead of relying on the label "import".
+
+## 06-test-speed measurements
+
+2026-11-05, Stage 6 `7fe0fe0a2c`, PostgreSQL 16.15 in LXD on a 28-CPU
+host, `fsync=off`, `full_page_writes=off`, `max_locks_per_transaction=64`
+(shared lock table 8,768, X42). The test role has no `CREATEDB`, so
+per-test databases or `CREATE DATABASE ... TEMPLATE` are unavailable.
+`domain/unitstate/state`: 121 tests, 5 s on SQLite, 59 s on PostgreSQL
+(median 0.47 s per test). One model-schema test, measured by phase with a
+temporary test (deleted):
+
+| Phase | Time |
+|---|---:|
+| Admin pool, `CREATE SCHEMA`, namespace pool | ~13 ms |
+| `Ensure` of the model DDL (158 patches, ~2,440 statements) | 230–260 ms |
+| Same DDL as one multi-statement `Exec` | 210–220 ms |
+| N15 dependents check | 50–70 ms |
+| `DROP SCHEMA ... CASCADE` | 115–130 ms |
+| `TRUNCATE` of all 252 tables (52 hold seed rows) | ~100 ms |
+
+Building schemas concurrently without the D53 lock: two in 244 ms, four
+in 359 ms (against ~880 ms serially). Four concurrent drops failed with
+53200 (out of shared memory).
+
+Findings: DDL execution on the server, not round trips, dominates setup.
+Truncate-and-reseed would save under half the cost and changes test
+isolation. Teardown (check and drop, ~175 ms) can leave the test's
+critical path. Building ahead or in parallel needs a lock table larger
+than the default and a way past the per-database D53 lock for test
+schemas. Earlier (2026-10-28): with the D53 lock, three packages in
+parallel took 20% longer and small packages about twice as long; without
+it, the same three packages peaked at about 80% of the lock table
+([08-delete-locks result](08-dbaccessor.md#08-delete-locks-result)).
 
 ## D42 runtime-entry gate run
 

@@ -18,7 +18,7 @@ make every Juju package pass before any runtime work resumes.
 Read the selected task and relevant rows in
 [06-compatibility.md](06-compatibility.md), its X*/D* references, and
 [OPERATIONS.md](../OPERATIONS.md) for running tests. Read N6, N9, N10,
-N14, N15 and D11 if changing the harness. Commit inventories and past
+N14, N15, N16 and D11 if changing the harness. Commit inventories and past
 failures are in [history](../history/compatibility.md), not mandatory
 setup reading.
 
@@ -60,6 +60,9 @@ setup reading.
 2. Use D42's runtime-entry package list in the detail file. Confirm test
    selectors/budgets and classify status failures before dispatching runs.
    Keep deferred PostgreSQL import/export (D40) distinct from blockers.
+   Later gates use N16's tiers and levels (smoke before commits, full
+   post-commit, readiness before a bootstrap run or milestone); tasks
+   06-test-levels, 06-test-speed and 06-leaseexpiry-db support them.
 3. Run the approved gate sequentially on both backends at the restacked
    revision; record selectors, tags, skips and evidence. A fixed issue
    remains "awaiting rerun" until tested.
