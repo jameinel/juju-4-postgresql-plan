@@ -15,7 +15,7 @@ Status checked against GitHub on 2026-11-04: 9 open reviews and 14 merged
 PRs. Current heads, merge revisions and the CI snapshot are in
 [the register](UPSTREAM-FIXES.md#upstream-review-status); implemented scope
 and historical validation are in UPSTREAM-DONE.md. This snapshot predates
-the opening of #23751 below.
+the opening of #23751 and #23755 below.
 
 ## Working agreement
 
@@ -87,6 +87,7 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Assess the published test/comment follow-up at `74aabf93b4`; new-head CI/review has not been assessed. The common-allocator/RETURNING refactor remains uncommitted, not part of this head. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Review and CI are pending; the PR is mergeable. Preserve the equivalent null-check flags in the connection query and controller views. Complete the documented functional QA and reconcile the PoC separately. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Rebased head `02e9f73e49` is mergeable and needs review; assess remaining CI. Preserve explicit single-column CTE membership and scoped cleanup, lifecycle and departure semantics. |
+| `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Monitor review and CI and obtain approval. At `15119bb898` the PR is mergeable and review is required; 9 checks passed and 12 were skipped on 2026-11-05. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
 
 ### Nullable primary-key review split
 
@@ -400,10 +401,11 @@ export-type mismatch needs backend-aware generation; the intentional
 `TestSetAPIAddressesSharedPeerRollsBack` NOT NULL failure is not a dqlite
 bug. Keep both recorded rather than reopening them as upstream fixes.
 
-Separate documentation task: `4.1-pr-description-guidance` has a staged
-[patch](4.1-pr-description-guidance.patch) and
-[PR description](PR-4.1-pr-description-guidance.md), but no branch/PR.
-Review the description/comment distinction independently of SQL changes.
+Separate documentation review: follow `4.1-pr-description-guidance` in
+[#23755](https://github.com/juju/juju/pull/23755), independently of the SQL
+changes. The older [patch](4.1-pr-description-guidance.patch) and
+[PR description](PR-4.1-pr-description-guidance.md) are historical drafts,
+not the published branch or PR description.
 
 ## PoC reconciliation handoff
 
