@@ -3,7 +3,7 @@
 This records implemented upstream work, decisions and validation, including
 changes still in review. **Implemented is not landed or reintegrated.**
 The landed/in-review inventories are synchronized with GitHub on
-2026-11-04. Validation and publication narratives retain their recorded
+2026-11-05. Validation and publication narratives retain their recorded
 dates and revisions; they are not new checks of the latest heads.
 
 - [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md): remaining work and acceptance checks.
@@ -56,9 +56,10 @@ PR [#23720](https://github.com/juju/juju/pull/23720) merged on 2026-11-04
 as `edb2aef5b9f1e4cf7c5ceb890fd137d922048c30`, at head `ee07d7ccb5`.
 PR [#23726](https://github.com/juju/juju/pull/23726) merged that day
 as `5259edff4329ca4a1de80d77e0d614b832d4ad72`, at head `ee55bab5f4`.
-Both tasks are complete upstream. Their landed patches still need
-reconciliation against the earlier PoC implementations; no integration or
-equivalence verification was performed as part of this tracking update.
+Both tasks are complete upstream and were reconciled into the PoC on
+2026-11-05 against base `5259edff43`, with default-backend validation only.
+PostgreSQL validation remains outstanding; see
+[the reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05).
 
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
@@ -75,12 +76,60 @@ all earlier-beta database compatibility.
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Require mount container keys and key manifest bases by manifest position, retaining nullable attributes. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
-| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration in both databases, preserving idempotency, immutability and transaction usability. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration in both databases, preserving idempotency, immutability and transaction usability. Current head `2618d146da` shares registration state; the PoC cherry-picks predate that refactor. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Resolve competing pins with the explicit lease/entity conflict target. Preserve repeated-pin and missing-lease behaviour; reset the test helper's captured results on transaction retries. This is portability, not a current dqlite defect. |
-| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly and qualify the sequence value in single/batch allocation upserts. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly, qualify the stored value and share a scalar allocator using RETURNING at `76b4a04f09`. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
+| `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Replace eleven SQLite membership shorthands with explicit single-column subqueries; preserve filtering, scoped cleanup, lifecycle and departure semantics. Rebased head `02e9f73e49` retains the same patch. |
+| `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Replace redundant IIF wrappers with equivalent null-check predicates in the connection query and three controller views at `adf9f317a6`. |
+| `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Distinguish reviewer context, prospective merge-message content and reproducible reviewer QA from validation history at `15119bb898`. |
+| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Test diagnostics | Expose SSH-key registration failure output and preserve its exit status under `set -e`. Head `931a025a25` also adds `tests/**` to the workflow smoke-path filter; no retries or underlying intermittent-failure fix. |
 
 Remaining review actions belong in the plan, not this history. GitHub is the
 source of truth for live review, CI and merge status.
+
+## Sequence allocation and review follow-ups
+
+The independent implementation started at upstream
+`e22f5666d0861d3c84e8465c1ff86fbd23f58f48`. Initial commit `cfa8676090`
+targets namespace conflicts and qualifies the stored value; follow-up
+`74aabf93b4` collects concurrent-test results only after the entire
+transaction succeeds. Published head `76b4a04f09` shares a private scalar
+allocator between `NextValue` and `NextNValues`, using RETURNING instead
+of a second SELECT. A zero-count batch remains a no-op; allocation retains
+namespace isolation, zero-based contiguous ranges, rollback and failure
+detection when writes produce no row.
+
+The earlier implementation record reports the following checks using
+shared `_deps`, stock SQLite/Dqlite fixtures and `dqlite,libsqlite3` tags.
+These are historical results, not fresh validation of `76b4a04f09`:
+
+- Before and after the original SQL change, `make run-go-tests
+  TEST_PACKAGES=./domain/sequence/state
+  TEST_FILTER='"TestSequenceSuite|TestStateSuite/TestImportedSequencesContinue"'
+  TEST_ARGS='-p 2 -race'` passed; `TEST_PACKAGES='./domain/sequence/...'`
+  with the same test args also passed.
+- `make pre-check` passed but skipped static analysis.
+  `RUN_SUBTEST=run_go make static-analysis
+  STATIC_ANALYSIS_JOB=test_static_analysis_go`, formatting and diff checks
+  passed.
+- State test-binary compilation used `make run-go-tests
+  TEST_PACKAGES=./domain/sequence/state
+  TEST_ARGS='-p 2 -race -c -o <session-binary>'`.
+  Bounded `timeout 31 stress -p 2 -timeout 30s <session-binary>` runs
+  reported 10 original allocation/import iterations and 36 later
+  `TestSequenceSuite/TestSequenceConcurrentMixedAllocation` iterations,
+  zero failures before intentional outer timeouts (two iterations active
+  at each final report). Binaries were removed.
+- A later session record also reports a passing full state race suite and
+  compilation. Do not treat those reports as evidence that the current
+  failing CI jobs or functional QA are resolved.
+
+The fixtures cover mixed/concurrent allocation, namespace variants,
+rollback, suppressed writes and imported-sequence continuation through
+export. They do not establish PostgreSQL SQL acceptance or execution.
+PostgreSQL execution, full repository tests and live bootstrap/migration QA
+were not part of those recorded checks. Current review, CI triage and
+functional QA belong in UPSTREAM-PLAN.md.
 
 ## Dbrepl latest-row selection (X16)
 
@@ -267,12 +316,12 @@ arm64/macOS builds and migration. This is not a full-green CI result.
 Repository-wide tests/static analysis, full agent build, external bootstrap
 QA and PostgreSQL integration tests were not run for this upstream branch.
 
-PoC Stage 8 already implements U14 as `b6a7690d80`. This independent
-upstream implementation is not a cherry-pick or a PoC reconciliation.
-PR juju/juju#23726 has now landed as `5259edff43`; compare its final
-cleanup and tests with that commit while preserving later tracker/backend
-adaptations, using the integration procedure. This reconciliation remains
-pending; provenance and reconciliation status belong in the register.
+PoC Stage 8 originally implemented U14 as `b6a7690d80`. The independent
+upstream implementation landed as `5259edff43` and was reconciled on
+2026-11-05: duplicate cleanup/tests were dropped while PoC backend
+adaptations were retained. Default-backend validation passed; PostgreSQL
+validation remains outstanding. The register owns the exact residual
+commits and reconciliation evidence.
 
 ## Agent-binary and lease-pin publication evidence
 
@@ -514,5 +563,6 @@ published only after explicit approval. `gh pr edit` failed on deprecated
 classic-project GraphQL fields; the approved body was updated with
 `gh api --method PATCH repos/juju/juju/pulls/23694`. No additional threads
 were changed. Further publication needs fresh approval. PoC reconciliation
-must replace its UUID-reuse classification separately; it is not completed
-by the upstream merge.
+on 2026-11-05 adopted upstream's UUID-reuse classification and dropped the
+duplicate patch, with default-backend validation only. The upstream merge
+alone did not establish that reconciliation or PostgreSQL acceptance.

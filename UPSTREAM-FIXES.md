@@ -68,7 +68,7 @@ portability suites to be green.
 | U13 | bug | `domain/keymanager/state` `ensureUserPublicKey` | Read the new key id with `LastInsertId`. When the `INSERT ... SELECT` inserted nothing because the fingerprint hash algorithm was unknown, SQLite returned the connection's previous rowid, so the model could be linked to an unrelated key. | Fixed, Stage 5, `fix(keymanager): return new public key ids from the insert` (D36, DIALECT.md X35). An unknown algorithm returns an error; new test. |
 | U14 | bug | `internal/worker/dbaccessor/tracker.go` | Leaked database pools. `openDatabase` did not close the pool when setting the foreign keys pragma failed; `newTrackedDBWorker` did not close it when model initialisation failed; `ensureDBAliveAndOpenIfRequired` never closed replacement pools it opened during reopen attempts that then failed their ping. Each leak kept a pool open until the process exited. | Fixed in PoC Stage 8 at `b6a7690d80` `fix(dbaccessor): close databases the tracker opens but does not keep`. Historical PoC validation: four new tests fail without the fix; race-enabled stress 214 runs, 0 failures. The tracker files at the original `pg-poc/08` base matched upstream `04bc64ef54`. [PR #23726](https://github.com/juju/juju/pull/23726) (`4.1-dbaccessor-pool-cleanup`, head `ee55bab5f4`) merged 2026-11-04 as `5259edff43`. Reconciled 2026-11-05 (default backend only): PoC `17cf0d3dff` dropped; `f77a1ffb9d` keeps the PoC `TrackedDBBackend`, `DBOpener` and `closeDB` on top of upstream's `currentDB`/close-replacement structure, with the ErrDBDead no-reopen check after the replacement close. PoC duplicates of upstream's close tests were dropped; `TestWorkerDoesNotReopenDeadDB` is kept. dbaccessor `-race` passes on SQLite. |
 | U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. | **Cherry-picked onto `pg-poc/05-queries` 2026-11-05 (D43), PRs still open:** charm `9995f41b5a`→`6ffa7fa732`, `838abf41ea`→`7020bea305`; exposure `4d9518117c`→`7bd38bb203`, `f31de64e52`→`a43e38d25f`, `4e66f7c449`→`1e0bf5dfd4`; DDL regenerated in `52b6ba047c`. `6ffa7fa732` and `7bd38bb203` differ in patch ID only through the Stage 2 `domain/schema/dqlite/` path move (the `domain/schema/model.go` triggergen line gained the two new tables by hand); the others match. #23723's branch also carries #23710's older charm commits, which were not picked. PostgreSQL bootstrap not yet re-run. Earlier history: the initial split was published on 2026-10-30 from upstream `8369e6e2a9`. Current heads are charm `838abf41ea` in [#23710](https://github.com/juju/juju/pull/23710) and exposure `4e66f7c449` in [#23723](https://github.com/juju/juju/pull/23723); both remain open, and exposure must be rebased/regenerated after charm lands. Exposure on all endpoints moves to application-wide `application_exposed_space` / `_cidr` tables, mirroring bindings, and endpoint tables require the endpoint; the view still reports wildcard rows with a NULL endpoint. Mount container keys become `NOT NULL`; manifest bases use `(charm_uuid, array_index, nested_array_index)` and reject duplicate legacy positions with an identifying diagnostic. Exposure owns the combined schema guard. Legacy deltas split exposure scope and deduplicate wildcard rows; space removal also avoids alpha-duplicate UNIQUE failures. |
-| U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found in Stage 9 (2026-10-28):** retries after the U15 failure re-register the binary and fail with 25P02. | Implemented upstream on open [PR #23728](https://github.com/juju/juju/pull/23728), branch `4.1-agentbinary-conflict`, head `6a66e5ed1b`. Both paths use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration, preserving `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Cherry-picked onto `pg-poc/05-queries` 2026-11-05 (D43, identical patch IDs): `323807680f`→`fc66010f1a`, `6a66e5ed1b`→`c34b912abb`. Default-backend tests pass; PostgreSQL and bootstrap not yet re-run. |
+| U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found in Stage 9 (2026-10-28):** retries after the U15 failure re-register the binary and fail with 25P02. | Implemented upstream on open [PR #23728](https://github.com/juju/juju/pull/23728), branch `4.1-agentbinary-conflict`, current head `2618d146da` with shared registration state. Both paths use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration, preserving `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. Earlier commits were cherry-picked onto `pg-poc/05-queries` 2026-11-05 (D43, identical patch IDs): `323807680f`→`fc66010f1a`, `6a66e5ed1b`→`c34b912abb`. These predate the shared-state refactor; reconcile the final result when the PR lands. Default-backend tests pass on the recorded PoC stack; PostgreSQL and bootstrap not yet re-run. |
 | U17 | latent | 48 model and 17 controller single-column `id INT PRIMARY KEY` tables at `8369e6e2a9` | SQLite permits NULL keys; exported `*int64` IDs allow malformed payload rows to reach persistence. | Implemented on independent branch `4.1-lookup-key-not-null`, [PR #23724](https://github.com/juju/juju/pull/23724), head `4e7341392f`; open for approval. Declares `INT PRIMARY KEY NOT NULL`, regenerates scalar IDs, validates payload/recovery boundaries and cross-checks decoder inventory against DDL. Explicit typed deltas and the 65-key scope are retained. No PoC integration is recorded. |
 | U18 | tooling | `Makefile` `install-dependencies`; static-analysis prerequisites | `install-dependencies` covers Go snap and `libsqlite3-dev`, but not `shellcheck`, `gci`, `golangci-lint` or `stress`. Without `shellcheck`, `STATIC_ANALYSIS=1 make pre-check` stops at dependency checks; without SQLite headers it fails schema generation with `sqlite3.h` missing. The run also reports skipped `go-licenses`, `shfmt` and `govulncheck` checks when those tools are absent. | Found 2026-11-03; not implemented. Independently inventory required and skipped development tools, add appropriate installation/verification to `make install-dependencies`, and validate clean and repeated installs plus the affected checks. See `4.1-install-dependencies` in UPSTREAM-PLAN.md. |
 
@@ -227,7 +227,7 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 
 ## Upstream review status
 
-Snapshot refreshed from GitHub on 2026-11-04: 9 open and 14 merged PRs.
+Snapshot refreshed from GitHub on 2026-11-05: 13 open and 14 merged PRs.
 Every listed PR targets `juju/juju` branch `4.1` from `jameinel/juju`.
 Head hashes are short SHA
 prefixes; check GitHub before acting because review and CI status can change.
@@ -236,38 +236,41 @@ prefixes; check GitHub before acting because review and CI status can change.
 |---|---|---|---|---|
 | `4.1-sqlite-integers` | U1, U2, U12 | [#23680](https://github.com/juju/juju/pull/23680) | `0e9be8ddd7` | merged 2026-10-30; merge `8369e6e2a9` |
 | `4.1-binary-key-columns` | U8 | [#23682](https://github.com/juju/juju/pull/23682) | `de69a748a6` | merged 2026-10-27; merge `fa1743d544` |
-| `4.1-model-config-precedence` | U7 | [#23683](https://github.com/juju/juju/pull/23683) | `f50dfe4257` | open; CI green; approval required |
+| `4.1-model-config-precedence` | U7 | [#23683](https://github.com/juju/juju/pull/23683) | `f50dfe4257` | open; no failing/pending reported checks; approval required |
 | `4.1-keymanager-insert-id` | U13 | [#23684](https://github.com/juju/juju/pull/23684) | `d490585ad7` | merged 2026-10-27; merge `f0adf0150d` |
 | `4.1-controller-node-id-text` | U3, U5 | [#23685](https://github.com/juju/juju/pull/23685) | `55ee33f048` | merged 2026-10-27; merge `6e98deb0e0` |
 | `4.1-lease-migration-tests` | U4 | [#23686](https://github.com/juju/juju/pull/23686) | `7e3e903650` | merged 2026-10-27; merge `146df46e46` |
-| `4.1-crossmodel-secret-revisions` | U11 | [#23688](https://github.com/juju/juju/pull/23688) | `aa6cad849c` | open; mergeable; refreshed-head CI pending; approval required |
+| `4.1-crossmodel-secret-revisions` | U11 | [#23688](https://github.com/juju/juju/pull/23688) | `aa6cad849c` | open; macOS cancelled/aggregate CI fails; approval required |
 | `4.1-removal-force-boolean` | U9 | [#23690](https://github.com/juju/juju/pull/23690) | `f39572e43b` | merged 2026-10-27; merge `9ea82c03bd` |
 | `4.1-changestream-latest-row` | X16 | [#23691](https://github.com/juju/juju/pull/23691) | `9e28053164` | merged 2026-10-30; merge `ece31c289c` |
 | `4.1-blockcommand-order` | U10/X31 | [#23692](https://github.com/juju/juju/pull/23692) | `495768b0aa` | merged 2026-10-27; merge `b36f88d99c` |
-| `4.1-operation-query-portability` | X34, X33 | [#23693](https://github.com/juju/juju/pull/23693) | `0fb2eb7194` | open; CLA/commit/static checks pass; default-bases smoke fails, macOS cancelled; review required |
+| `4.1-operation-query-portability` | X34, X33 | [#23693](https://github.com/juju/juju/pull/23693) | `0fb2eb7194` | open; macOS cancelled/aggregate CI fails; review required |
 | `4.1-objectstore-conflicts` | X36 | [#23694](https://github.com/juju/juju/pull/23694) | `53feca2259` | merged 2026-10-30; merge `75ddfcbaf0` |
 | `4.1-sql-standard-syntax` | X37, X38 | [#23695](https://github.com/juju/juju/pull/23695) | `13003d8680` | merged 2026-10-27; merge `302b44cc2c` |
 | `4.1-sql-test-literals` | U6 | [#23696](https://github.com/juju/juju/pull/23696) | `11ff0981e0` | merged 2026-10-27; merge `1696e6128d` |
 | `4.1-nullable-primary-keys` | U15 (charm keys) | [#23710](https://github.com/juju/juju/pull/23710) | `838abf41ea` | open; macOS cancelled/aggregate CI fails; approval required; land before exposure; cherry-picked onto PoC Stage 5 (D43) |
 | `4.1-local-secret-revisions` | U11 follow-up | [#23720](https://github.com/juju/juju/pull/23720) | `ee07d7ccb5` | merged 2026-11-04; merge `edb2aef5b9`; reconciled into PoC 2026-11-05 |
-| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | [#23723](https://github.com/juju/juju/pull/23723) | `4e66f7c449` | open; bundles smoke fails; approval required; rebase/regenerate after charm lands; cherry-picked onto PoC Stage 5 (D43) |
-| `4.1-lookup-key-not-null` | U17 | [#23724](https://github.com/juju/juju/pull/23724) | `4e7341392f` | open; CI green; approval required; independent of U15 |
+| `4.1-application-exposure-scope` | U15 (exposure + combined guard) | [#23723](https://github.com/juju/juju/pull/23723) | `4e66f7c449` | open; no failing/pending reported checks; approval required; rebase/regenerate after charm lands; cherry-picked onto PoC Stage 5 (D43) |
+| `4.1-lookup-key-not-null` | U17 | [#23724](https://github.com/juju/juju/pull/23724) | `4e7341392f` | open; no failing/pending reported checks; approval required; independent of U15 |
 | `4.1-dbaccessor-pool-cleanup` | U14 | [juju/juju#23726](https://github.com/juju/juju/pull/23726) | `ee55bab5f4` | merged 2026-11-04; merge `5259edff43`; PoC base since 2026-11-05; reconciled (default backend only) |
-| `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `6a66e5ed1b` | open; default-bases smoke fails; approval required; cherry-picked onto PoC Stage 5 (D43) |
-| `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; static check fixed; bundles/revision smoke fail; approval required |
+| `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `2618d146da` | open; shared registration-state follow-up published; no failing/pending reported checks; approval required; PoC cherry-picks predate this refactor |
+| `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; no failing/pending reported checks; approval required |
 | `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
-| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `74aabf93b4` | open; test/comment follow-up published 2026-11-04; new-head CI/review unassessed; allocator refactor still uncommitted |
-| `4.1-drop-iif` | X7 | [published branch](https://github.com/jameinel/juju/tree/4.1-drop-iif); no PR | `08b9cc0d7c` plus uncommitted DDL | query published 2026-11-04; finish schema-view validation and revise draft before further publication approval |
-| `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | rebased and PR published 2026-11-04; mergeable, review required and CI pending |
+| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `76b4a04f09` | open; shared allocator/RETURNING refactor and tests published; unit, bundles/revision smoke and aggregate CI fail; approval required |
+| `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `adf9f317a6` | open; query and schema views published; revision smoke/aggregate CI fail; approval required |
+| `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | open; no failing/pending reported checks; approval required |
+| `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `15119bb898` | open; 9 checks passed, 12 skipped; approval required |
+| `4.1-lxd-default-bases` | Test diagnostics | [#23756](https://github.com/juju/juju/pull/23756) | `931a025a25` | open; SSH-key diagnostics and smoke-path follow-up published, not a root-cause fix; default-bases smoke fails, other CI pending; approval required |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | X16 | not proposed | | not implemented; follows remaining #23688 review |
 
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
-- No unresolved inline review threads were reported for the nine open PRs;
-  all still require approval. CI states above are a revision-specific
-  snapshot, not evidence of PoC acceptance or a diagnosis of failing jobs.
+- All 13 open PRs are mergeable and require review. Inline review threads
+  were not refreshed in this snapshot. CI states are revision-specific,
+  not evidence of PoC acceptance or a diagnosis of failing jobs; skipped
+  checks are not passes.
 - juju/juju#23730 completes the separate dbrepl latest-row SQL task. No PoC
   integration was performed; dbrepl remains outside the PostgreSQL PoC
   scope. The duplicated output-helper refactor remains a separate candidate
@@ -283,7 +286,7 @@ Notes:
 - juju/juju#23685 also fixes the upgrade test half of U5.
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
-- X7 has a published fork branch but no upstream PR; X24 is in #23750.
+- X7 is in #23751; X24 is in #23750.
   Continue those implementations through the tracking links in UPSTREAM-PLAN.md.
   X18 is represented by the
   U16 agent-binary review and the separate `PinLease` review above.
@@ -298,130 +301,6 @@ Notes:
   onto Stage 5 under D43 on 2026-11-05 (commits in the U15 entry).
   Validation/publication details below are historical and revision-specific;
   they do not establish coverage of the current branch heads.
-
-### Cross-machine branch reconciliation (2026-11-04)
-
-Verified the local Juju branches/worktrees against live
-`jameinel/juju` refs and the `juju/juju` PR heads. The PR table above
-records published heads, not necessarily the branch checked out here.
-Local presence, publication, landing and PoC reconciliation remain distinct.
-The 2026-11-04 CI/review snapshot above was retained from the remote
-planning update; this reconciliation rechecked heads and merge state,
-not every check or review thread.
-
-#### Pre-cleanup inventory
-
-| Branch | Local head | Published head | Local state / action |
-|---|---|---|---|
-| `4.1-drop-iif` | `08b9cc0d7c` | absent | Query committed; three controller-view replacements uncommitted in `domain/schema/controller/sql/0007-model.sql`. Continue here, not on a new branch. Draft currently excludes those views and needs revision. |
-| `4.1-cte-membership-subqueries` | `8ce0410f51` | absent | Clean worktree; eleven expressions in eight production files and focused regressions implemented. Publication approval pending. |
-| `4.1-sequence-upsert-target` | `74aabf93b4` | `cfa8676090` | One unpublished test follow-up plus uncommitted common-allocator/RETURNING refactor and tests in `domain/sequence/state/{sequence.go,sequence_test.go}`. Do not overwrite with the published head or treat PR CI as local validation. |
-| `4.1-model-config-precedence` | `3c27c2371e` | `f50dfe4257` | Clean worktree at a different head; compare before updating it. |
-| `4.1-crossmodel-secret-revisions` | `375ac766cb` | `aa6cad849c` | Clean worktree at a different head; compare before updating it. |
-| `4.1-operation-query-portability` | `e463565601` | `0fb2eb7194` | Clean worktree at a different head; compare before updating it. |
-| `4.1-nullable-primary-keys` | `ba21f48ad3` | `838abf41ea` | Clean worktree at a different head; compare before updating it. |
-| `4.1-local-secret-revisions` | `9eaa8d7b03` | `ee07d7ccb5` | Clean worktree; upstream PR merged. Do not assume the local branch includes the landed result. |
-| `4.1-lookup-key-not-null` | `3157cdb288` | `4e7341392f` | Clean worktree at a different head; compare before updating it. |
-| `4.1-lease-pin-conflict` | `373ab4f422` | `c55d5839e5` | Clean worktree at a different head; published retry-safe test-helper follow-up is not established locally. |
-| `pg-poc/00-base-fixes` through `pg-poc/08-dbaccessor` | matches published refs | matches local refs | All nine stage tips agree. Stage 08 is `950bba743e`. |
-| `pg-poc/09-bootstrap` | `950bba743e` | absent | Local branch exists at the stage-08 tip, with no unique commit. Do not infer stage-09 implementation or a published branch. |
-
-`4.1-agentbinary-conflict`, `4.1-application-exposure-scope`,
-`4.1-dbaccessor-pool-cleanup` and `4.1-dbrepl-latest-row` have clean
-worktrees matching their published heads. The main Juju checkout is clean
-at local `4.1` = `e22f5666d0`, not a freshly updated upstream baseline.
-This inventory was captured before the user-requested cleanup below.
-
-Planning history diverged after `068c9c2`: local `caa46c5` contained task
-claims and execution evidence, while remote `4d636d8` contained later
-landing/review/tooling updates. Both histories are retained by a local
-merge, with pre-merge local tip at
-`backup/main-before-reconcile-20261104`. Five previously untracked PR
-texts are retained unchanged in this repository: agentbinary, pool cleanup,
-dbrepl, drop-iif and lease-pin. They are historical/draft text, not a new
-publication approval. The CTE/sequence descriptions and sequence review
-reply were also recovered from the original session artifacts into
-`PR-4.1-cte-membership-subqueries.md`,
-`PR-4.1-sequence-upsert-target.md` and
-`COMMENT-4.1-sequence-upsert-review.md`; historical/stale sequence metadata
-is labelled explicitly. These local files can travel with the planning
-repository instead of depending on one machine's session storage.
-
-#### Transfer artifacts and cleanup
-
-The goal is to continue on the other machine without losing near-complete
-local work. On 2026-11-04, removed all 13 clean linked Juju worktrees after
-rechecking for tracked and untracked changes. Retained the main `../juju`
-checkout and the dirty `../4.1-drop-iif` and
-`../4.1-sequence-upsert-target` worktrees unchanged. Local implementation
-branches remain, including CTE; only the explicitly aborted
-`pg-poc/09-bootstrap` branch was deleted after verifying it equalled stage
-08 and had no unique commits. Its clean PoC worktree was also removed.
-
-The following artifacts travel with this planning repository:
-
-| Artifact under `handoffs/` | Preserved work |
-|---|---|
-| `2026-11-04-local-work.bundle` | Exact branch tips for `4.1-drop-iif` (`08b9cc0d7c`), `4.1-cte-membership-subqueries` (`8ce0410f51`) and `4.1-sequence-upsert-target` (`74aabf93b4`). Four commits in total, including the published sequence implementation and unpublished test follow-up. |
-| `2026-11-04-drop-iif-wip.patch` | Uncommitted replacements in the three controller schema views, based on `08b9cc0d7c`. |
-| `2026-11-04-sequence-wip.patch` | Uncommitted common-allocator/RETURNING refactor and tests, based on `74aabf93b4`. |
-
-`git bundle verify` passed. Both patches were applied to temporary indexes
-at their recorded branch tips and reconstructed all three modified files
-byte-for-byte, without changing either source worktree or its real index.
-This verifies transfer integrity, not code/test correctness. Final IIF-view
-validation and sequence-refactor validation remain outstanding.
-
-The incremental bundle requires upstream commit
-`e22f5666d0861d3c84e8465c1ff86fbd23f58f48` in the receiving Juju repository;
-fetch upstream `4.1` first if necessary. From that repository, set `plan`
-to the absolute path of this planning checkout, then import into new
-transfer refs, not over the other machine's current branches:
-
-```sh
-plan=/absolute/path/to/juju-4-postgresql-plan
-git --no-pager bundle verify "$plan/handoffs/2026-11-04-local-work.bundle"
-git --no-pager fetch "$plan/handoffs/2026-11-04-local-work.bundle" \
-  'refs/heads/*:refs/heads/transfer/20261104/*'
-git --no-pager worktree add ../transfer-drop-iif \
-  transfer/20261104/4.1-drop-iif
-git --no-pager -C ../transfer-drop-iif apply --check \
-  "$plan/handoffs/2026-11-04-drop-iif-wip.patch"
-git --no-pager -C ../transfer-drop-iif apply \
-  "$plan/handoffs/2026-11-04-drop-iif-wip.patch"
-git --no-pager worktree add ../transfer-sequence \
-  transfer/20261104/4.1-sequence-upsert-target
-git --no-pager -C ../transfer-sequence apply --check \
-  "$plan/handoffs/2026-11-04-sequence-wip.patch"
-git --no-pager -C ../transfer-sequence apply \
-  "$plan/handoffs/2026-11-04-sequence-wip.patch"
-```
-
-CTE is committed entirely on `transfer/20261104/4.1-cte-membership-subqueries`;
-it needs no WIP patch. Compare these snapshots with the other machine's
-current work before cherry-picking or incorporating changes. Do not reset
-existing branches to these older bases. The local drafts above preserve
-the scope, rationale and historical validation needed to finish each task.
-No implementation branch or planning changes were pushed during cleanup.
-
-#### Committed-branch publication after cleanup
-
-On 2026-11-04, published the exact committed IIF and CTE snapshots as
-`jameinel/juju:4.1-drop-iif` (`08b9cc0d7c`) and
-`jameinel/juju:4.1-cte-membership-subqueries` (`8ce0410f51`), and
-fast-forwarded `4.1-sequence-upsert-target` / juju/juju#23731 from
-`cfa8676090` to `74aabf93b4`. Verified the remote refs.
-Tracking links and remaining actions are in
-[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#existing-implementations-and-published-tracking-references).
-No uncommitted code, PR descriptions or review responses were published.
-The existing transfer bundle and patches remain valid snapshots.
-
-The other active 4.1/PoC branch commits are already reachable through fetched
-remote refs, except the superseded operation commits `820aa88f88` and
-`e463565601`. Those are already public in GitHub's history; the current
-operation PR head is `0fb2eb7194`. Do not overwrite that newer branch with
-the obsolete local tip. Historical backup and unrelated 2.9/3.6 experiment
-branches are not publication targets for this handoff.
 
 ### Nullable primary-key base refresh (2026-10-30)
 
@@ -564,7 +443,8 @@ and PostgreSQL tests were not run.
 
 U1/U2/U12, juju/juju#23680: stronger conversion/view tests, `NotValid` errors
 and developer schema-evolution documentation; merged on 2026-10-30 at head
-`0e9be8ddd7` (merge `8369e6e2a9`). No PoC reintegration.
+`0e9be8ddd7` (merge `8369e6e2a9`). PoC reintegration was not part of that
+review; it was completed in the 2026-11-05 reconciliation below.
 Race-enabled tests, 52 stress iterations and targeted lint passed; live QA
 not run. [PR draft](PR-4.1-sqlite-integers.md) and
 [review decisions/evidence](COMMENT-4.1-sqlite-integers-review.md) hold details.
@@ -572,8 +452,10 @@ not run. [PR draft](PR-4.1-sqlite-integers.md) and
 ### Separate agent-workflow guidance
 
 `4.1-pr-description-guidance`: description/comment distinction, unrelated
-to SQL fixes. [Patch](4.1-pr-description-guidance.patch) and
-[PR draft](PR-4.1-pr-description-guidance.md) staged; no branch or PR yet.
+to SQL fixes. Published as juju/juju#23755 at `15119bb898`.
+The [patch](4.1-pr-description-guidance.patch) and
+[PR draft](PR-4.1-pr-description-guidance.md) are historical text, not the
+current publication. Follow the existing PR rather than recreating it.
 
 ## PoC reconciliation onto 5259edff43 (2026-11-05)
 
@@ -626,6 +508,10 @@ Validation: adjacent ancestry at every stage; `go build ./...` and
 `domain/agentbinary/...`, `domain/modelimport/...`,
 `domain/network/state`, `domain/removal/state`, recovery and export.
 PostgreSQL validation is outstanding: no server on this machine.
+
+All nine stage tips recorded in PLAN.md are published to `jameinel/juju`,
+verified on 2026-11-05; the top is `pg-poc/08-dbaccessor=98847cacb4`.
+Publication does not satisfy the outstanding PostgreSQL gate.
 
 ## Source provenance
 

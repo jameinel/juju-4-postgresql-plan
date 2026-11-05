@@ -3,12 +3,6 @@
 Branch `pg-poc/09-bootstrap`, to be created on `pg-poc/08-dbaccessor`.
 Status: 09-functional started 2026-10-28 (scenario fixed in D54); run 1 failed on U15/U16, now integrated; run 2 waits for a PostgreSQL server (see the run log below). Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
-The local attempt was aborted. On 2026-11-04 its clean worktree and local
-`pg-poc/09-bootstrap` branch were removed for the machine handoff. The
-branch equalled `pg-poc/08-dbaccessor` at `950bba743e`, with no unique
-commits or published stage-09 branch. The run log remains historical
-evidence; stage 09 has not been completed.
-
 ## Prerequisites
 
 Stage 8 runtime tasks and required Stage 6 coverage pass at a recorded
