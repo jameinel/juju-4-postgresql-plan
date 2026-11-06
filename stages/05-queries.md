@@ -4,11 +4,16 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
 
 ## Status and scope
 
-Implemented baseline; remaining production tasks below. X33–X38 and U11
-are finished (U11 is cherry-picked from the open upstream PR). Bootstrap
-runs 2 and 3 and PostgreSQL sweep 2 (2026-11-05) found more production
-defects; those on the bootstrap path are fixed (05-BOOT-FIXES,
-05-SECRET-X16). Open: 05-X16-rest and 05-unitstate-relation-key.
+Implemented. X33–X38 and U11 are finished (U11 is cherry-picked from the
+open upstream PR). Bootstrap runs 2 and 3 and PostgreSQL sweep 2
+(2026-11-05) found more production defects; all are fixed (05-BOOT-FIXES,
+05-SECRET-X16, 05-X16-rest, 05-unitstate-relation-key; tip
+`05=640d3bcabf`). No known production query defect remains open here.
+
+Validate Stage 5 fixes on PostgreSQL at the 09 tip (or a worktree of 09
+with the fix applied): `JUJU_POSTGRESQL_TEST_URL` only redirects tests
+once the Stage 6 harness is present, so a PostgreSQL run on 05 alone
+silently uses SQLite.
 The [commit inventory](../history/compatibility.md#stage-5-inventory) is
 historical. Stage 6 supplies the existing PostgreSQL harness; do not
 reimplement it. Latest failures are in [its evidence table](06-compatibility.md#latest-recorded-evidence).
@@ -77,29 +82,51 @@ validation before run 2, and the agentpassword query by run 2:
 Both are upstream candidates (UPSTREAM-FIXES.md U20). See the
 [Stage 9 run log](09-bootstrap.md#09-functional-run-log).
 
-### 05-X16-rest: remaining bare grouped columns
+### 05-X16-rest: remaining bare grouped columns (done)
 
-Found by sweep 2; not yet fixed. Same treatment as 05-SECRET-X16: confirm
-the intended row, rewrite portably, add a test that would distinguish
-rows on SQLite, then run the package on both backends. One commit per
-domain, so each can go upstream separately.
+Found by sweep 2. One commit per domain, so each can go upstream
+separately (U22). PostgreSQL at `09=760f3b675f`: no 42803 left in these
+packages.
 
-- `domain/secretbackend/state/state.go`: `ListSecretBackends`,
-  `ListSecretBackendsForModel` and `getK8sSecretBackendForModel`
-  (13 test failures).
-- `domain/removal/state/controller/secret.go`:
-  `getK8sSecretBackendForModel` (`GROUP BY vm.name, vcca.attribute_key`).
-  Not in the sweep failures; found by reading, so it needs a test first.
-- `domain/storage/state/instance.go`: `GetStorageInstanceInfo`
-  (`GROUP BY sa.uuid`).
-- Also in `domain/storage/state`: "column persistent is of type boolean
-  but expression is of type integer". Determine whether production or a
-  fixture binds it.
+- `52a0eea6ee` secretbackend: `ListSecretBackends` and the in-use
+  Kubernetes backend query group by every selected column;
+  `getK8sSecretBackendForModel` uses `SELECT DISTINCT`. The extra columns
+  are functionally dependent on the old keys, so results are unchanged
+  (portability only). Existing tests cover the queries; 11 PostgreSQL
+  failures remain, all X27 rotation-time `Equal` checks (06-X27).
+- `367f754dd6` removal: the controller copy of
+  `getK8sSecretBackendForModel` uses `SELECT DISTINCT` instead of
+  `GROUP BY vm.name, vcca.attribute_key`. Added
+  `TestGetActiveModelSecretBackendK8sBuiltIn`, which reproduced 42803.
+  Package passes on both backends.
+- `640d3bcabf` storage: `GetStorageInstanceInfo` joined every filesystem
+  attachment on the unit's net node and collapsed them with
+  `GROUP BY sa.uuid`, so SQLite returned an arbitrary mount point when two
+  existed for the same filesystem and node (a latent bug; the schema does
+  not forbid it). The join now picks the lowest attachment UUID, and the
+  `ORDER BY` moved out of the `FROM` subquery for both attachment queries.
+  `TestStorageInstanceInfoFilesystemDuplicateNodeAttachments` failed 7 of
+  10 runs against the old query on SQLite.
+- `persistent` (and `in_use` in the import tests) in `domain/storage/state`
+  are fixture binds of integer literals to booleans
+  (`base_test.go` `newPersistentModelVolume`, `import_test.go`), not
+  production: 06-bind-types. The remaining 8 PostgreSQL failures there
+  are those 4 binds and 4 X27 time comparisons.
+
+Observation, not changed: both `getK8sSecretBackendForModel` copies
+return one CA certificate per cloud even if a cloud has several (the row
+converters keep the last row). Behaviour is unchanged from SQLite.
 
 Test-side X16 sites (`application/state/unit_test.go`,
 `removal/state/model/application_test.go`) belong to Stage 6 (06-X16).
 
-### 05-unitstate-relation-key: integer key in a TEXT column
+### 05-unitstate-relation-key: integer key in a TEXT column (done)
+
+`1afd3b9434`. The relation IDs are bound as decimal text and parsed back
+into `int` on read, with an error for a non-decimal key; the column stays
+`TEXT`, so there is no schema or import change. Existing tests covered it
+(the 4 failures below); `domain/unitstate/state` passes on PostgreSQL at
+`09=760f3b675f`.
 
 Found 2026-11-05 at `05=3a8f0090c2`, after X16 no longer masked it.
 `domain/unitstate/state/state.go` `setUnitStateRelation` inserts

@@ -83,7 +83,7 @@ a blanket latent test defect.
 | 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Parallel packages done (N17, `08=eac5b916c7`): unit-test profile plus a per-process D53 key; see [06-test-speed result](#06-test-speed-result). Per-test cost is unchanged (~0.5 s). Optional follow-ups: move schema drop off the test's critical path; split `domain/application/state` and `domain/removal/state/model`, which bound `-p 8` wall time. A database pool was measured and gives no gain ([database pool PoC](#database-pool-poc), N17). |
 | 06-leaseexpiry-db | `internal/worker/leaseexpiry/store.go` runs its own SQL (expiry comparison with a formatted time) but its tests use only mocks. Add a test against a real database, run on both backends. | Defined; tier A gap found 2026-11-05. |
 | 06-dialect-fixtures | Test fixtures built for SQLite that fail on PG before reaching the code under test (sweep 2): `AUTOINCREMENT` in a schema DDL passed by `internal/changestream/stream`, `domain/ssh/state/model`, `internal/worker/dbrepl`, `dbreplaccessor`, `changestreampruner` and `core/database/schema` (`schema.go:42`; 97 failures); SQLite `CREATE TRIGGER` bodies using `OLD`/`NEW` (`domain/machine/state` 21, `domain/access/state`, `domain/recovery/state`, removal model); `datetime()` in `domain/lease/state` test SQL; `sqlite_schema` in `domain`. | Find the shared fixture source first; most are one helper each. Use the harness dialect or `FailingTriggerSQL`; do not skip. |
-| 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent`); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: `persistent` and blockdevice may be production binds, not fixtures. |
+| 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent` in `base_test.go` `newPersistentModelVolume` and `in_use` in `import_test.go`, both fixtures, checked 2026-11-05); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: blockdevice may be a production bind, not a fixture. |
 | 06-constraint-errors | `domain/network/state`: PG 23514 (`chk_provider_id_empty`) and 23505 are not mapped to the domain errors the tests expect (8 failures). | Find where SQLite constraint errors are mapped; decide whether the mapping is production (Stage 5) or test-only. |
 | 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`. X17 class. | Assert as sets unless production relies on the order. |
 
@@ -221,7 +221,7 @@ Classification by cause (failure counts are tests, not packages):
 
 | Cause | Packages (failures) | Task |
 |---|---|---|
-| X16 production (42803) | secret (12), secret/state (50), unitstate/state (20), secretbackend/state (13), storage/state (part), removal model (1), application/state (2) | Secret and unitstate fixed in Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`). Others: [05-X16-rest](05-queries.md#05-x16-rest-remaining-bare-grouped-columns). Removal and application are the test-side 06-X16 sites. |
+| X16 production (42803) | secret (12), secret/state (50), unitstate/state (20), secretbackend/state (13), storage/state (part), removal model (1), application/state (2) | Secret and unitstate fixed in Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`); secretbackend and storage by [05-X16-rest](05-queries.md#05-x16-rest-remaining-bare-grouped-columns-done) (`52a0eea6ee`, `640d3bcabf`). Removal and application are the test-side 06-X16 sites. |
 | SQLite fixture DDL / triggers (42601) | changestream/stream (36), ssh/state/model (32), dbrepl (19), dbreplaccessor (4), changestreampruner (3), core/database/schema (1), machine/state (3), modelimport (9), modelimport/state/model (3), recovery/state (part), access/state (1) | 06-dialect-fixtures; modelimport and recovery deferred. |
 | Bind types (42804, encode plans, 22P02) | crossmodelrelation/state/model (21), provisioner/state/model (5), blockdevice/state (6), controllerupgrader/state (4), resource/state (5), ssh/state/controller (1), storage/state (part) | 06-X25, 06-bind-types. |
 | Missing function/operator (42883) | lease/state (4, `datetime`), access/state (1, `text = integer`), upgrade/state (1, U5) | 06-dialect-fixtures, 06-X29, 06-U5. |
@@ -245,8 +245,18 @@ Re-run after the Stage 5 fixes, 2026-11-05 at `05=3a8f0090c2`
   refuses to encode. Stage 5 task 05-unitstate-relation-key.
 - Service, modelmigration and root `unitstate` packages pass.
 
-Next: re-run the sweep at the current tip with `-p 8` (N17), after the
-remaining X16 sites are fixed; this replaces sweep 2 as the baseline.
+Re-run after 05-X16-rest and 05-unitstate-relation-key, 2026-11-05 at
+`09=760f3b675f` (no 42803 left):
+
+- `domain/unitstate/state` and `domain/removal/state/controller` pass.
+- `domain/secretbackend/state`: 11 failures (was 13), all X27
+  rotation-time `Equal` checks.
+- `domain/storage/state`: 8 failures, all test-side: 2 `persistent` and
+  2 `in_use` integer fixture binds (06-bind-types), 4 X27 time
+  comparisons.
+
+Next: re-run the sweep at the current tip with `-p 8` (N17); this
+replaces sweep 2 as the baseline.
 
 ## D42 runtime-entry gate run
 
@@ -315,7 +325,10 @@ historical pass to accept a new gate.
 | `domain/crossmodelrelation` (U11 watcher tests) | 0 | 2026-10-26 at `08=c5f185e6f6`: `TestWatcherSuite/TestWatchRemoteConsumedSecretsChanges*` (2 tests). |
 | `domain/secret/state` | 8 | 2026-11-05 at `05=3a8f0090c2`, full package: all X27 rotation and expiry time precision. Was 50 in sweep 2 (X16, fixed by 05-SECRET-X16). |
 | `domain/secret` | 1 | 2026-11-05 at `05=3a8f0090c2`: `TestWatchSecretsRevisionExpiryChanges` receives two changes in the other order (06-order). Was 12. |
-| `domain/unitstate/state` | 4 | 2026-11-05 at `05=3a8f0090c2`: production int-to-TEXT relation key (05-unitstate-relation-key). Was 20 (X16). |
+| `domain/unitstate/state` | 0 | 2026-11-05 at `09=760f3b675f`, after `1afd3b9434`. Was 4 (relation key), 20 in sweep 2 (X16). |
+| `domain/secretbackend/state` | 11 | 2026-11-05 at `09=760f3b675f`: all X27 rotation-time `Equal`. Was 13 (X16, fixed by `52a0eea6ee`). |
+| `domain/removal/state/controller` | 0 | 2026-11-05 at `09=760f3b675f`, after `367f754dd6`. |
+| `domain/storage/state` | 8 | 2026-11-05 at `09=760f3b675f`: 4 fixture binds (`persistent`, `in_use`; 06-bind-types), 4 X27. X16 fixed by `640d3bcabf`. |
 | `domain/agentpassword/...` | 0 | 2026-11-05 after `ada2a852ee` and `283a00f630`, both backends. |
 | `internal/migration` | 3 | X21 (2), test trigger (1); PostgreSQL import deferred. |
 | `domain/provisioner/state/model` | 5 | X25 fixtures. |

@@ -1,7 +1,7 @@
 # Stage 09: functional single controller and first comparison
 
 Branch `pg-poc/09-bootstrap`, on `pg-poc/08-dbaccessor` (no commits of its own yet).
-Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a PostgreSQL-only query defect on the login and uniter paths (fixed on Stage 5). Run 4 waits on 05-unitstate-relation-key and 05-X16-rest. See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a PostgreSQL-only query defect on the login and uniter paths (fixed on Stage 5). Run 4 is unblocked: 05-unitstate-relation-key and 05-X16-rest are fixed (`09=760f3b675f`). See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 
@@ -172,10 +172,10 @@ open X16 sites (U22). The database was left with no Juju schemas.
 
 Prerequisites, in order:
 
-1. Fix 05-unitstate-relation-key; every relation-state commit fails without
-   it, so the D54 scenario would stop at its first relation. Fix
-   05-X16-rest, which includes the secret backend lookups.
-2. Restack, re-run the affected packages on both backends, and re-sweep
-   (Stage 6) at `-p 8`.
+1. Done 2026-11-05: 05-unitstate-relation-key (`1afd3b9434`) and
+   05-X16-rest (`52a0eea6ee`, `367f754dd6`, `640d3bcabf`), restacked to
+   `09=760f3b675f` and re-run on PostgreSQL. `destroy-controller` may now
+   be tried; removal controller has no X16 left.
+2. Re-sweep (Stage 6) at `-p 8`.
 3. Tear down run 3, `make juju jujuagentd`, bootstrap, and run the D54
    scenario. Then the dqlite comparison run from the same revision.

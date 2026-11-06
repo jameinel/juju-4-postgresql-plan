@@ -254,9 +254,11 @@ Not yet scoped as tasks; see UPSTREAM-FIXES.md:
 - U20: boolean literals in two network queries and an aggregate in the
   agentpassword machine check. Portability only.
 - U21: `unit_state_relation.key` is `TEXT` while Go binds integers.
-  Needs a schema-or-Go decision and export review.
+  Implemented on Stage 5 (`1afd3b9434`) by binding text in Go; no schema
+  or export change.
 - U22: remaining bare grouped columns in secretbackend, removal and
-  storage state. Establish dqlite behaviour per site first.
+  storage state. Implemented on Stage 5; secretbackend and removal are
+  portability only, storage is a latent arbitrary-row bug.
 
 ## Existing implementations and published tracking references
 
