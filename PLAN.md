@@ -33,6 +33,30 @@ relation, production hardening and performance optimisation. Benchmarking
 and comparative testing are in scope; workload-specific acceptance still
 needs agreement.
 
+### Shared SQL/schema fixes versus PostgreSQL support
+
+The PoC's PostgreSQL runtime, driver, generated DDL and harness remain in
+scope here; they are not requirements for upstream 4.1 breakouts. Those
+breakouts deliver SQL/schema correctness on SQLite and real dqlite under
+[the upstream acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
+(D55), without PostgreSQL-specific SQL or support infrastructure.
+
+For shared findings, determine the intended domain type and query semantics
+before choosing a fix. Correct an incorrect declaration or SQL construct
+rather than merely making Go bind/scan it successfully. Keep genuine
+legacy/API conversions at compatibility boundaries. A PoC workaround or
+PostgreSQL pass is evidence, not proof that the shared root cause is fixed
+or a mandatory upstream design. Correctly modeled text, such as U3's full
+unsigned node IDs, must not be changed to signed integers just because Go
+uses a numeric type.
+
+Preserve historical PoC results and identify any remaining schema correction
+separately. U21's decimal-text implementation unblocks the PoC but leaves the
+integer relation-key schema correction pending in the upstream task. Do not
+silently rewrite the PoC stack to mirror a revised upstream design; use the
+existing ownership and reconciliation procedure. Ask when a task's prescribed
+approach conflicts with the root-cause goal rather than widening its scope.
+
 ## Milestones
 
 | Milestone | Completion | Main stages |
@@ -117,7 +141,10 @@ missing inputs; do not ask an executor to design and implement a backlog.
    Put each `bug` and `latent` change in its own commit, apart from
    PoC-only changes, so it can be proposed upstream on its own. Add it to
    UPSTREAM-FIXES.md, together with defects found but not fixed. Record
-   `portability` changes in the stage's findings. Record every SQLite /
+   `portability` changes in the stage's findings and register independently
+   useful upstream candidates in UPSTREAM-FIXES.md. A portability
+   classification does not exclude a shared SQL improvement from upstream,
+   or make PostgreSQL-only support appropriate there. Record every SQLite /
    PostgreSQL difference behind a change, or found and not yet handled,
    in DIALECT.md, including driver workarounds.
 7. Before ending an implementation session:
@@ -155,9 +182,12 @@ Next:
 2. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
 3. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
-   starting with `4.1-storage-filesystem-attachment-row` (latent bug on
-   dqlite); then `4.1-unitstate-relation-key`, `4.1-x16-grouped-columns`
-   and `4.1-boolean-and-aggregate-literals`.
+   respecting current claims and the D55 review. Storage #23766 has a
+   user-requested merge hold pending attachment-invariant investigation and
+   rework, not an instruction to merge the deterministic-row version.
+   U21's integer-schema rework is published as #23769; grouped-column work
+   includes CA-certificate preservation. `4.1-boolean-and-aggregate-literals`
+   remains separately scoped.
 
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.

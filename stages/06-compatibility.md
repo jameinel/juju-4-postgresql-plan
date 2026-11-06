@@ -62,9 +62,16 @@ unexpected production semantics or unapproved skipping. Classify each
 change individually; backend-specific trigger syntax is portability, not
 a blanket latent test defect.
 
+Before changing a fixture's binding type, confirm that the declared column
+type correctly models the domain (D55). Matching an incorrect declaration
+can hide the production defect rather than repair the fixture. Route shared
+SQL/schema corrections to their owning stage; ask if this conflicts with a
+task's test-only scope. Correct textual representations, including U3/U5's
+unsigned node IDs, still require textual fixture binds.
+
 | ID | Scope / required result | Readiness |
 |---|---|---|
-| 06-X23 | `domain/removal/state/model/secret_test.go`: bind revision IDs as strings to `secret_value_ref` and `secret_deleted_value_ref` TEXT columns. | Defined substitution; verify affected tests. |
+| 06-X23 | `domain/removal/state/model/secret_test.go`: bind revision IDs as strings to `secret_value_ref` and `secret_deleted_value_ref` TEXT columns if TEXT is the intended domain representation. | Confirm the representation against production writers/consumers first (D55), then verify affected tests. If the schema is incorrect, stop and scope its correction rather than masking it with a fixture conversion. |
 | 06-X25 | `domain/provisioner/state/model/state_test.go`: boolean fixtures for `allocate_public_ip` and `read_only`; removal-model `state_test.go`: boolean `force`. | Inspect column/driver representation on both backends, then preserve logical fixture values. |
 | 06-X27 | Removal schedule tests, `domain/status/state/model` (48 `Since` round trips) and `domain/macaroon/state`: use microsecond-representable times for round-trip assertions. X28: replace the out-of-range max-int sentinel with a representable bound. | Preserve boundary/ordering coverage; do not merely relax comparisons. Ask if production precision semantics must change. |
 | 06-X16 | `domain/application/state/application_test.go`, `TestEnsureApplicationOnMultipleMachines`: `COUNT(*), uuid` without grouping. | Clarify intended assertion before choosing grouping versus separate queries. |

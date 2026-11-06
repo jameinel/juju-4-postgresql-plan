@@ -13,6 +13,13 @@ This is the evolving record of findings, provenance and upstream status.
 procedure for bringing landed fixes back into the PoC. Neither is required
 setup or QA for stock-upstream implementation agents.
 
+Upstream fixes follow the
+[SQL/schema acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
+(D55): correct the shared SQL/schema root cause, not merely its Go binding or
+scanning boundary. The final patch remains SQLite/dqlite-only. PostgreSQL
+runtime support and PoC workarounds are separate from upstream acceptance;
+a source commit's approach is not a required design.
+
 ## Keeping the register current
 
 Record new findings here even when no implementation task exists yet.
@@ -35,12 +42,21 @@ or source mapping is added here.
 For each proposed 4.1 change:
 
 - Identify the dqlite defect or portability benefit and any behaviour delta.
+  Explain why the actual SQL and stored types resolve it; successful Go
+  conversions or passing permissive-backend tests alone are insufficient.
+  If the proposed extraction preserves an incorrect schema or contradicts
+  the task's constraints, ask the user before implementing.
 - Isolate a coherent patch with no PostgreSQL-only/generated dependencies.
   U1/U2 share a PoC commit but are separate commits on the existing
   `4.1-sqlite-integers` review branch. U8/U9 include PG output to omit.
   Verify the extracted patch; do not assume PoC commits are self-contained.
-- Carry a regression test and default/dqlite evidence on the target 4.1
-  revision; preserve legacy import/export representations for schema fixes.
+- Carry focused behavior coverage and SQLite plus real-dqlite evidence on
+  the target 4.1 revision. Preserve compatibility with legacy import/export
+  payloads through validated boundary conversions where needed; current
+  generated types should reflect the corrected schema, not freeze the old
+  representation. Check recovery and the release's schema-evolution policy.
+  PostgreSQL execution is optional for uncertain semantics and must be
+  reported separately; it replaces neither supported backend's checks.
 - Record the PoC commit, extraction adjustments, validation and upstream
   disposition (not proposed / in review / merged / deferred).
 
@@ -50,13 +66,19 @@ records the PoC implementation. Prioritise concrete bugs and
 schema-correctness fixes for release review; do not wait for all
 portability suites to be green.
 
+The [D55 implementation review](UPSTREAM-PLAN.md#d55-implementation-review-2026-11-06)
+owns current rework/merge holds. The
+[merged assessment](UPSTREAM-DONE.md#d55-merged-implementation-assessment-2026-11-06)
+records follow-up advice, including U4's remaining SQLite fixture expressions
+and U13's already-open driver follow-up. Neither is fresh runtime validation.
+
 
 | ID | Class | Location | Defect on dqlite | Status |
 |---|---|---|---|---|
 | U1 | bug | `v_revision_updater_application_unit` (model schema) | Grouped by `u.uuid`, so it returned one row per unit instead of one unit count per application (D18). | Fixed, Stage 4, `fix(schema): correct lookup types and revision unit counts`. |
 | U2 | latent | Model and controller schema, eleven lookup FK columns | Declared `TEXT` while referencing integer lookup IDs. SQLite coercion hid the mismatch, and exports carried the IDs as strings. | Fixed, Stage 4, same commit as U1. |
 | U3 | latent | `internal/database/bootstrap.go` `InsertControllerNodeID` | Bound a `uint64` to the `TEXT` `dqlite_node_id` column. It worked only because the bootstrap node always uses go-dqlite's `BootstrapID` (high bit clear); `database/sql` rejects a `uint64` with the high bit set. | Fixed, Stage 6, `fix(database): bind controller node id as text`. |
-| U4 | latent (test) | `domain/lease/state/migration_test.go` | Seeded leases with `date('now')` and discarded the `StdTxn` error, so a failed seed went unnoticed and the tests checked an empty table. | Fixed, Stage 6, `test(lease): seed migration test leases with bound timestamps`. |
+| U4 | latent (test) | `domain/lease/state/migration_test.go` | Seeded leases with `date('now')` and discarded the `StdTxn` error, so a failed seed went unnoticed and the tests checked an empty table. | PoC fixed on Stage 6 with bound timestamps. Merged #23686 fixes setup error checking but retains SQLite `datetime('now', ?)` fixtures; a separate, low-priority portability follow-up is reasonable under the D55 review. Do not describe the merged implementation as already binding computed timestamps. |
 | U5 | latent (test) | `domain/changestream/state/state_test.go` `insertControllerNodes`; `domain/upgrade/state/state_test.go` | Insert integer `dqlite_node_id` values into the `TEXT` column, relying on SQLite type affinity. | changestream fixed, Stage 6, `test(changestream): insert controller node ids as text`; upgrade fixed upstream in juju/juju#23685. Both landed; PoC commit dropped 2026-11-05. |
 | U6 | latent (test) | `domain/model/state/testing/model.go` (lines 122, 240) | Uses `""` as an empty string literal. SQLite accepts double-quoted strings only as a legacy misfeature; standard SQL reads `""` as an identifier. | Fixed, Stage 6, `test(domain): use single-quoted string literals in test sql` (49 files). |
 | U7 | bug | `v_model_config` (model patch 0027) read by `domain/modelconfig/state` `ModelConfig` | If `model_config` also holds `agent-stream`, the view returns two `agent-stream` rows and `ModelConfig` keeps the last. SQLite's `UNION` sorts, so the `agent_version` stream wins only when it sorts after the config value (DIALECT.md X15). | Fixed, Stage 6, `fix(schema): prefer agent_version values in v_model_config`. The model branch excludes `agent-stream` and `agent-version` and the view uses `UNION ALL`; `TestModelConfigAgentStreamAndVersionInConfig` fails on dqlite without it. |
@@ -73,8 +95,8 @@ portability suites to be green.
 | U18 | tooling | `Makefile` `install-dependencies`; static-analysis prerequisites | `install-dependencies` covers Go snap and `libsqlite3-dev`, but not `shellcheck`, `gci`, `golangci-lint` or `stress`. Without `shellcheck`, `STATIC_ANALYSIS=1 make pre-check` stops at dependency checks; without SQLite headers it fails schema generation with `sqlite3.h` missing. The run also reports skipped `go-licenses`, `shfmt` and `govulncheck` checks when those tools are absent. | Found 2026-11-03; not implemented. Independently inventory required and skipped development tools, add appropriate installation/verification to `make install-dependencies`, and validate clean and repeated installs plus the affected checks. See `4.1-install-dependencies` in UPSTREAM-PLAN.md. |
 | U19 | latent | `domain/secret/state/state.go` (`updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets`, `getSecretsRevisionExpiryChanges`); `domain/unitstate/state/commithook.go` `updateCharmSecret` | Bare columns beside `MAX(revision)` (DIALECT.md X16). They rely on SQLite's single-`MAX` rule to read the latest revision's row; with other aggregates or several join rows, the bare columns (policy, expiry, owner) may come from any row. The revision listing also had no `ORDER BY` (X17). **Found in Stage 9 run 3 (2026-11-05):** the controller unit's uniter failed with 42803. | Fixed, Stage 5, `5e70fcbc84` (five secret sites, correlated `MAX` subquery, `latestrevision_test.go`), `0ed13ff885` (order revisions), `3a8f0090c2` (unitstate). Upstream: `4.1-secret-latest-revision`. |
 | U20 | portability | `domain/network/state` `GetMachineAppBindings` (`subordinate = 0`), `GetUnitAPIAddresses` (`is_caas = 1`); `domain/agentpassword/state/modelstate.go` `MatchesMachinePasswordHashWithNonce` (bare `mci.instance_id` beside `COUNT`) | Correct on dqlite: booleans are integers, and a machine has at most one cloud instance row. PostgreSQL rejects both (X12/42883, X16/42803). **Found 2026-11-05:** network by package validation before bootstrap run 2 (controller API address path); agentpassword by run 2, where every machine agent login failed. | Fixed, Stage 5, `30e2bca25a` (`FALSE` / `TRUE`) and `ada2a852ee` (`MAX(mci.instance_id)`); test SQL `fa75871904` (Stage 6; was `283a00f630` before the 2026-11-06 restack). Not proposed. |
-| U21 | latent | `domain/unitstate/state/state.go` `setUnitStateRelation`; `types.go` `unitRelationStateKeyVal` | Binds Go `int` relation IDs into `unit_state_relation.key`, declared `TEXT`. SQLite stores them by affinity, so the schema and Go type disagree unnoticed (DIALECT.md X23). pgx refuses to encode `int` as text, so every uniter relation-state commit fails on PostgreSQL. **Found 2026-11-05** in the `domain/unitstate/state` re-run once U19 no longer masked it. | Implemented on Stage 5 (`1afd3b9434`): bind the key as decimal text and parse it on read; the column stays `TEXT`, so no schema or import delta. Not proposed upstream. |
-| U22 | latent | `domain/secretbackend/state/state.go` (`ListSecretBackends`, `ListSecretBackendsForModel`, `getK8sSecretBackendForModel`); `domain/removal/state/controller/secret.go` `getK8sSecretBackendForModel`; `domain/storage/state/instance.go` `GetStorageInstanceInfo` | Bare columns with `GROUP BY` (DIALECT.md X16); storage can return an arbitrary mount point when the schema-permitted duplicate attachments share a filesystem and node. **Found 2026-11-05** by PostgreSQL sweep 2 (secretbackend, 13 failures) and by reading. | Implemented on Stage 5: secretbackend `52a0eea6ee` and removal `367f754dd6` are portability only; storage `640d3bcabf` selects the lowest attachment UUID. Storage published independently in [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9`; review, CI and live QA pending. The choice is deterministic, not proof of the correct mount; the duplicate invariant remains unresolved. |
+| U21 | latent | `domain/unitstate/state/state.go` `setUnitStateRelation`; `types.go` `unitRelationStateKeyVal` | Binds Go `int` relation IDs into `unit_state_relation.key`, declared `TEXT`. SQLite stores them by affinity, so the schema and Go type disagree unnoticed (DIALECT.md X23). pgx refuses to encode `int` as text, so every uniter relation-state commit fails on PostgreSQL. **Found 2026-11-05** in the `domain/unitstate/state` re-run once U19 no longer masked it. | PoC workaround implemented on Stage 5 (`1afd3b9434`): bind decimal text and parse on read, retaining `TEXT`. This unblocks PostgreSQL but leaves the schema mismatch unresolved. Upstream [#23769](https://github.com/juju/juju/pull/23769) changes the key to `INT`, regenerates the 4.1 export type and converts legacy text keys during import, without a new foreign key. The user reports performing functional QA; review and CI remain. Reconcile the differing PoC implementation after landing. |
+| U22 | latent | `domain/secretbackend/state/state.go` (`ListSecretBackends`, `ListSecretBackendsForModel`, `getK8sSecretBackendForModel`); `domain/removal/state/controller/secret.go` `getK8sSecretBackendForModel`; `domain/storage/state/instance.go` `GetStorageInstanceInfo` | Bare columns with `GROUP BY` (DIALECT.md X16); storage can return an arbitrary mount point when the schema-permitted duplicate attachments share a filesystem and node. **Found 2026-11-05** by PostgreSQL sweep 2 (secretbackend, 13 failures) and by reading. | Stage 5 secretbackend `52a0eea6ee` and removal `367f754dd6` corrected SQL but retained lossy CA converters; revised upstream commit `c3f75cf032` also preserves all cloud certificates. Storage PoC `640d3bcabf` and [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9`, choose the lowest attachment UUID. **Local merge hold and rework required under D55:** the user confirmed the attachment invariant is uncertain; investigate before choosing schema enforcement or a domain-based selection rule. Determinism is not proof of the correct mount. Ownership, publication and QA remain in UPSTREAM-PLAN.md. |
 
 ### U17: nullable INT lookup primary keys (independent PR in review)
 
@@ -232,7 +254,9 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 ## Upstream review status
 
 Snapshot refreshed from GitHub on 2026-11-05, with later updates for #23756
-and #23759. Other entries retain the earlier snapshot.
+and #23759. The D55 review on 2026-11-06 also updates sequence, storage,
+U21 and the local grouped-column implementation below; it does not refresh
+all CI or review results. Other entries retain the earlier snapshot.
 Every listed PR targets `juju/juju` branch `4.1` from `jameinel/juju`.
 Head hashes are short SHA
 prefixes; check GitHub before acting because review and CI status can change.
@@ -261,7 +285,7 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `2618d146da` | merged 2026-11-06 as `32be283d02`; PoC cherry-picks predate the shared-state refactor and require reconciliation |
 | `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; no failing/pending reported checks; approval required |
 | `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
-| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `76b4a04f09` | open; shared allocator/RETURNING refactor and tests published; unit, bundles/revision smoke and aggregate CI fail; approval required |
+| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `696c116f79` | open; checked upsert and same-transaction lookup replace RETURNING to preserve retryable errors; current-head CI and QA need checking, not inferred from the earlier failure snapshot |
 | `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `adf9f317a6` | open; query and schema views published; revision smoke/aggregate CI fail; approval required |
 | `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | open; no failing/pending reported checks; approval required |
 | `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `15119bb898` | open; 9 checks passed, 12 skipped; approval required |
@@ -269,9 +293,9 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `f0408a92ba` | open; temporary SQL casts and full domain CI published; stacked on #23756; CI pending, approval required |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | U19/X16 | not proposed | | PoC implementation on Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`); extract after the remaining #23688 review |
-| `4.1-unitstate-relation-key` | U21/X23 | not proposed | | PoC implementation on Stage 5 (`1afd3b9434`); scoped in UPSTREAM-PLAN.md |
-| `4.1-storage-filesystem-attachment-row` | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) | `65dbcae6a9` | open; review, CI and live QA pending; duplicate attachment invariant remains unresolved |
-| `4.1-x16-grouped-columns` | U22/X16 | not proposed | | PoC implementation on Stage 5 (`52a0eea6ee`, `367f754dd6`); portability only; scoped in UPSTREAM-PLAN.md |
+| `4.1-unitstate-relation-key` | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) | `2f680f1302` | open; user reports performing functional QA; review and CI remain. Stage 5 `1afd3b9434` is a different, boundary-only PoC workaround; reconcile after landing. |
+| `4.1-storage-filesystem-attachment-row` | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) | `65dbcae6a9` | open; user-requested local merge hold, invariant investigation and rework before merge; retain owner and do not settle semantics through UUID ordering |
+| `4.1-x16-grouped-columns` | U22/X16 | not proposed | | Revised local `c3f75cf032` fixes SQL and preserves all CA certificates in both consumers; the older Stage 5 portability-only scope was insufficient. Publication/QA status is in UPSTREAM-PLAN.md. |
 | `4.1-boolean-and-aggregate-literals` | U20 | not proposed | | PoC implementation on Stage 5 (`30e2bca25a`, `ada2a852ee`) and Stage 6 test SQL (`fa75871904`); scoped in UPSTREAM-PLAN.md |
 
 Notes:

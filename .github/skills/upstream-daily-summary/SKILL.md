@@ -13,6 +13,11 @@ Use its `UPSTREAM-PLAN.md` as the queue, not a fixed list of PRs.
 `UPSTREAM-FIXES.md` records finding status and PoC reconciliation. Consult
 those files as needed to interpret or update the queue.
 
+Preserve the plan's SQL/schema root-cause acceptance contract when updating
+tasks. A boundary-only PoC workaround is not a completed upstream schema
+correction; report the distinction without making PostgreSQL support or
+execution a new requirement for stock 4.1 work.
+
 ## Gather current state
 
 1. Read the plan and inventory every proposed branch, open PR, unstarted task,

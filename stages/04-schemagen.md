@@ -64,6 +64,11 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     export types and legacy import deltas (D27/D30). U12 changed both
     relation-status ID columns to integers; do not restore the old TEXT
     workaround from historical notes.
+  - Under D55, correct a shared SQL/schema defect at its source, not with
+    a PostgreSQL override or a Go conversion that preserves the defect.
+    Translation and overrides remain appropriate for genuine dialect
+    differences. Stop for unresolved semantics or release-policy conflicts;
+    do not infer permission for a schema rewrite from a generator task.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support

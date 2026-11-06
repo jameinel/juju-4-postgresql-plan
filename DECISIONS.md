@@ -4,6 +4,32 @@ All confirmed with the user. Rationale and alternatives are in
 [ANALYSIS.md](ANALYSIS.md). Add an entry only after the user confirms it.
 To change one, amend it in place and say what it replaced and why.
 
+## D55: shared SQL/schema root-cause fixes (2026-11-06)
+
+Confirmed with the user: upstream 4.1 breakouts correct the SQL/schema root
+cause, not merely its Go conversion boundary. Keep legitimate legacy/API
+conversions and documented driver workarounds, but do not use them to preserve
+an incorrectly typed schema. The final implementation remains SQLite/dqlite-only,
+without PostgreSQL-specific SQL or support infrastructure. Require explicit
+SQL/schema correctness reasoning and SQLite plus real-dqlite validation.
+PostgreSQL is available as an optional reference for uncertain semantics;
+ask when needed and do not claim verification without execution.
+
+Stop and ask when a task's prescribed approach conflicts with this goal;
+do not silently follow it or expand scope. This supersedes Stage 5's U21
+preference for decimal-text binding without a schema change. The approved
+upstream U21 design uses an `INT` relation key, regenerated 4.1 export type
+and validated legacy text-key import conversion, without a new foreign key.
+Existing PoC runtime decisions and historical validation remain separate;
+reconcile the differing U21 implementation through UPSTREAM-INTEGRATION.md.
+See [the acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance).
+
+## PoC architecture and workflow decisions
+
+The PostgreSQL runtime, driver, generator and harness decisions below govern
+the PoC. They are not dependencies or acceptance requirements for stock
+upstream 4.1 fixes. D55 does not remove PostgreSQL support from the PoC.
+
 | ID | Decision |
 |---|---|
 | D1 | Scope as in [PLAN.md](PLAN.md#goal-and-scope): LXD machine controllers plus HA, fresh bootstrap, external PG via URL. |

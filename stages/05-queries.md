@@ -4,11 +4,19 @@ Branch `pg-poc/05-queries`, on `pg-poc/04-schemagen`.
 
 ## Status and scope
 
-Implemented. X33–X38 and U11 are finished (U11 is cherry-picked from the
-open upstream PR). Bootstrap runs 2 and 3 and PostgreSQL sweep 2
-(2026-11-05) found more production defects; all are fixed (05-BOOT-FIXES,
+PoC runtime fixes implemented. X33–X38 and U11 are finished (U11 is
+cherry-picked from the open upstream PR). Bootstrap runs 2 and 3 and
+PostgreSQL sweep 2 (2026-11-05) found more production defects; the runtime
+failures are addressed (05-BOOT-FIXES,
 05-SECRET-X16, 05-X16-rest, 05-unitstate-relation-key; tip
-`05=640d3bcabf`). No known production query defect remains open here.
+`05=640d3bcabf`). No known production query blocker remains open here.
+U21 is a boundary workaround, not a completed shared schema correction;
+the integer-schema upstream task and later PoC reconciliation remain open.
+The D55 review also holds upstream storage #23766 for attachment-invariant
+investigation and rework; lowest-UUID selection is not an established
+correct-mount contract. The revised upstream grouped-column implementation
+preserves CA certificates as well as fixing SQL. These are upstream
+dispositions, not new PostgreSQL validation of this PoC tip.
 
 Validate Stage 5 fixes on PostgreSQL at the 09 tip (or a worktree of 09
 with the fix applied): `JUJU_POSTGRESQL_TEST_URL` only redirects tests
@@ -22,6 +30,12 @@ Make shared SQL valid while preserving intended behaviour. Classify real
 behaviour changes explicitly and retain upstream-ready fixes. Only read
 the X*/D* entries for the task being assigned. Follow OPERATIONS.md for
 dual-backend tests and PLAN.md for restacking.
+
+Apply D55 to shared findings: correct SQL/schema semantics rather than only
+making Go conversions succeed. PoC-only dialect support remains separate.
+Use [UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
+for upstream design and acceptance; do not treat these source implementations
+as required upstream approaches. Ask before changing an assigned scope.
 
 ## Remaining tasks
 
@@ -120,11 +134,12 @@ converters keep the last row). Behaviour is unchanged from SQLite.
 Test-side X16 sites (`application/state/unit_test.go`,
 `removal/state/model/application_test.go`) belong to Stage 6 (06-X16).
 
-### 05-unitstate-relation-key: integer key in a TEXT column (done)
+### 05-unitstate-relation-key: PoC workaround implemented; schema fix pending
 
-`1afd3b9434`. The relation IDs are bound as decimal text and parsed back
-into `int` on read, with an error for a non-decimal key; the column stays
-`TEXT`, so there is no schema or import change. Existing tests covered it
+Historical implementation: `1afd3b9434`. The relation IDs are bound as
+decimal text and parsed back into `int` on read, with an error for a
+non-decimal key; the column stays `TEXT`, so there is no schema or import
+change. Existing tests covered it
 (the 4 failures below); `domain/unitstate/state` passes on PostgreSQL at
 `09=760f3b675f`.
 
@@ -138,10 +153,14 @@ The uniter commits relation state on every hook, so this blocks any
 related application on PostgreSQL. Also check the read path, which scans
 the TEXT key back into `int`.
 
-Prefer converting in Go (bind the key as a decimal string) over changing
-the column type, which would need an upstream schema change and
-import/export review. An upstream candidate either way: the schema and
-the Go type disagree.
+The earlier preference for Go conversion over schema correction is
+superseded by D55 and the user's U21 decision. The upstream task changes
+the column to `INT`, regenerates the 4.1 export type and converts legacy
+text keys during import, without adding a foreign key. Its schema,
+import/export, recovery and unit-state checks are in UPSTREAM-PLAN.md.
+The PoC workaround remains historical implementation evidence, not an
+approved upstream solution. Reconcile it with the landed result under
+UPSTREAM-INTEGRATION.md; do not silently mirror an in-review design here.
 
 ## Contracts consumers must preserve
 

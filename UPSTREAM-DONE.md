@@ -17,6 +17,40 @@ Keep new execution history and decision rationale here; keep pending actions
 in the plan and finding/status mappings in the register. Historical heads
 and test runs below do not establish coverage of later revisions.
 
+For new work, use the plan's
+[SQL/schema acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
+(D55), not a historical implementation as a prescribed design. Legitimate
+representation conversions remain valid: U3 stores the full unsigned
+64-bit node-ID range as decimal text, which a signed SQLite integer cannot
+represent. That is distinct from U21's pending correction of integer
+relation-key storage; not every Go numeric type implies an integer column.
+
+## D55 merged implementation assessment (2026-11-06)
+
+Design-alignment review against upstream `148e09f015` and the actual merged
+SQL/schema changes, with GitHub merge states checked on 2026-11-06.
+This did not rerun tests, functional QA or CI, and is not a full bug audit.
+Open-branch rework/merge holds and pending follow-ups belong in
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#d55-implementation-review-2026-11-06).
+
+| Merged branch / PR | D55 assessment / follow-up advice |
+|---|---|
+| `4.1-sqlite-integers`, #23680 (U1/U2/U12) | Aligned: correct grouping at application level and change incorrectly declared lookup/FK IDs to INT. Legacy parsing belongs at import. No D55-driven follow-up indicated. |
+| `4.1-binary-key-columns`, #23682 (U8) | Aligned: raw key bytes become BLOBs and the obsolete TEXT storage exceptions are removed. Matching export/recovery changes are necessary, not a workaround for the old schema. No D55-driven follow-up indicated. |
+| `4.1-removal-force-boolean`, #23690 (U9) | Aligned: BOOLEAN storage, bool exports and validated legacy 0/1 import conversion. Do not undo this by converting normal writes to integers. |
+| `4.1-controller-node-id-text`, #23685 (U3/U5) | Aligned exception: dqlite node IDs span uint64, beyond signed SQLite integers. Decimal TEXT is intentional storage; formatting it at the boundary is correct. Do not propose an INT-schema follow-up based on U21's different domain contract. |
+| `4.1-keymanager-insert-id`, #23684 (U13) | Aligned: tie the ID to the actual insert and reject an unknown algorithm instead of trusting stale LastInsertId state. A follow-up is reasonable and already open as #23756 for the separate dqlite RETURNING error-response defect. Keep the original correctness guard. |
+| `4.1-lease-migration-tests`, #23686 (U4) | The silent setup-error defect is fixed, but the merged helper still uses `datetime('now', ?)` with SQLite modifiers. It does not bind computed timestamps as earlier documentation claimed. An independent fixture-portability follow-up is reasonable and low priority; no storage-type rewrite is indicated. |
+| `4.1-changestream-latest-row`, #23691; `4.1-dbrepl-latest-row`, #23730; `4.1-local-secret-revisions`, #23720 | Aligned: explicit latest-ID/revision selection and joins/filters replace bare aggregate columns. No D55-driven redo. U19's other secret queries remain separate work; #23720 did not claim to fix them all. |
+| `4.1-objectstore-conflicts`, #23694; `4.1-agentbinary-conflict`, #23728 | Aligned: SQL resolves intended uniqueness conflicts without continuing after a statement error. UUID/content conflicts and immutable registrations retain their domain meanings. Shared helper/refactoring and error mapping do not substitute for the SQL fix. |
+| `4.1-blockcommand-order`, #23692 | Aligned: explicit block-type ordering replaces implicit rowid ordering. This is the agreed ordering change, not a conversion workaround. |
+| `4.1-sql-standard-syntax`, #23695; `4.1-sql-test-literals`, #23696 | Aligned: equality/join formulation and literal quoting are fixed in SQL itself, including production paths. No D55-driven follow-up indicated. |
+| `4.1-dbaccessor-pool-cleanup`, #23726 (U14) | Separate resource-ownership defect, not an SQL/schema concern. No D55-driven rework or follow-up indicated. |
+
+Do not generalize this assessment into PostgreSQL acceptance, current QA
+completion, or permission to change merged representations without a
+separately demonstrated defect.
+
 ## Landed upstream fixes
 
 | Branch / PR | Finding | Work and rationale |
@@ -25,7 +59,7 @@ and test runs below do not establish coverage of later revisions.
 | `4.1-binary-key-columns`, #23682 | U8 | Store activation, bakery and macaroon root keys as BLOBs, with matching export/recovery and legacy compatibility. Raw random bytes are not text. |
 | `4.1-keymanager-insert-id`, #23684 | U13 | Obtain the key ID from the inserted row. A zero-row insert for an unknown algorithm must not reuse a prior `LastInsertId` and associate an unrelated key. |
 | `4.1-controller-node-id-text`, #23685 | U3/U5 | Bind decimal text to the TEXT node-ID column, including high-bit and max-uint64 values; correct changestream and upgrade fixtures. Do not narrow IDs to signed INT. |
-| `4.1-lease-migration-tests`, #23686 | U4 | Assert seed success and use bound timestamps so held/expired lease tests exercise actual rows rather than silently passing on empty setup. |
+| `4.1-lease-migration-tests`, #23686 | U4 | Assert seed success and seed held/expired leases with SQLite datetime expressions so tests exercise actual rows rather than silently passing on empty setup. Computed timestamp binding remains a possible separate portability follow-up, not part of the merged implementation. |
 | `4.1-removal-force-boolean`, #23690 | U9 | Match boolean writers/readers with BOOLEAN storage and bool exports; convert legacy 0/1 and reject other integers. |
 | `4.1-changestream-latest-row`, #23691 | X16 | Explicitly select the latest change ID and join to its row, avoiding ungrouped columns beside MAX. This does not fix the separate dbrepl query. |
 | `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
@@ -85,7 +119,7 @@ all earlier-beta database compatibility.
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Resolve competing pins with the explicit lease/entity conflict target. Preserve repeated-pin and missing-lease behaviour; reset the test helper's captured results on transaction retries. This is portability, not a current dqlite defect. |
-| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly, qualify the stored value and share a scalar allocator using RETURNING at `76b4a04f09`. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly, qualify the stored value and share a scalar allocator. At `696c116f79`, a checked upsert and same-transaction lookup replace `76b4a04f09`'s RETURNING implementation to preserve retryable errors. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Replace eleven SQLite membership shorthands with explicit single-column subqueries; preserve filtering, scoped cleanup, lifecycle and departure semantics. Rebased head `02e9f73e49` retains the same patch. |
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Replace redundant IIF wrappers with equivalent null-check predicates in the connection query and three controller views at `adf9f317a6`. |
 | `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Distinguish reviewer context, prospective merge-message content and reproducible reviewer QA from validation history at `15119bb898`. |
@@ -100,11 +134,20 @@ The independent implementation started at upstream
 `e22f5666d0861d3c84e8465c1ff86fbd23f58f48`. Initial commit `cfa8676090`
 targets namespace conflicts and qualifies the stored value; follow-up
 `74aabf93b4` collects concurrent-test results only after the entire
-transaction succeeds. Published head `76b4a04f09` shares a private scalar
-allocator between `NextValue` and `NextNValues`, using RETURNING instead
+transaction succeeds. Earlier published head `76b4a04f09` shares a private
+scalar allocator between `NextValue` and `NextNValues`, using RETURNING instead
 of a second SELECT. A zero-count batch remains a no-op; allocation retains
 namespace isolation, zero-based contiguous ranges, rollback and failure
 detection when writes produce no row.
+
+On 2026-11-06, published head `696c116f79` replaced RETURNING with a
+checked, targeted upsert followed by a same-transaction lookup. The code
+documents separate dqlite response and Sqlair row-iteration error defects;
+the workaround must be reviewed when both are fixed. It adds a
+stale-snapshot retryability regression for scalar and batch allocation,
+retaining suppressed-write detection. The D55 review inspected this change
+and verified the GitHub head; it did not rerun tests or CI. The earlier
+RETURNING-head checks below are not validation of this revision.
 
 The earlier implementation record reports the following checks using
 shared `_deps`, stock SQLite/Dqlite fixtures and `dqlite,libsqlite3` tags.

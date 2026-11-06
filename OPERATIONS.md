@@ -4,6 +4,14 @@ Read the relevant section when building, testing, regenerating schemas or
 operating the PoC. PLAN.md keeps the always-needed safety and stack rules.
 Follow the code repository's AGENTS.md and nested guidance as well.
 
+This reference operates the PostgreSQL PoC, not stock upstream 4.1. Upstream
+SQL/schema breakouts use
+[their own acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
+and [validation guide](.github/skills/upstream-breakout/references/validation.md):
+SQL/schema-level correctness reasoning plus SQLite and real-dqlite checks.
+They do not require this PoC harness or a PostgreSQL run. A PoC PostgreSQL
+pass does not establish that a shared schema defect has been corrected.
+
 ## Exceptional stack operations
 
 Routine new-stage/fix/restack/push commands stay in PLAN.md. For an

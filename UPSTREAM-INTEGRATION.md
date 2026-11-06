@@ -37,7 +37,11 @@ work.
 3. **Map what remains.** For each registered fix, distinguish equivalent
    shared changes, upstream differences needing reconciliation, and
    PostgreSQL-only residual work. Include helper and test dependencies;
-   do not drop a whole mixed commit just because one fix landed.
+   do not drop a whole mixed commit just because one fix landed. A PoC
+   boundary workaround is not equivalent to an upstream schema correction
+   merely because both pass PostgreSQL tests. Follow D55's root-cause
+   contract; U21's decimal-text workaround must be reconciled with the
+   approved integer-schema design, not retained as a competing normal path.
 4. **Reconcile the stack.** Use the current stack workflow in PLAN.md.
    Remove duplicate shared hunks while preserving needed residuals and
    stage references. Investigate conflicts, skipped commits and duplicated
