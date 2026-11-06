@@ -80,7 +80,7 @@ a blanket latent test defect.
 | 06-status-diagnosis | `domain/status/state/model`: 48 failures, diagnosed 2026-10-26 at `08=c5f185e6f6`: all 48 are X27 round-trip precision assertions (`Since` nanoseconds versus PG microseconds; 27 via `assertStatusInfoEqual`, the rest `DeepEquals` on `Since`). No SQL errors; 125 pass. Production status code has no in-memory comparison of stored timestamps (status history filtering reads the log file). | Not a runtime blocker. Repair with 06-X27: microsecond-representable fixture times, preserving the assertions. |
 | 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips all 93 trigger and schema tests on PG. Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. |
 | 06-test-levels | Script the N16 levels: smoke (fixed core plus the domains touched by a diff), full and readiness (tiers A and B), each run on both backends with per-package logs, pass/fail/skip counts and a known-failure list for readiness. | Defined; selection from N16. Check the tier lists against `go list` when run, so new packages are not missed. |
-| 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Parallel packages done (N17, `08=eac5b916c7`): unit-test profile plus a per-process D53 key; see [06-test-speed result](#06-test-speed-result). Per-test cost is unchanged (~0.5 s). Optional follow-ups: move schema drop off the test's critical path; a database pool only if a full run shows contention (N17). |
+| 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Parallel packages done (N17, `08=eac5b916c7`): unit-test profile plus a per-process D53 key; see [06-test-speed result](#06-test-speed-result). Per-test cost is unchanged (~0.5 s). Optional follow-ups: move schema drop off the test's critical path; split `domain/application/state` and `domain/removal/state/model`, which bound `-p 8` wall time. A database pool was measured and gives no gain ([database pool PoC](#database-pool-poc), N17). |
 | 06-leaseexpiry-db | `internal/worker/leaseexpiry/store.go` runs its own SQL (expiry comparison with a formatted time) but its tests use only mocks. Add a test against a real database, run on both backends. | Defined; tier A gap found 2026-11-05. |
 | 06-dialect-fixtures | Test fixtures built for SQLite that fail on PG before reaching the code under test (sweep 2): `AUTOINCREMENT` in a schema DDL passed by `internal/changestream/stream`, `domain/ssh/state/model`, `internal/worker/dbrepl`, `dbreplaccessor`, `changestreampruner` and `core/database/schema` (`schema.go:42`; 97 failures); SQLite `CREATE TRIGGER` bodies using `OLD`/`NEW` (`domain/machine/state` 21, `domain/access/state`, `domain/recovery/state`, removal model); `datetime()` in `domain/lease/state` test SQL; `sqlite_schema` in `domain`. | Find the shared fixture source first; most are one helper each. Use the harness dialect or `FailingTriggerSQL`; do not skip. |
 | 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent`); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: `persistent` and blockdevice may be production binds, not fixtures. |
@@ -164,13 +164,50 @@ others' DDL queues behind the lock, which loses most of the parallel
 gain. Per-test keys would add nothing: no tier A test calls
 `Parallel()`, so one process builds one schema at a time.
 
-Not built: a pool of databases, one per data-integrator relation, so
-parallel packages use separate catalogs. Each relation user may connect
-only to its own database (`pg_hba`) and has no `CREATEDB`, so a pool of N
-needs N data-integrators. The single database showed no lock exhaustion
-or catalog contention, so the pool is deferred (N17). Next measurement:
-a full tier A+B run at `-p 8`; build the pool only if that shows
-contention that separate catalogs would remove.
+### Database pool PoC
+
+2026-11-05, experimental branch `pg-poc/experiment-db-pool`
+(`2e04f6fdd4`, off `09=eac5b916c7`, not on the stack, published). The
+branch holds the pool code and `scripts/postgresql-poc/db-pool-bench`
+(scripts, package list, results). The pool gives
+parallel packages separate catalogs. Each relation user may connect only
+to its own database (`pg_hba`) and has no `CREATEDB`, so a pool of N
+needs N data-integrators: `di01`..`di08`, co-located with `postgresql`
+in `lxd36-pgtest:admin/pgtest`, databases `juju-01`..`juju-08`.
+`JUJU_POSTGRESQL_TEST_URL_POOL` names a file of URLs, one per line; each
+test process takes the lowest free slot with a non-blocking `flock` on
+`<file>.slot-<n>.lock` and uses `urls[slot % N]` for its lifetime. The
+pool takes precedence over `JUJU_POSTGRESQL_TEST_URL`.
+
+Run: the 138 sweep 2 packages (117 `domain`, 18 `internal`, 2 `core`,
+`apiserver/stateauthenticator`), untagged `go test -count=1 -p 8`,
+warm build cache, one invocation per N. Sampler: connections per
+database and host load every 5 s. The host has 28 CPUs.
+
+| N | Wall time | Summed package time | `application/state` | Peak connections per database | Peak load |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 591 s | 4309 s | 560 s | 22 | 16.3 |
+| 4 | 566 s | 4036 s | 505 s | 10 | 13.6 |
+| 8 | 612 s | 4078 s | 501 s | 5 | 17.5 |
+
+Every run: 99 packages pass and 36 fail, the sweep 2 failures. Two
+differ between runs. `domain/model/state/controller`
+`TestGetActivatedModelUUIDs` failed at N=8 on result order (06-order).
+`domain/status` failed at N=1 in schema teardown: the query listing
+objects outside the test schema that depend on it raised `cache lookup
+failed for attribute ... (XX000)` while other processes ran DDL in the
+same database. That race needs a shared database; the pool avoids it.
+If it recurs, retry or tolerate XX000 in that harness query.
+
+Findings: the pool does not pay. Separate catalogs cut summed package
+time by about 6% and wall time by 0–4%, within noise. At `-p 8` the
+wall time is bound by `domain/application/state` (500–560 s, tests run
+serially in one process); the next longest is
+`domain/removal/state/model` (300–350 s). Against sweep 2 (about 58
+minutes serial, one package at a time) `-p 8` on one database is about
+6× faster. To go faster, cut per-test cost (schema setup and drop,
+about 0.5 s per test) or split the longest packages; more databases
+will not. The pool is not pursued (N17).
 
 ## PostgreSQL sweep 2
 

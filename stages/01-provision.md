@@ -84,10 +84,14 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
     Re-running the script with `-p unit-test` was idempotent: no restart
     when nothing changed; after max locks were set to 256 by hand it
     restarted and restored 512 in 16 s.
-  - A pool of test databases was proposed and not built (N17). It would
-    need one data-integrator relation per database: `pg_hba` admits each
-    relation user only to its own database and the role has no
-    CREATEDB.
+  - A pool of test databases needs one data-integrator relation per
+    database: `pg_hba` admits each relation user only to its own
+    database and the role has no CREATEDB. The PoC deployed `di01`..`di08`
+    (databases `juju-01`..`juju-08`) in model `pgtest`; the pool file is
+    `~/.config/juju-pg-poc/db-pool` (mode 0600, one URL per line, from
+    each `get-credentials` action). The pool gave no gain and is not
+    pursued (N17, Stage 6 database pool PoC). The data-integrators can
+    be removed.
   - `pg_hba` has `host juju relation-N 0.0.0.0/0 scram-sha-256` (`hostssl`
     with TLS). The host (via the `lxdbr0` gateway) and LXD containers on
     the bridge connect; no workaround is needed.
