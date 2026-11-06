@@ -99,7 +99,8 @@ Do not reopen them merely because they contain Go conversions.
   and correct inserted-ID behavior; never restore `LastInsertId`.
 - U4/#23686 fixed setup error checking but still seeds through SQLite
   `datetime('now', ?)` expressions. An independent, low-priority fixture
-  portability follow-up is reasonable: compute offsets using existing lease
+  portability follow-up is [queued below](#todo-lease-migration-fixture-timestamps-low-priority):
+  compute offsets using existing lease
   timestamp conventions and bind the values. Preserve held/expired,
   model/type isolation and setup-error assertions; validate SQLite and real
   dqlite. No lease schema change or PostgreSQL support belongs in that patch.
@@ -193,6 +194,23 @@ Proposed branch names below do not grant permission to modify existing owners'
 worktrees. Start new independent work from refreshed `B`, except where an
 existing review or specific sequencing is noted. Confirm each site is still
 outstanding.
+
+### TODO: lease migration fixture timestamps (low priority)
+
+**Status: pending; unclaimed.** Independent follow-up to merged
+[juju/juju#23686](https://github.com/juju/juju/pull/23686) (U4), not a merge
+blocker or a reason to reopen that PR.
+
+In `domain/lease/state/migration_test.go`, replace SQLite-specific
+`datetime('now', ?)` fixture expressions with computed timestamp values
+bound as query parameters. Follow existing lease clock and timestamp
+conventions so held and expired fixtures remain consistent with the code
+under test.
+
+Preserve setup-error assertions, held/expired lease coverage and model/type
+isolation. Validate the affected migration tests on SQLite and real dqlite.
+Keep this test-only: no lease schema change, production behavior change or
+PostgreSQL runtime/harness dependency.
 
 ### TODO: dqlite error reporting for `RETURNING`
 
