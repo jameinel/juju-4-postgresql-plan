@@ -153,14 +153,20 @@ Next:
    unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
    production defects first (06-dialect-fixtures, 06-bind-types).
 2. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
+3. Dispatch the Stage 5 upstream break-outs scoped in
+   [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
+   starting with `4.1-storage-filesystem-attachment-row` (latent bug on
+   dqlite); then `4.1-unitstate-relation-key`, `4.1-x16-grouped-columns`
+   and `4.1-boolean-and-aggregate-literals`.
 
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
-Current tips (2026-11-05, base `5259edff43`; local, not yet published):
+Current tips (2026-11-05, base `5259edff43`; published to `jameinel/juju`
+and checked against the remote on 2026-11-06):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
 `04=53a0bf03d9`, `05=640d3bcabf`, `06=4b1a462df0`, `07=008f3fcf15`,
-`08=09=760f3b675f`. The last published tips were `05=3a8f0090c2`,
+`08=09=760f3b675f`. The previously published tips were `05=3a8f0090c2`,
 `06=add66191aa`, `07=d700353eb0`, `08=09=eac5b916c7`. Verified on
 PostgreSQL (server `lxd36-pgtest`,
 disposable profile, then unit-test profile): the D42 entry packages,

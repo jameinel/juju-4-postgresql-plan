@@ -148,7 +148,7 @@ The four agentpassword tests that cover the query fail on PostgreSQL; the
 package had never been run there. This prompted sweep 2
 ([Stage 6](06-compatibility.md#postgresql-sweep-2)).
 
-Fixed on Stage 5 (`ada2a852ee`) and Stage 6 (`283a00f630`). Teardown: `lxc
+Fixed on Stage 5 (`ada2a852ee`) and Stage 6 (`283a00f630`, now `fa75871904`). Teardown: `lxc
 delete -f`, `juju unregister pgpoc-pg --no-prompt`, drop both schemas.
 
 ### Run 3 (2026-11-05, `09=ba634a0f13`)

@@ -77,7 +77,7 @@ validation before run 2, and the agentpassword query by run 2:
 - `ada2a852ee` agentpassword: the machine password check selected
   `mci.instance_id` beside `COUNT` without grouping (42803), so machine
   agents could not log in. Now `MAX(mci.instance_id)`; a machine has at
-  most one cloud instance row. Test SQL fixed in Stage 6 (`283a00f630`).
+  most one cloud instance row. Test SQL fixed in Stage 6 (`fa75871904`, was `283a00f630`).
 
 Both are upstream candidates (UPSTREAM-FIXES.md U20). See the
 [Stage 9 run log](09-bootstrap.md#09-functional-run-log).

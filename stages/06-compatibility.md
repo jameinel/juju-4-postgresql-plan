@@ -329,7 +329,7 @@ historical pass to accept a new gate.
 | `domain/secretbackend/state` | 11 | 2026-11-05 at `09=760f3b675f`: all X27 rotation-time `Equal`. Was 13 (X16, fixed by `52a0eea6ee`). |
 | `domain/removal/state/controller` | 0 | 2026-11-05 at `09=760f3b675f`, after `367f754dd6`. |
 | `domain/storage/state` | 8 | 2026-11-05 at `09=760f3b675f`: 4 fixture binds (`persistent`, `in_use`; 06-bind-types), 4 X27. X16 fixed by `640d3bcabf`. |
-| `domain/agentpassword/...` | 0 | 2026-11-05 after `ada2a852ee` and `283a00f630`, both backends. |
+| `domain/agentpassword/...` | 0 | 2026-11-05 after `ada2a852ee` and `283a00f630` (now `fa75871904`), both backends. |
 | `internal/migration` | 3 | X21 (2), test trigger (1); PostgreSQL import deferred. |
 | `domain/provisioner/state/model` | 5 | X25 fixtures. |
 | `domain/provisioner` | 0 | Recorded pass. |

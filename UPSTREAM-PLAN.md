@@ -247,18 +247,65 @@ head and file ownership before dispatching this independent rewrite. A
 PoC implementation exists (U19 in UPSTREAM-FIXES.md); an implementer may
 read it but must validate on 4.1 independently.
 
-### Further candidates from PoC Stage 5 (2026-11-05)
+### Further break-outs from PoC Stage 5 (2026-11-05)
 
-Not yet scoped as tasks; see UPSTREAM-FIXES.md:
+Each is implemented and tested on `pg-poc/05-queries` (published
+2026-11-06). An implementer may read the PoC commit but must reimplement
+or cherry-pick onto 4.1 and validate there independently. None depends on
+the PostgreSQL harness; the regressions run on SQLite and dqlite. Keep one
+branch per bullet unless review asks to combine them. Not claimed.
 
-- U20: boolean literals in two network queries and an aggregate in the
-  agentpassword machine check. Portability only.
-- U21: `unit_state_relation.key` is `TEXT` while Go binds integers.
-  Implemented on Stage 5 (`1afd3b9434`) by binding text in Go; no schema
-  or export change.
-- U22: remaining bare grouped columns in secretbackend, removal and
-  storage state. Implemented on Stage 5; secretbackend and removal are
-  portability only, storage is a latent arbitrary-row bug.
+#### `4.1-storage-filesystem-attachment-row` — U22, latent bug (priority)
+
+`domain/storage/state/instance.go` `GetStorageInstanceInfo` joins every
+filesystem attachment on the unit's net node and collapses the fan-out
+with `GROUP BY sa.uuid`. The schema does not forbid two filesystem
+attachments for the same filesystem and net node, so dqlite returns an
+arbitrary mount point. Pick one row deterministically (PoC: the lowest
+attachment UUID via a correlated subquery), drop the `GROUP BY`, and move
+the `ORDER BY` out of the `FROM` subquery in both the attachment and the
+block-device link queries. Regression: two filesystem attachments on the
+same node; the PoC test failed 7 of 10 runs against the old query.
+Question for review: whether the schema should instead forbid the
+duplicate (a unique index on `(storage_filesystem_uuid, net_node_uuid)`),
+which needs import/export review. PoC: `640d3bcabf`.
+
+#### `4.1-unitstate-relation-key` — U21, type mismatch
+
+`setUnitStateRelation` binds Go `int` relation IDs to the `TEXT`
+`unit_state_relation.key`, and `GetUnitState` scans it back into `int`.
+Bind decimal text and parse on read, returning an error for a
+non-decimal key; no schema or export change. Existing `TestSetUnitState*`
+and `TestUpdateUnitStateRelation` cover it; add a read test with a
+non-decimal key. PoC: `1afd3b9434`.
+
+#### `4.1-x16-grouped-columns` — U22, portability
+
+Not a behaviour change on dqlite; the ungrouped columns are functionally
+dependent on the grouping keys, or the `GROUP BY` only removes duplicate
+join rows.
+
+- `domain/secretbackend/state/state.go`: `ListSecretBackends` and the
+  in-use Kubernetes backend query group by every selected column;
+  `getK8sSecretBackendForModel` uses `SELECT DISTINCT`. PoC `52a0eea6ee`.
+- `domain/removal/state/controller/secret.go`
+  `getK8sSecretBackendForModel`: `SELECT DISTINCT` instead of
+  `GROUP BY vm.name, vcca.attribute_key`; adds
+  `TestGetActiveModelSecretBackendK8sBuiltIn`, which had no coverage
+  before. PoC `367f754dd6`.
+
+Follow-up to raise in review, not changed: both
+`getK8sSecretBackendForModel` copies return one CA certificate per cloud
+even when a cloud has several (the converters keep the last row).
+
+#### `4.1-boolean-and-aggregate-literals` — U20, portability
+
+`domain/network/state` `GetMachineAppBindings` and `GetUnitAPIAddresses`
+compare booleans with `0`/`1`; use `FALSE`/`TRUE`. `domain/agentpassword`
+`MatchesMachinePasswordHashWithNonce` selects `mci.instance_id` beside
+`COUNT` without grouping; use `MAX(mci.instance_id)` (a machine has at
+most one cloud instance row). PoC `30e2bca25a`, `ada2a852ee`; the
+agentpassword test SQL fix is Stage 6 `fa75871904`.
 
 ## Existing implementations and published tracking references
 
