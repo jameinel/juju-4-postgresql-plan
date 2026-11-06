@@ -65,10 +65,29 @@ Branch `pg-poc/01-provision`, on `pg-poc/00-base-fixes`.
     bootstrap can reuse the database (D23), and `--stale-test-schemas`
     after interrupted test runs.
 - Findings (for later stages):
-  - Profiles (2026-10-26): `--profile production|testing|disposable`
-    (default `testing`). `disposable` sets `fsync=off` and
-    `full_page_writes=off` via `patronictl edit-config`; the live `pg-poc`
-    server runs it. Re-run with `-p testing` to restore durability.
+  - Profiles (2026-10-26, renamed 2026-11-05 in `01=8edc93c531`, N17):
+    `--profile production|dev-controller|unit-test` (default
+    `dev-controller`), for a robust server, relatively throwaway Juju
+    controllers and the unit test suite. `unit-test` sets `fsync=off`,
+    `full_page_writes=off` and `max_locks_per_transaction=512` via
+    `patronictl edit-config`. The lock setting needs a restart, which the
+    script requests only when Patroni reports one pending; the charm's
+    `instance-max-locks-per-transaction` option reaches only the local
+    Patroni file, which Patroni ignores for this parameter. Every profile
+    sets all three parameters, so re-running with `-p dev-controller`
+    restores durability and 64 locks. The same commit places a new
+    data-integrator (and self-signed-certificates with TLS) on the
+    postgresql machine.
+  - Current server (2026-11-05): host controller `lxd36-pgtest`, model
+    `pgtest`, container `juju-2569cc-0`, `unit-test` profile. The
+    run-3 bootstrap controller uses its `juju` database (Stage 9).
+    Re-running the script with `-p unit-test` was idempotent: no restart
+    when nothing changed; after max locks were set to 256 by hand it
+    restarted and restored 512 in 16 s.
+  - A pool of test databases was proposed and not built (N17). It would
+    need one data-integrator relation per database: `pg_hba` admits each
+    relation user only to its own database and the role has no
+    CREATEDB.
   - `pg_hba` has `host juju relation-N 0.0.0.0/0 scram-sha-256` (`hostssl`
     with TLS). The host (via the `lxdbr0` gateway) and LXD containers on
     the bridge connect; no workaround is needed.

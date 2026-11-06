@@ -54,22 +54,25 @@ setup reading.
 
 ## Next tasks and completion
 
-1. Repair one named issue from the task table or diagnose the status
-   failures. Route production-query work to Stage 5; do not combine it
-   silently with fixture changes.
-2. Use D42's runtime-entry package list in the detail file. Confirm test
-   selectors/budgets and classify status failures before dispatching runs.
-   Keep deferred PostgreSQL import/export (D40) distinct from blockers.
-   Later gates use N16's tiers and levels (smoke before commits, full
-   post-commit, readiness before a bootstrap run or milestone); tasks
-   06-test-levels, 06-test-speed and 06-leaseexpiry-db support them.
-3. Run the approved gate sequentially on both backends at the restacked
-   revision; record selectors, tags, skips and evidence. A fixed issue
-   remains "awaiting rerun" until tested.
-4. Stage 8 can proceed after that entry gate is satisfied (met on
-   2026-10-26; see the detail file). The functional milestone also
-   requires Stage 9 runtime evidence; passing this gate alone is not
-   "functional".
+1. Repair one named issue from the task table. Route production-query work
+   to Stage 5; do not combine it silently with fixture changes. Sweep 2
+   ([classification](06-compatibility.md#postgresql-sweep-2)) orders the
+   work: first 06-dialect-fixtures (tests applying SQLite DDL or trigger
+   bodies on PostgreSQL) and 06-bind-types, which hide whole packages;
+   then 06-constraint-errors, 06-order, X27 and the untriaged 42703 and
+   upgradesteps failures.
+2. Use D42's runtime-entry package list in the detail file. Keep deferred
+   PostgreSQL import/export (D40) distinct from blockers. Later gates use
+   N16's tiers and levels (smoke before commits, full post-commit,
+   readiness before a bootstrap run or milestone). 06-test-speed is done
+   (N17); 06-test-levels and 06-leaseexpiry-db remain.
+3. Run gates as one `go test` invocation with `-p` up to 8 on the
+   unit-test server profile (N17, OPERATIONS.md), on both backends, at
+   the restacked revision; record selectors, tags, skips and evidence. A
+   fixed issue remains "awaiting rerun" until tested. The next full run
+   is the re-sweep after the open Stage 5 fixes, before bootstrap run 4.
+4. The functional milestone also requires Stage 9 runtime evidence;
+   passing a Stage 6 gate alone is not "functional".
 
 ## Stop conditions
 

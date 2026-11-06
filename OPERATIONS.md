@@ -93,13 +93,15 @@ it, tests use the existing SQLite/dqlite path. With it, every suite built
 on `DqliteSuite` is redirected, not just previously verified suites.
 Select packages by N16's tiers and levels (smoke, full, readiness).
 
-- Run one PostgreSQL package at a time. Do not overlap suites, stress
-  workers or benchmarking on the shared server. Parallel packages also
-  queue on the schema change lock (D53), because every test schema is in
-  one database: three packages in parallel took 20% longer than without
-  the lock, and small packages about twice as long
-  ([measurements](stages/08-dbaccessor.md#08-delete-locks-result)).
-  Stage 6 task 06-test-speed may lift this rule.
+- Run PostgreSQL packages from one `go test` invocation, with `-p` up to
+  8, against a server deployed with the `unit-test` profile (N17). Do not
+  overlap separate invocations, stress workers or benchmarking on the
+  shared server. The harness takes a per-process schema change lock key
+  (N17, from `08=eac5b916c7`), so packages no longer queue on D53. Below
+  that revision, or on a server with 64 locks per transaction, run one
+  package at a time: parallel packages queue on D53 or exhaust the lock
+  table (SQLSTATE 53200). At `-p 8` the run takes about as long as its
+  slowest package ([measurements](stages/06-compatibility.md#06-test-speed-result)).
 - Prove backend selection after harness/environment changes: run the
   selected suite with
   `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and require a
@@ -170,12 +172,14 @@ PostgreSQL. The median test time went from 0.17 s to 2.1–2.8 s.
   0.87 ms per file in the container, 0.66 ms on host ext4. In a scratch
   cluster inside the container, 500 text-PK tables took 1.15 s on ZFS,
   0.33 s with `fsync=off` and 0.26 s on tmpfs.
-- Server profiles (`deploy-postgresql.py --profile`, stage 01):
-  `production` (charm defaults), `testing` (default; trimmed logs and WAL,
-  fsync on, no real speed-up) and `disposable` (`fsync=off`,
-  `full_page_writes=off`, set through Patroni because the charm exposes
-  neither; a crash can corrupt the cluster). Applied to the shared server
-  on 2026-10-26: 500 text-PK tables 3.9 s -> 0.6 s. The charm rejects
+- Server profiles (`deploy-postgresql.py --profile`, stage 01, renamed
+  2026-11-05 by N17): `production` (charm defaults), `dev-controller`
+  (default; trimmed logs and WAL, fsync on, no real speed-up; was
+  `testing`) and `unit-test` (was `disposable`: `fsync=off`,
+  `full_page_writes=off` and `max_locks_per_transaction=512`, set through
+  Patroni because the charm cannot set them; a crash can corrupt the
+  cluster). fsync off on the shared server, 2026-10-26: 500 text-PK tables
+  3.9 s -> 0.6 s. The charm rejects
   `synchronous_commit=off` and pins it in the local Patroni file, so it can
   only be set per connection.
 - Remaining options:

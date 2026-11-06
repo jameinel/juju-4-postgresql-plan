@@ -1,7 +1,7 @@
 # Stage 09: functional single controller and first comparison
 
-Branch `pg-poc/09-bootstrap`, to be created on `pg-poc/08-dbaccessor`.
-Status: 09-functional started 2026-10-28 (scenario fixed in D54); run 1 failed on U15/U16, now integrated; run 2 waits for a PostgreSQL server (see the run log below). Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Branch `pg-poc/09-bootstrap`, on `pg-poc/08-dbaccessor` (no commits of its own yet).
+Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a PostgreSQL-only query defect on the login and uniter paths (fixed on Stage 5). Run 4 waits on 05-unitstate-relation-key and 05-X16-rest. See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 
@@ -129,13 +129,49 @@ with U16 beside it. Once both exist, cherry-pick them under D43 onto their
 owning stage (or apply a PoC-local workaround meanwhile), restack, and re-run. Expect further
 bootstrap findings; no dqlite run has been made yet.
 
-### Run 2: prerequisites (2026-11-05, not run)
+### Run 2 (2026-11-05, `09=14d1ea2f36`)
 
-U15 (juju/juju#23710, #23723) and U16 (juju/juju#23728) are cherry-picked
-onto Stage 5 under D43, on the new base `5259edff43`; the top is
-`08=98847cacb4` ([record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05)).
-Run 2 waits for a PostgreSQL server on this machine: none exists, and
-`~/.config/juju-pg-poc/db-url` is absent. The user provisions it with the
-Stage 1 script. Then: validate the affected packages on PostgreSQL, create
-`pg-poc/09-bootstrap` from the top, `make juju jujuagentd`, and bootstrap
-localhost with the private `db-backend=postgresql` / `db-url` config.
+Prerequisites: U15 (juju/juju#23710, #23723) and U16 (juju/juju#23728)
+cherry-picked onto Stage 5 under D43 on base `5259edff43`
+([record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05));
+PostgreSQL server `lxd36-pgtest` provisioned with the Stage 1 script
+(disposable profile); network boolean fix (05-BOOT-FIXES) applied first.
+
+`make juju jujuagentd`, then `timeout 1500 juju bootstrap localhost pgpoc-pg
+--config ~/.config/juju-pg-poc/bootstrap.yaml --build-agent` (0600 file with
+`db-backend`, `db-url` and apt proxy settings; no `--debug`, which may log
+the URL). Bootstrap returned 0, but `juju status` hung: machine agent login
+failed with 42803 (`mci.instance_id` not grouped) in agentpassword
+`MatchesMachinePasswordHashWithNonce`. U15 and U16 no longer appeared.
+
+The four agentpassword tests that cover the query fail on PostgreSQL; the
+package had never been run there. This prompted sweep 2
+([Stage 6](06-compatibility.md#postgresql-sweep-2)).
+
+Fixed on Stage 5 (`ada2a852ee`) and Stage 6 (`283a00f630`). Teardown: `lxc
+delete -f`, `juju unregister pgpoc-pg --no-prompt`, drop both schemas.
+
+### Run 3 (2026-11-05, `09=ba634a0f13`)
+
+Bootstrap returned 0 and `juju status` works: machine 0 started. The
+`controller` application unit stays at "agent initialising": its uniter
+fails with 42803 (`sre.revision_uuid`) in secret
+`getSecretsRevisionExpiryChanges`. That is 05-SECRET-X16, deferred until
+after the D42 gate; it was taken up then because it blocks bootstrap.
+
+Fixed on Stage 5 by `5e70fcbc84`, `0ed13ff885` and `3a8f0090c2` (unitstate
+`updateCharmSecret`, the next site on the uniter path). The run 3
+controller (`pgpoc-pg`, container `juju-ebeba2-0`) is still up for
+inspection; tear it down before run 4.
+
+### Run 4: next
+
+Prerequisites, in order:
+
+1. Fix 05-unitstate-relation-key; every relation-state commit fails without
+   it, so the D54 scenario would stop at its first relation. Fix
+   05-X16-rest, which includes the secret backend lookups.
+2. Restack, re-run the affected packages on both backends, and re-sweep
+   (Stage 6) at `-p 8`.
+3. Tear down run 3, `make juju jujuagentd`, bootstrap, and run the D54
+   scenario. Then the dqlite comparison run from the same revision.

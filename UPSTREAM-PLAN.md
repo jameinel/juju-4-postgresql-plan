@@ -203,14 +203,29 @@ invocation, then run the checks that previously failed or were skipped.
 After the remaining consumed-secret review (#23688), independently rewrite
 five queries in `domain/secret/state/state.go`: `updateSecret`,
 `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets` and
-`getSecretsRevisionExpiryChanges`. Explicitly select the latest revision
-instead of relying on ungrouped columns beside MAX. Existing and new SQL
+`getSecretsRevisionExpiryChanges`, and the same pattern in
+`domain/unitstate/state/commithook.go` `updateCharmSecret`. Explicitly
+select the latest revision instead of relying on ungrouped columns beside
+MAX, and order revision listings by revision number. Existing and new SQL
 must pass regressions with multiple revisions, expiry/rotation rows and
 both owner kinds. This does not duplicate the two local queries landed in
 #23720.
 
 Not claimed. #23720 has landed; #23688 remains open. Check its current
-head and file ownership before dispatching this independent rewrite.
+head and file ownership before dispatching this independent rewrite. A
+PoC implementation exists (U19 in UPSTREAM-FIXES.md); an implementer may
+read it but must validate on 4.1 independently.
+
+### Further candidates from PoC Stage 5 (2026-11-05)
+
+Not yet scoped as tasks; see UPSTREAM-FIXES.md:
+
+- U20: boolean literals in two network queries and an aggregate in the
+  agentpassword machine check. Portability only.
+- U21: `unit_state_relation.key` is `TEXT` while Go binds integers.
+  Needs a schema-or-Go decision and export review.
+- U22: remaining bare grouped columns in secretbackend, removal and
+  storage state. Establish dqlite behaviour per site first.
 
 ## Existing implementations and published tracking references
 

@@ -139,32 +139,47 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38 and U11 done; U15/U16 cherry-picked (D43); `domain/secret/state` X16 sites open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; test SQL repairs open |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16 and 05-BOOT-FIXES done; U15/U16 cherry-picked (D43); 05-X16-rest and 05-unitstate-relation-key open |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed done (N17); sweep 2 classified, test SQL and fixture repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
-| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); Stage 9 handover next |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (planned; not created) | 09-functional scenario agreed (D54); U15/U16 integrated; run 2 waits for a PostgreSQL server on this machine |
+| 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); runs 2 and 3 fixed login and uniter blockers; run 4 waits on the open Stage 5 tasks |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
-Next: provision a PostgreSQL server on this machine (Stage 1 script; the
-user does this), validate the restacked stack on PostgreSQL, then run
-09-functional run 2.
+Next:
+
+1. Stage 5: fix 05-unitstate-relation-key and 05-X16-rest, one commit per
+   domain, each tested on both backends.
+2. Restack 06–09 and re-run the affected packages.
+3. Re-sweep at the new tip with one `go test -p 8` invocation and the
+   unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
+   production defects first (06-dialect-fixtures, 06-bind-types).
+4. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
+5. Ask for approval to force-push 01–09 and push this repository.
+
+Current local tips (2026-11-05, base `5259edff43`; 01–09 differ from the
+published refs and need a force push): `00=3133b016cc`,
+`01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`, `04=53a0bf03d9`,
+`05=3a8f0090c2`, `06=add66191aa`, `07=d700353eb0`,
+`08=09=eac5b916c7`. Verified on PostgreSQL (server `lxd36-pgtest`,
+disposable profile, then unit-test profile): the D42 entry packages,
+sweep 2 over 139 packages at `08=ba634a0f13` (37 failing, classified in
+[Stage 6](stages/06-compatibility.md#postgresql-sweep-2)), the secret
+and unitstate re-run at `05=3a8f0090c2`, and the N17 benchmarks at
+`08=eac5b916c7`. Bootstrap runs 2 and 3 are in
+[the run log](stages/09-bootstrap.md#09-functional-run-log).
 
 On 2026-11-05 the stack was rebased from the bottom onto upstream 4.1
 `5259edff43` (was `a8591fe1b8`), dropping the commits that landed
 upstream ([reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05)).
 The PostgreSQL DDL was regenerated at Stage 4, and U15 (juju/juju#23710,
 #23723) and U16 (juju/juju#23728) were cherry-picked onto Stage 5 under
-D43 with a second regeneration. New tips: `00=3133b016cc`,
-`01=bd7b6cb0f0`, `02=8f1c3532d6`, `03=e13f3d1ba6`, `04=4248ede57c`,
-`05=52b6ba047c`, `06=a7dc3099c3`, `07=b0829f3cca`, `08=98847cacb4`.
-Old tips are tagged `pg-poc-base-a8591fe1b8/<stage>`. Verified: adjacent
-ancestry, `go build ./...` and `go vet` on the top, the affected packages
-on the default backend only. **Not yet verified on PostgreSQL**: this
-machine has no server and `~/.config/juju-pg-poc/db-url` does not exist.
-All nine new tips are published to `jameinel/juju`; remote refs were
-verified on 2026-11-05.
+D43 with a second regeneration. The published tips from that rebase were
+`00=3133b016cc`, `01=bd7b6cb0f0`, `02=8f1c3532d6`, `03=e13f3d1ba6`,
+`04=4248ede57c`, `05=52b6ba047c`, `06=a7dc3099c3`, `07=b0829f3cca`,
+`08=98847cacb4` (verified on the remote on 2026-11-05).
+Old tips are tagged `pg-poc-base-a8591fe1b8/<stage>`.
 New upstream-only branches base on `5259edff43` or later 4.1.
 
 Historical (before the rebase): 09-functional run 1 failed on U15
