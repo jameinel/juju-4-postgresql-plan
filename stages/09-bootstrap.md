@@ -161,8 +161,12 @@ after the D42 gate; it was taken up then because it blocks bootstrap.
 
 Fixed on Stage 5 by `5e70fcbc84`, `0ed13ff885` and `3a8f0090c2` (unitstate
 `updateCharmSecret`, the next site on the uniter path). The run 3
-controller (`pgpoc-pg`, container `juju-ebeba2-0`) is still up for
-inspection; tear it down before run 4.
+controller's API still answered, but its unit stayed "agent
+initialising". Teardown on 2026-11-05 was manual, as for run 2: `lxc
+delete -f juju-ebeba2-0`, `juju unregister pgpoc-pg --no-prompt` and
+`drop-juju-schemas.py --controller 4c1af278-94bd-4f9b-8e87-8a6608a37823`.
+`destroy-controller` was not tried, because controller removal still has
+open X16 sites (U22). The database was left with no Juju schemas.
 
 ### Run 4: next
 
