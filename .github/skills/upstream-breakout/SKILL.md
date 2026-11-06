@@ -21,23 +21,20 @@ code only when needed for the assigned task.
    not recreate them or start a task whose behavior or dependencies are
    unresolved. When priority, scope, or behavior requires a decision, explain
    the evidence and ask the user before choosing or implementing.
-2. Coordinate skill-based changes to the shared planning documents with the
-   lock described in `UPSTREAM-PLAN.md`. Under the lock, re-read the plan and
-   claim table and confirm the candidate has not been claimed, started, or
-   superseded. Record the task, owner/session, intended branch and worktree,
-   status, and next action in the claim table before creating the worktree.
-   Release the lock promptly. Never hold it while waiting for the user, running
-   tests, fetching from GitHub, or implementing.
+2. Re-read the plan and claim table and confirm the candidate has not been
+   claimed, started, or superseded. Record the task, owner/session, intended
+   branch and worktree, status, and next action in the claim table before
+   creating the worktree.
 3. Check current upstream 4.1 code, GitHub PRs, branch and worktree names, and
    the exact prerequisite state. Refresh and record the upstream base commit.
    If a conflict, duplicate, unavailable prerequisite, or unexpected
-   dependency appears, update the claim to blocked under the lock and ask
-   the user; do not appropriate another owner's checkout.
+   dependency appears, update the claim to blocked and ask the user; do not
+   appropriate another owner's checkout.
 4. Create the dedicated worktree and branch from the verified base, except
    for an explicitly documented stack. Use the existing shared `_deps` as
-   directed by the plan. Record the actual base and worktree in the claim
-   under the lock. A claimed task is not permission to reset, switch, rebase,
-   or otherwise alter another worktree.
+   directed by the plan. Record the actual base and worktree in the claim.
+   A claimed task is not permission to reset, switch, rebase, or otherwise
+   alter another worktree.
 
 ## Implement and prepare review
 
@@ -48,7 +45,7 @@ code only when needed for the assigned task.
 - Validate the actual change using the reference guide and the task's own
   requirements. Report failed, skipped, and unavailable checks honestly.
   Coordinate resource-intensive tests with the user when needed.
-- Record progress and blockers in the claim table under the lock, including
+- Record progress and blockers in the claim table, including
   after worktree creation, a blocker, and completion. Retain the claim while
   waiting for input; do not treat a paused session as abandoned. Only release
   or reassign a claim with the owner's or user's explicit authorization.
@@ -62,7 +59,7 @@ code only when needed for the assigned task.
   that content and action before creating the PR, including a draft PR.
   If the user requests changes, show the revised content for approval.
 - Once published with approval, record the PR link and current status in the
-  plan and finding register under the lock. Report the worktree, branch,
+  plan and finding register. Report the worktree, branch,
   commit, validation, PR link, and remaining review/CI/QA actions. Do not
   merge, modify published PR content, or resolve review threads without
   separate explicit approval.

@@ -50,24 +50,9 @@ Keep blocked and paused work claimed; do not assume an existing worktree is
 available. Use `reserved` until the worktree and base are confirmed, then
 `in progress`, `blocked`, or `published` as appropriate.
 
-No claims recorded.
-
-### Coordinating planning-document writes
-
-Before a skill modifies the plan, done record, or finding register, resolve
-the planning repository's absolute common Git directory using
-`git rev-parse --path-format=absolute --git-common-dir`. Atomically create
-the directory `upstream-planning.lock` inside it with `mkdir`. If it already
-exists, another writer may be active: wait briefly or stop and ask the user;
-never remove or steal an existing lock automatically. With the lock held,
-re-read the affected documents, check claims, and make the smallest coherent
-update. Remove only the lock directory created by this invocation using
-`rmdir`, including on a failed update. Never hold the lock during user
-interaction, GitHub calls, implementation, or tests. If interrupted and a
-lock remains, ask the user to verify its owner before manual recovery.
-
-This protocol coordinates participating sessions sharing this filesystem;
-it cannot prevent edits by other tools or users that do not use the lock.
+| Task | Owner/session | Branch | Worktree | Base | Status | Next action |
+|---|---|---|---|---|---|---|
+| U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9c3f117948ef667c43d195ad8a38b09`; monitor review and CI, complete live QA. SQLite and dqlite race suites, scoped lint and txncheck passed. |
 
 ## Open reviews: finish on existing branches
 
@@ -272,6 +257,9 @@ branch per bullet unless review asks to combine them. Check the breakout
 claims above before dispatch.
 
 #### `4.1-storage-filesystem-attachment-row` — U22, latent bug (priority)
+
+Published as [#23766](https://github.com/juju/juju/pull/23766); continue
+review and CI on the existing branch. Live QA remains pending.
 
 `domain/storage/state/instance.go` `GetStorageInstanceInfo` joins every
 filesystem attachment on the unit's net node and collapses the fan-out

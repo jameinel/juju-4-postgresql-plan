@@ -52,9 +52,8 @@ those files as needed to interpret or update the queue.
 
 When a PR the plan identifies as open has merged, update the local planning
 documents as part of this workflow. Confirm its merge date, merge commit, and
-final head from GitHub first. Follow the plan's planning-document lock
-protocol, re-reading the affected files while holding the lock; do not hold
-the lock during GitHub calls.
+final head from GitHub first. Re-read the affected files before updating them
+and preserve other local changes.
 
 - Move its implementation and review history out of the open-review queue and
   into the landed section of `UPSTREAM-DONE.md`. Preserve useful rationale and
