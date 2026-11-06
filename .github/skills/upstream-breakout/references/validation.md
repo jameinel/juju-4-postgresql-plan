@@ -4,6 +4,26 @@ Supply the upstream base, one named branch/worktree, allowed paths,
 expected behavior, prerequisites and required regression cases. Task
 selection does not authorize work on other branches.
 
+For SQL/schema work, apply the plan's **Purpose and SQL/schema acceptance**
+contract before implementation and again at review:
+
+- Identify the underlying query or stored-type defect and explain how the
+  actual SQL/schema change removes it. Check the stored representation and
+  normal readers/writers, not only whether Go can bind, scan or round-trip it.
+  Do not substitute Go conversions or casts for correcting an incorrectly
+  typed schema. Genuine legacy/API conversions and documented driver
+  workarounds need their own compatibility or defect rationale.
+- If the task's prescribed approach would leave that defect intact, stop and
+  ask the user rather than silently implementing it or expanding scope.
+- Validate SQL/schema changes on SQLite and real dqlite. Tests on these
+  permissive backends do not alone prove that the SQL formulation is portable;
+  explain why the offending construct or type mismatch is resolved.
+- Keep the final code SQLite/dqlite-only, without PostgreSQL-specific SQL or
+  support infrastructure. PostgreSQL is an optional reference for uncertain
+  SQL/schema semantics; ask the user when execution is needed. Record any such
+  checks separately, and do not claim PostgreSQL acceptance when it was not
+  tested. PostgreSQL results do not replace either supported backend's checks.
+
 Reproduce the upstream defect where applicable, then add a regression
 alongside the fix. For a behavior-preserving SQL improvement, assert the
 existing contract across relevant edge cases. Run focused tests first, then

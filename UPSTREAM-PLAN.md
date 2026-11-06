@@ -16,6 +16,47 @@ The review register contains a 2026-11-05 snapshot and later updates for
 implemented scope and historical validation are in UPSTREAM-DONE.md. Skipped
 checks are not passes, and publication does not establish QA acceptance.
 
+## Purpose and SQL/schema acceptance
+
+These breakouts bring SQL and schema improvements identified by the PostgreSQL
+PoC into stock upstream 4.1. The deliverable is correct, explicit SQL and
+appropriately typed schemas running on SQLite and dqlite, not PostgreSQL
+support. Do not introduce PostgreSQL-specific SQL, backend switching, runtime
+dependencies or a PostgreSQL test-harness requirement into these patches.
+Use portable SQL where it expresses the intended behavior on both supported
+backends; PostgreSQL can help expose ambiguity, but does not define Juju's
+domain semantics.
+
+Fix the SQL/schema root cause, not just the Go conversion boundary. A
+successful bind, scan or round trip does not establish that the stored type,
+query semantics or SQL formulation is correct. Do not preserve an incorrectly
+typed column by adding Go formatting/parsing, or hide a type mismatch with a
+cast solely to make the current representation work. For example, U21 stores
+integer relation IDs as integers; legacy text-key conversion belongs in
+import, not in every normal read and write.
+
+Boundary conversions remain appropriate for genuine legacy import/export or
+external API compatibility. Documented driver-defect workarounds, such as the
+temporary nullable-BOOLEAN casts below, have a separate rationale and removal
+condition; they are not precedent for masking schema defects. This goal does
+not turn explicitly scoped tooling, decoding or driver fixes into SQL rewrites.
+
+Before implementing, check that the task's prescribed approach addresses the
+underlying SQL/schema issue. PoC implementations are evidence, not mandatory
+designs. If a task says to preserve a representation or avoid schema changes
+but that appears to leave the root problem intact, stop and ask the user.
+Do not silently follow a conflicting prescription or expand the breakout.
+Schema changes still require the release-policy and compatibility checks
+below; this goal does not waive them.
+
+Acceptance requires explaining how the actual SQL/schema change removes the
+identified issue, as well as validating behavior on SQLite and real dqlite.
+Passing those tests alone does not demonstrate portable SQL: both can accept
+the same permissive construct. PostgreSQL execution is optional and available
+to resolve uncertain SQL/schema semantics; ask the user when it is needed.
+Report it separately and never claim PostgreSQL acceptance or execution from
+SQLite/dqlite results.
+
 ## Working agreement
 
 - Refresh and record the upstream 4.1 base (`B`). Check current code and

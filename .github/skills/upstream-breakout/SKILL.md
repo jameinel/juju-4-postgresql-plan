@@ -13,14 +13,22 @@ Use [references/validation.md](references/validation.md) for validation
 and dispatch details. Consult `UPSTREAM-FIXES.md`, `UPSTREAM-DONE.md`, and PoC
 code only when needed for the assigned task.
 
+The plan's **Purpose and SQL/schema acceptance** section governs the approach:
+fix upstream SQL/schema root causes rather than merely accommodating them at
+Go conversion boundaries. The final implementation remains SQLite/dqlite-only;
+the PostgreSQL PoC is evidence, not a required design or runtime dependency.
+
 ## Select and reserve work
 
 1. If the user names a task, use it only if it is available and its
    prerequisites are met. Otherwise find the highest-priority ready,
    unclaimed item. Consider open reviews and existing implementations; do
    not recreate them or start a task whose behavior or dependencies are
-   unresolved. When priority, scope, or behavior requires a decision, explain
-   the evidence and ask the user before choosing or implementing.
+   unresolved. Check whether the prescribed approach leaves the underlying
+   SQL/schema problem intact, including instructions to avoid schema changes
+   or preserve a mismatched representation. When priority, scope, behavior or
+   that conflict requires a decision, explain the evidence and ask the user
+   before choosing or implementing; do not silently expand the task.
 2. Re-read the plan and claim table and confirm the candidate has not been
    claimed, started, or superseded. Record the task, owner/session, intended
    branch and worktree, status, and next action in the claim table before
@@ -42,9 +50,18 @@ code only when needed for the assigned task.
   Respect the task's paths, behavior contract, regression cases and the
   working agreement in the plan. Ask the user about substantive ambiguities;
   mark the claim blocked while waiting. Do not silently widen scope.
+- For SQL/schema tasks, explain why the changed SQL and stored types address
+  the identified issue. Go formatting/parsing or SQL casts alone are not a fix
+  for an incorrectly typed schema. Keep genuine legacy/API conversions at
+  their compatibility boundaries, and distinguish documented driver
+  workarounds from schema corrections.
 - Validate the actual change using the reference guide and the task's own
-  requirements. Report failed, skipped, and unavailable checks honestly.
-  Coordinate resource-intensive tests with the user when needed.
+  requirements, including SQLite and real dqlite for SQL/schema changes.
+  Passing tests on those backends does not establish portable SQL. PostgreSQL
+  execution is optional for resolving ambiguity, not an upstream dependency;
+  ask the user when needed and report it separately. Report failed, skipped,
+  and unavailable checks honestly. Coordinate resource-intensive tests with
+  the user when needed.
 - Record progress and blockers in the claim table, including
   after worktree creation, a blocker, and completion. Retain the claim while
   waiting for input; do not treat a paused session as abandoned. Only release
