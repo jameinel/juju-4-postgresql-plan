@@ -111,6 +111,75 @@ Names below are proposed branches, not permission to modify existing owners'
 worktrees. Start independently from refreshed `B`, except the secret task's
 review sequencing noted below. Confirm each site is still outstanding.
 
+### TODO: dqlite error reporting for `RETURNING`
+
+Follow up independently of the targeted keymanager fix in
+[juju/juju#23756](https://github.com/juju/juju/pull/23756). Other Juju queries,
+including the shared sequence allocator, need portable `RETURNING` support;
+do not treat this defect as a general prohibition on `RETURNING`.
+
+The default-bases investigation reproduced a dqlite 1.18.6 error-response
+bug: `query__batch` writes column metadata before stepping the statement.
+When an `INSERT ... RETURNING` encounters a stale-snapshot write conflict,
+the failure path appends an error without clearing the metadata. The client
+reads the column count as the error code and Sqlair's `_sqlair_0` alias as
+the message, hiding the retryable database error.
+
+- [x] Locate the upstream fix:
+  [canonical/dqlite#918](https://github.com/canonical/dqlite/pull/918) merged
+  into `main` on 2026-11-04 as `366191c0d3f0`. It discards partial query
+  responses on error and tests prepared/direct `RETURNING` constraint
+  failures. Juju's bundled dqlite 1.18.6 does not contain it.
+- [ ] Identify a release or approved backport containing that fix and
+  integrate it into Juju's dqlite dependency.
+- [ ] Verify Juju's actual dqlite dependency preserves retryable errors from
+  `RETURNING` under contention, as well as successful returned IDs and
+  zero-row results. Keep SQLite and PostgreSQL portability intact.
+- [ ] Review other `RETURNING` call sites for exposure to this defect.
+  Reconsider the keymanager insert/select workaround after the dependency
+  fix is available and validated.
+
+Related but distinct: open
+[canonical/dqlite#920](https://github.com/canonical/dqlite/pull/920) preserves
+busy errors otherwise misreported as a nonempty statement tail. Do not
+assume the response-buffer fix also resolves that path.
+
+Reproducer: `domain/keymanager/state/state_test.go`,
+`TestEnsureUserPublicKeyConcurrentWrite`, using real dqlite. With the original
+`RETURNING` implementation it produces the same `_sqlair_0` error as
+[the failing CI job](https://github.com/juju/juju/actions/runs/42120009349/job/127569657575).
+For now, keep the current fix limited to keymanager's insert followed by a
+unique-key lookup in the same transaction; do not restore `LastInsertId`.
+
+### TODO: nullable BOOLEAN results in real-dqlite domain tests
+
+The broader real-dqlite `-race` run for
+[juju/juju#23756](https://github.com/juju/juju/pull/23756) exposed three
+existing failures where SQL NULL Boolean values are returned as non-null:
+
+- `domain/logging/state`: `TestSetLokiConfigInsecureSkipVerifyNil` expects
+  `InsecureSkipVerify == nil`, but receives a non-nil pointer.
+- `domain/machine/state`:
+  `TestDetachLostMachineCloudInstanceCleansVolumeAndPreservesIntent` and
+  `TestDetachLostMachineCloudInstanceCleansFilesystemAndPreservesIntent`
+  expect cleared `persistent` / `read_only` columns to scan into invalid
+  `sql.Null[bool]` values, but receive valid values.
+
+These two packages are explicitly excluded from the additional real-dqlite
+CI step until this follow-up is resolved. They remain covered by the
+existing SQLite-backed suite. The other 223 test packages passed in the
+initial full domain run; this is separate from the `RETURNING` defect.
+
+- [ ] Trace NULL Boolean values through state queries, dqlite result
+  encoding, go-dqlite decoding and Sqlair; fix the responsible layer rather
+  than changing assertions to accept loss of NULL.
+- [ ] Verify NULL, false and true remain distinct for nullable Boolean
+  pointers and `sql.Null[bool]`, with regression coverage against real
+  dqlite. Preserve SQLite and PostgreSQL semantics.
+- [ ] Run the full real-dqlite domain suite with `-race`, remove both
+  temporary package exclusions from `.github/workflows/unit-tests.yml`,
+  and verify the resulting CI runtime remains within the intended budget.
+
 ### `4.1-install-dependencies` — developer tooling
 
 On a separate branch, update `make install-dependencies` to install or verify
