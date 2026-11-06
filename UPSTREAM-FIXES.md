@@ -231,7 +231,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 
 ## Upstream review status
 
-Snapshot refreshed from GitHub on 2026-11-05: 13 open and 14 merged PRs.
+Snapshot refreshed from GitHub on 2026-11-05, with later updates for #23756
+and #23759. Other entries retain the earlier snapshot.
 Every listed PR targets `juju/juju` branch `4.1` from `jameinel/juju`.
 Head hashes are short SHA
 prefixes; check GitHub before acting because review and CI status can change.
@@ -264,15 +265,17 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `adf9f317a6` | open; query and schema views published; revision smoke/aggregate CI fail; approval required |
 | `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | open; no failing/pending reported checks; approval required |
 | `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `15119bb898` | open; 9 checks passed, 12 skipped; approval required |
-| `4.1-lxd-default-bases` | Test diagnostics | [#23756](https://github.com/juju/juju/pull/23756) | `931a025a25` | open; SSH-key diagnostics and smoke-path follow-up published, not a root-cause fix; default-bases smoke fails, other CI pending; approval required |
+| `4.1-lxd-default-bases` | Test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) | `23163fed56` | open; keymanager workaround and real-dqlite domain CI published; unit, default-bases smoke and aggregate checks passed at snapshot; approval required |
+| `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `f0408a92ba` | open; temporary SQL casts and full domain CI published; stacked on #23756; CI pending, approval required |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | U19/X16 | not proposed | | PoC implementation on Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`); extract after the remaining #23688 review |
 
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
-- All 13 open PRs are mergeable and require review. Inline review threads
-  were not refreshed in this snapshot. CI states are revision-specific,
+- The earlier 13 open PRs were mergeable and required review in that
+  snapshot; #23759 is also mergeable and requires review. Inline review
+  threads were not refreshed. CI states are revision-specific,
   not evidence of PoC acceptance or a diagnosis of failing jobs; skipped
   checks are not passes.
 - juju/juju#23730 completes the separate dbrepl latest-row SQL task. No PoC

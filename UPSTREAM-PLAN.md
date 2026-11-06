@@ -11,11 +11,9 @@ focused on pending actions.
 [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) owns finding/provenance/status mappings.
 Neither is prerequisite reading for an assigned task.
 
-Status checked against GitHub on 2026-11-05: 13 open reviews and 14 merged
-PRs. Current heads, merge revisions and the CI snapshot are in
-[the register](UPSTREAM-FIXES.md#upstream-review-status); implemented scope
-and historical validation are in UPSTREAM-DONE.md. All 13 open PRs are
-mergeable and require review. CI is a head-specific snapshot; skipped
+The review register contains a 2026-11-05 snapshot and later updates for
+#23756 and #23759. Current heads and CI must be checked before acting;
+implemented scope and historical validation are in UPSTREAM-DONE.md. Skipped
 checks are not passes, and publication does not establish QA acceptance.
 
 ## Working agreement
@@ -24,7 +22,8 @@ checks are not passes, and publication does not establish QA acceptance.
   existing reviews for completed work before implementing anything.
 - Start each independent branch from `B`; continue open reviews on their
   existing branches. Do not duplicate landed work or reuse its branch for
-  unrelated follow-ups. The charm/exposure stack below is the only exception.
+  unrelated follow-ups. The charm/exposure and #23756/#23759 stacks are
+  documented exceptions.
 - Dedicated worktrees are allowed. Assign one branch/worktree per owner;
   never switch, reset or rebase another owner's checkout. A worktree's
   presence does not imply permission to modify it.
@@ -89,11 +88,12 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Triage revision-smoke/aggregate CI failures and obtain approval. Preserve the equivalent null-check flags in the connection query and controller views. Complete the documented functional QA and reconcile the final upstream result with the PoC separately. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Rebased head `02e9f73e49` has no failing or pending reported checks; obtain approval. Preserve explicit single-column CTE membership and scoped cleanup, lifecycle and departure semantics. |
 | `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Monitor review and CI and obtain approval. At `15119bb898` the PR is mergeable and review is required; 9 checks passed and 12 were skipped on 2026-11-05. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
-| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics | Current published head `931a025a25` also enables smoke checks for `tests/**` changes. Triage the default-bases smoke failure and finish pending CI/review. Preserve SSH-key diagnostics and failure status under `set -e`; no retries or underlying intermittent-failure fix. |
+| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `23163fed56` adds the keymanager fix and real-dqlite domain CI with two temporary exclusions. Unit, default-bases smoke and aggregate checks passed at the recorded snapshot; obtain review. Preserve SSH-key diagnostics and failure status under `set -e`. |
+| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Stacked on #23756 at `23163fed56`; follow review and CI at head `f0408a92ba`, then rebase onto `4.1` after #23756 lands. Confirm the full domain step and its CI runtime; preserve NULL/false/true and the upstream-fix sentinel. |
 
 ### Nullable primary-key review split
 
-The only approved stack is charm #23710 -> exposure #23723. Exposure owns
+The nullable primary-key stack is charm #23710 -> exposure #23723. Exposure owns
 the combined primary-key guard; lookup #23724 owns an independent INT-key
 guard. When exposure and lookup meet, regenerate the combined schema,
 remove the global guard's INT exemption (retain only single-column INTEGER
@@ -105,11 +105,12 @@ Remote-secret migration contract: preserve valid tracking; warn/discard
 only unresolvable revision-tracking metadata, including malformed names.
 Never generalize this exception to secret content, grants or core model data.
 
-## New implementation tasks
+## Follow-up tasks
 
-Names below are proposed branches, not permission to modify existing owners'
-worktrees. Start independently from refreshed `B`, except the secret task's
-review sequencing noted below. Confirm each site is still outstanding.
+Proposed branch names below do not grant permission to modify existing owners'
+worktrees. Start new independent work from refreshed `B`, except where an
+existing review or specific sequencing is noted. Confirm each site is still
+outstanding.
 
 ### TODO: dqlite error reporting for `RETURNING`
 
@@ -151,7 +152,7 @@ Reproducer: `domain/keymanager/state/state_test.go`,
 For now, keep the current fix limited to keymanager's insert followed by a
 unique-key lookup in the same transaction; do not restore `LastInsertId`.
 
-### TODO: nullable BOOLEAN results in real-dqlite domain tests
+### Nullable BOOLEAN results in real-dqlite domain tests
 
 The broader real-dqlite `-race` run for
 [juju/juju#23756](https://github.com/juju/juju/pull/23756) exposed three
@@ -165,20 +166,50 @@ existing failures where SQL NULL Boolean values are returned as non-null:
   expect cleared `persistent` / `read_only` columns to scan into invalid
   `sql.Null[bool]` values, but receive valid values.
 
-These two packages are explicitly excluded from the additional real-dqlite
-CI step until this follow-up is resolved. They remain covered by the
-existing SQLite-backed suite. The other 223 test packages passed in the
-initial full domain run; this is separate from the `RETURNING` defect.
+The root cause is dqlite's response encoding, fixed upstream by
+[canonical/dqlite#883](https://github.com/canonical/dqlite/pull/883),
+but not in the bundled 1.18.6. This is separate from the `RETURNING` defect.
 
-- [ ] Trace NULL Boolean values through state queries, dqlite result
-  encoding, go-dqlite decoding and Sqlair; fix the responsible layer rather
-  than changing assertions to accept loss of NULL.
-- [ ] Verify NULL, false and true remain distinct for nullable Boolean
-  pointers and `sql.Null[bool]`, with regression coverage against real
-  dqlite. Preserve SQLite and PostgreSQL semantics.
-- [ ] Run the full real-dqlite domain suite with `-race`, remove both
-  temporary package exclusions from `.github/workflows/unit-tests.yml`,
-  and verify the resulting CI runtime remains within the intended budget.
+Published [juju/juju#23759](https://github.com/juju/juju/pull/23759) at
+`f0408a92ba` as a temporary SQL workaround, stacked on #23756. It casts
+the Loki state read and the machine test projections to INTEGER, re-enables
+both excluded packages in the real-dqlite CI step, and adds a real-dqlite
+sentinel that fails once NULL is preserved by the bundled library.
+The workaround does not fix other nullable Boolean reads.
+
+Worktree `juju-4.1-dqlite-nullable-boolean` uses the shared `_deps` and is
+clean at commit `f0408a92ba55f6792f319587ac1bd133b60f908c`. Its parent is
+#23756 head `23163fed56f7172ff2d4636ad6a8593d4867ea61`; upstream `4.1`
+was `08fafe7f49ee39bed52c7288e86be0df6af4adcf` when work began. #23759 is
+open, mergeable and requires review; its unit and aggregate CI were still
+running at the 2026-11-05 snapshot.
+
+Validation:
+
+- The three reported failures reproduced on real dqlite. Focused
+  NULL/false/true cases passed on real dqlite and SQLite for the Loki
+  pointer and machine `sql.Null[bool]` projections.
+- `make run-go-tests TEST_PACKAGES='./domain/...'
+  TEST_ARGS='-p 2 -race -count=1'` passed for 225 test packages with
+  `dqlite,libsqlite3` tags in 1067 s. After a final table-alias-only SQL
+  edit, the complete logging package passed with `-race` on both backends.
+- The sentinel passed with the uncast query and failed with its intended
+  removal message when temporarily changed to return a preserved NULL;
+  the uncast query was restored.
+- Dqlite REPL QA confirmed the stored NULL reads as false uncast, while
+  NULL/false/true cast to NULL/0/1.
+- Scoped `golangci-lint`, repository `txncheck`, `gci` and
+  `git diff --check` passed. `make pre-check` passed with static analysis
+  skipped; scoped lint was run separately. PostgreSQL was not tested.
+
+- [ ] Complete #23756 review, then rebase #23759 onto `4.1` and finish its
+  review. Confirm its full real-dqlite domain CI step succeeds within the
+  intended runtime budget. #23756's earlier domain step took about five
+  minutes on CI with the two packages excluded.
+- [ ] When Juju bundles a release containing #883, remove the temporary
+  casts, the workaround-specific projection test and the sentinel.
+  Verify NULL, false and true remain distinct in real-dqlite and SQLite
+  for nullable Boolean pointers and `sql.Null[bool]`.
 
 ### `4.1-install-dependencies` — developer tooling
 
