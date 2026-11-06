@@ -94,6 +94,8 @@ available. Use `reserved` until the worktree and base are confirmed, then
 | Task | Owner/session | Branch | Worktree | Base | Status | Next action |
 |---|---|---|---|---|---|---|
 | U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9c3f117948ef667c43d195ad8a38b09`; monitor review and CI, complete live QA. SQLite and dqlite race suites, scoped lint and txncheck passed. |
+| U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `2f680f130243b52719116d746280ff2d016bca98`; monitor review and CI. The user reports performing the functional QA while editing the PR; individual outcomes were not independently verified. SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed; default pre-check skipped static analysis. PostgreSQL not tested. |
+| X16 secret backend grouped columns | `4d032417-af51-4f77-b950-bf70dd707e46` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | in progress | Commit `c3f75cf03262a98d3d1ed0606732b502a4b673e7` prepared; preserve all CA certificates in both consumers. SQLite/dqlite race suites, scoped lint, txncheck and default pre-check passed (static analysis skipped there); live QA and PostgreSQL execution not run. Review push and PR draft before publication. |
 
 ## Open reviews: finish on existing branches
 
@@ -116,6 +118,7 @@ CI and mergeability; validate any follow-up against the current head.
 | `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Obtain review; preserve SSH-key diagnostics and failure status under `set -e`. |
 | `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; finish review and rebase onto `4.1` after the parent lands. Unit Tests passed with the full dqlite domain step; the retried upgrade pre-check and aggregate check failed. Preserve NULL/false/true and the upstream-fix sentinel. |
 | `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent PR based directly on `4.1` at `148e09f015`, head `2e12c3150a`. Finish review, monitor CI and complete the PR's disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
+| `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `2f680f1302`, based on `148e09f015`. Monitor CI and obtain review; the user reports performing functional QA. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key. Reconcile the different PoC workaround after landing. |
 
 ### Nullable primary-key review split
 
@@ -317,18 +320,30 @@ which needs import/export review. PoC: `640d3bcabf`.
 
 #### `4.1-unitstate-relation-key` — U21, type mismatch
 
+Published as [#23769](https://github.com/juju/juju/pull/23769); continue
+review and CI on the existing branch.
+
 `setUnitStateRelation` binds Go `int` relation IDs to the `TEXT`
 `unit_state_relation.key`, and `GetUnitState` scans it back into `int`.
-Bind decimal text and parse on read, returning an error for a
-non-decimal key; no schema or export change. Existing `TestSetUnitState*`
-and `TestUpdateUnitStateRelation` cover it; add a read test with a
-non-decimal key. PoC: `1afd3b9434`.
+The user chose to change the column to `INT`, regenerate the 4.1 export
+type and convert legacy text keys during import, without adding a foreign
+key. Preserve relation filtering and deletion, reject invalid legacy keys,
+and validate schema, import/export, recovery and unit-state behavior. The
+PoC `1afd3b9434` uses a different, superseded text-binding approach.
 
 #### `4.1-x16-grouped-columns` — U22, portability
 
-Not a behaviour change on dqlite; the ungrouped columns are functionally
-dependent on the grouping keys, or the `GROUP BY` only removes duplicate
-join rows.
+Remove ungrouped projections while preserving secret counts and backend
+configuration. CA certificates are not functionally dependent on the old
+grouping keys: a cloud can have several. Preserve every certificate in both
+consumers, deduplicating repeated join rows; this fixes the previous loss of
+all but an unspecified certificate.
+
+The original [#17993](https://github.com/juju/juju/pull/17993) addressed
+model-specific Kubernetes credentials. The later
+[#22027](https://github.com/juju/juju/pull/22027) documents one displayed
+backend per model; credential attributes are merged into that backend.
+Neither establishes an intent to discard additional cloud CA certificates.
 
 - `domain/secretbackend/state/state.go`: `ListSecretBackends` and the
   in-use Kubernetes backend query group by every selected column;
@@ -339,9 +354,10 @@ join rows.
   `TestGetActiveModelSecretBackendK8sBuiltIn`, which had no coverage
   before. PoC `367f754dd6`.
 
-Follow-up to raise in review, not changed: both
-`getK8sSecretBackendForModel` copies return one CA certificate per cloud
-even when a cloud has several (the converters keep the last row).
+Both `getK8sSecretBackendForModel` copies and the in-use listing must return
+all cloud CA certificates, including with multiple credential attributes and
+cloud auth types. Validate counts and certificate deduplication on both
+SQLite and real dqlite.
 
 #### `4.1-boolean-and-aggregate-literals` — U20, portability
 
