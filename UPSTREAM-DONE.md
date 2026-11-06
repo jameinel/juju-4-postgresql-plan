@@ -2,9 +2,10 @@
 
 This records implemented upstream work, decisions and validation, including
 changes still in review. **Implemented is not landed or reintegrated.**
-The landed/in-review inventories are synchronized with GitHub on
-2026-11-05. Validation and publication narratives retain their recorded
-dates and revisions; they are not new checks of the latest heads.
+The landed/in-review inventories reflect a 2026-11-05 GitHub snapshot,
+with #23728's merge recorded on 2026-11-06. Validation and publication
+narratives retain their recorded dates and revisions; they are not new
+checks of the latest heads.
 
 - [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md): remaining work and acceptance checks.
 - [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md): finding register, source provenance,
@@ -30,6 +31,7 @@ and test runs below do not establish coverage of later revisions.
 | `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
 | `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
 | `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
+| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare retained registration in both databases, preserving idempotency, immutability and transaction usability. Merged 2026-11-06. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
 | `4.1-sql-standard-syntax`, #23695 | X37/X38 | Standard equality and an explicit CROSS JOIN to the one-row fulfilment aggregate. Cover unused/shared-key deletion and zero-fulfilment detach info. A third commit changes storage lifecycle trigger equality. |
@@ -61,6 +63,12 @@ Both tasks are complete upstream and were reconciled into the PoC on
 PostgreSQL validation remains outstanding; see
 [the reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-5259edff43-2026-11-05).
 
+PR [#23728](https://github.com/juju/juju/pull/23728) merged on 2026-11-06
+as `32be283d029d39e83027487899add9b94c426f86`, at head `2618d146da`.
+Its final follow-up shares registration state between the model and
+controller implementations. The PoC cherry-picks predate that refactor;
+reconciliation remains outstanding.
+
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
 check. Released 4.0.15 DDL is unchanged. Do not describe this as preserving
@@ -76,7 +84,6 @@ all earlier-beta database compatibility.
 | `4.1-nullable-primary-keys`, #23710 | U15, charm | Require mount container keys and key manifest bases by manifest position, retaining nullable attributes. |
 | `4.1-application-exposure-scope`, #23723 | U15, exposure | Separate application-wide wildcard exposure from endpoint-specific rows and require endpoint IDs in endpoint tables. |
 | `4.1-lookup-key-not-null`, #23724 | U17 | Explicitly require INT lookup keys and reject absent payload IDs rather than silently treating them as valid zero IDs. |
-| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare the retained registration in both databases, preserving idempotency, immutability and transaction usability. Current head `2618d146da` shares registration state; the PoC cherry-picks predate that refactor. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Resolve competing pins with the explicit lease/entity conflict target. Preserve repeated-pin and missing-lease behaviour; reset the test helper's captured results on transaction retries. This is portability, not a current dqlite defect. |
 | `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Target namespace conflicts explicitly, qualify the stored value and share a scalar allocator using RETURNING at `76b4a04f09`. Preserve zero-based, contiguous and namespace-isolated allocation, rollback and import continuity. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Replace eleven SQLite membership shorthands with explicit single-column subqueries; preserve filtering, scoped cleanup, lifecycle and departure semantics. Rebased head `02e9f73e49` retains the same patch. |

@@ -12,7 +12,7 @@ focused on pending actions.
 Neither is prerequisite reading for an assigned task.
 
 The review register contains a 2026-11-05 snapshot and later updates for
-#23756 and #23759. Current heads and CI must be checked before acting;
+#23756, #23759 and #23765. Current heads and CI must be checked before acting;
 implemented scope and historical validation are in UPSTREAM-DONE.md. Skipped
 checks are not passes, and publication does not establish QA acceptance.
 
@@ -77,19 +77,19 @@ CI and mergeability; validate any follow-up against the current head.
 | Branch / PR | Finding | Remaining action / acceptance contract |
 |---|---|---|
 | `4.1-model-config-precedence`, [#23683](https://github.com/juju/juju/pull/23683) | U7 | Review follow-ups are published; reported checks have no failures or pending jobs. Obtain remaining approval. Preserve authoritative agent-table values, import filtering and one effective value per key. |
-| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Connection-scoped uniqueness and cleanup follow-ups are implemented. Resolve cancelled macOS/failed aggregate CI and obtain approval. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together. |
-| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Commit identity/message and rebase requests are addressed. Resolve cancelled macOS/failed aggregate CI and complete review. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
-| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Finish review and resolve the cancelled macOS/aggregate CI failure; land charm first. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
+| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Connection-scoped uniqueness and cleanup follow-ups are implemented; obtain approval. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together. |
+| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Commit identity/message and rebase requests are addressed; complete review. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
+| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Finish review and land charm first. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
 | `4.1-application-exposure-scope`, [#23723](https://github.com/juju/juju/pull/23723) | U15, exposure | Reported checks have no failures or pending jobs; obtain approval. Rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. |
 | `4.1-lookup-key-not-null`, [#23724](https://github.com/juju/juju/pull/23724) | U17 | Reported checks have no failures or pending jobs; obtain approval. Schema-derived decoder inventory, direct `NotValid` classification and the transaction-test fix are implemented. Retain explicit typed deltas and the 65-key scope; later reconcile the combined guard with exposure. |
-| `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Shared registration-state follow-up is published at `2618d146da`; reported checks have no failures or pending jobs. Obtain approval. Preserve `AlreadyExists` / `AgentBinaryImmutable`, idempotency and transaction usability. The PoC cherry-picks predate this refactor. |
 | `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Reported checks have no failures or pending jobs; obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
 | `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Common-allocator/RETURNING refactor and tests are committed and published at `76b4a04f09`. Triage unit-test, bundles/revision smoke and aggregate CI failures, then complete review and functional QA. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Triage revision-smoke/aggregate CI failures and obtain approval. Preserve the equivalent null-check flags in the connection query and controller views. Complete the documented functional QA and reconcile the final upstream result with the PoC separately. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Rebased head `02e9f73e49` has no failing or pending reported checks; obtain approval. Preserve explicit single-column CTE membership and scoped cleanup, lifecycle and departure semantics. |
 | `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Monitor review and CI and obtain approval. At `15119bb898` the PR is mergeable and review is required; 9 checks passed and 12 were skipped on 2026-11-05. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
-| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `23163fed56` adds the keymanager fix and real-dqlite domain CI with two temporary exclusions. Unit, default-bases smoke and aggregate checks passed at the recorded snapshot; obtain review. Preserve SSH-key diagnostics and failure status under `set -e`. |
-| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Stacked on #23756 at `23163fed56`; follow review and CI at head `f0408a92ba`, then rebase onto `4.1` after #23756 lands. Confirm the full domain step and its CI runtime; preserve NULL/false/true and the upstream-fix sentinel. |
+| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Obtain review; preserve SSH-key diagnostics and failure status under `set -e`. |
+| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; finish review and rebase onto `4.1` after the parent lands. Unit Tests passed with the full dqlite domain step; the retried upgrade pre-check and aggregate check failed. Preserve NULL/false/true and the upstream-fix sentinel. |
+| `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent PR based directly on `4.1` at `148e09f015`, head `2e12c3150a`. Finish review, monitor CI and complete the PR's disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
 
 ### Nullable primary-key review split
 
@@ -171,25 +171,28 @@ The root cause is dqlite's response encoding, fixed upstream by
 but not in the bundled 1.18.6. This is separate from the `RETURNING` defect.
 
 Published [juju/juju#23759](https://github.com/juju/juju/pull/23759) at
-`f0408a92ba` as a temporary SQL workaround, stacked on #23756. It casts
-the Loki state read and the machine test projections to INTEGER, re-enables
-both excluded packages in the real-dqlite CI step, and adds a real-dqlite
-sentinel that fails once NULL is preserved by the bundled library.
-The workaround does not fix other nullable Boolean reads.
+`a848d4426e` as a temporary SQL workaround, based on #23756 at `63a93201b5`.
+It casts the logging and provisioner Loki reads, both storage-status
+projections, and machine test projections to INTEGER. It re-enables both
+excluded packages in the real-dqlite CI step and adds a sentinel that fails
+once NULL is preserved by the bundled library. The status output remains
+false for both NULL and false; the provisioner's nil Loki pointer retains
+the distinction between the default and explicit false.
 
-Worktree `juju-4.1-dqlite-nullable-boolean` uses the shared `_deps` and is
-clean at commit `f0408a92ba55f6792f319587ac1bd133b60f908c`. Its parent is
-#23756 head `23163fed56f7172ff2d4636ad6a8593d4867ea61`; upstream `4.1`
-was `08fafe7f49ee39bed52c7288e86be0df6af4adcf` when work began. #23759 is
-open, mergeable and requires review; its unit and aggregate CI were still
-running at the 2026-11-05 snapshot.
+The independent [juju/juju#23765](https://github.com/juju/juju/pull/23765),
+head `2e12c3150a` directly on upstream `4.1` at `148e09f015`, preserves
+NULL Boolean and datetime/timestamp pointers in controller exports. It
+adds `IS NULL` markers to existing queries, following model export, without
+changing the backup format. Its transaction retry resets the captured
+payload. The worktrees are `juju-4.1-dqlite-nullable-boolean` and
+`juju-4.1-controller-export-null`; both were clean at these heads.
 
 Validation:
 
 - The three reported failures reproduced on real dqlite. Focused
   NULL/false/true cases passed on real dqlite and SQLite for the Loki
   pointer and machine `sql.Null[bool]` projections.
-- `make run-go-tests TEST_PACKAGES='./domain/...'
+- At the earlier #23759 snapshot, `make run-go-tests TEST_PACKAGES='./domain/...'
   TEST_ARGS='-p 2 -race -count=1'` passed for 225 test packages with
   `dqlite,libsqlite3` tags in 1067 s. After a final table-alias-only SQL
   edit, the complete logging package passed with `-race` on both backends.
@@ -201,15 +204,27 @@ Validation:
 - Scoped `golangci-lint`, repository `txncheck`, `gci` and
   `git diff --check` passed. `make pre-check` passed with static analysis
   skipped; scoped lint was run separately. PostgreSQL was not tested.
+- At the current heads, affected #23759 packages and #23765's controller
+  export suite passed on SQLite and real dqlite; dqlite tests used `-race`.
+  Export generator tests, regeneration without drift, scoped lint and
+  repository `txncheck` passed. The manual backup QA in #23765 is pending.
+- On 2026-11-06, #23759's Unit Tests job passed on its second attempt,
+  including logging and machine in the full real-dqlite domain step
+  (approximately 5m25s). Its upgrade pre-check failed again on Ubuntu 26.04
+  at `snap info juju` with `no snap found for "juju"`; the aggregate check
+  failed. A local `snap info juju` succeeded, but the runner failure's
+  underlying cause is not confirmed. #23765 CI was still running without
+  reported failures; its upgrade smoke was skipped.
 
 - [ ] Complete #23756 review, then rebase #23759 onto `4.1` and finish its
-  review. Confirm its full real-dqlite domain CI step succeeds within the
-  intended runtime budget. #23756's earlier domain step took about five
-  minutes on CI with the two packages excluded.
-- [ ] When Juju bundles a release containing #883, remove the temporary
-  casts, the workaround-specific projection test and the sentinel.
-  Verify NULL, false and true remain distinct in real-dqlite and SQLite
-  for nullable Boolean pointers and `sql.Null[bool]`.
+  review. Resolve or retry the failed upgrade pre-check and aggregate CI;
+  continue monitoring the real-dqlite domain step's runtime.
+- [ ] Finish #23765 review, CI and functional backup QA independently of
+  #23759. Retain the distinct NULL, false, true and timestamp cases.
+- [ ] When Juju bundles a release containing #883, review the temporary
+  casts, sentinel and model/controller export NULL markers; sweep nullable
+  Boolean reads. Verify NULL, false and true remain distinct where required,
+  along with nullable timestamps, on real dqlite and SQLite.
 
 ### `4.1-install-dependencies` — developer tooling
 
@@ -529,8 +544,13 @@ Do not implement PoC integration in stock-upstream worktrees. After landing,
 hand merged revisions to the integration owner using UPSTREAM-INTEGRATION.md
 and update the register. Explicit outstanding obligations: U17 guard
 integration, independent reconciliation of #23688 after it lands, and
-reconciliation of the D43 cherry-picks of #23710, #23723 and #23728
-(U15/U16) when they land. Reconciled 2026-11-05 onto `5259edff43`:
+reconciliation of the D43 cherry-picks of #23710 and #23723 (U15) when
+they land. For `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728)
+has merged; reconcile its final shared registration-state implementation
+with the earlier U16 PoC cherry-picks. Preserve `AlreadyExists` /
+`AgentBinaryImmutable`, idempotency and transaction usability. Historical
+implementation and merge details are in [UPSTREAM-DONE.md](UPSTREAM-DONE.md).
+Reconciled 2026-11-05 onto `5259edff43`:
 #23720, #23726 and #23694's UUID-conflict sentinel; U15/U16 cherry-picked
 (see the register's reconciliation record). Keep all other landed-fix reconciliation status in the register;
 upstream landing alone does not mark it complete.
