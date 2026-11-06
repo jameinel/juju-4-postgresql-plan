@@ -156,10 +156,9 @@ Next:
    unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
    production defects first (06-dialect-fixtures, 06-bind-types).
 4. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
-5. Ask for approval to force-push 01–09 and push this repository.
 
-Current local tips (2026-11-05, base `5259edff43`; 01–09 differ from the
-published refs and need a force push): `00=3133b016cc`,
+Current tips (2026-11-05, base `5259edff43`; published to `jameinel/juju`
+and verified on the remote on 2026-11-05): `00=3133b016cc`,
 `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`, `04=53a0bf03d9`,
 `05=3a8f0090c2`, `06=add66191aa`, `07=d700353eb0`,
 `08=09=eac5b916c7`. Verified on PostgreSQL (server `lxd36-pgtest`,
