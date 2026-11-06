@@ -1,0 +1,100 @@
+---
+name: prepare-pr-review-response
+description: Address pull request review feedback with a focused patch, an updated prospective PR description, and a complete review response prepared for human approval. Use when asked to respond to or address a PR review.
+---
+
+# Prepare a PR review response
+
+The planning repository is three directories above this skill's directory.
+The session may start in its parent, alongside multiple Juju worktrees. Work
+on the existing PR branch in its authorized worktree; do not create a
+replacement branch or disturb another owner's checkout. Read the target
+repository's applicable instructions and PR template.
+
+## Understand the review
+
+1. Identify the PR and the review or feedback the user wants addressed.
+   If the target or intended scope is ambiguous, ask. Inspect the live PR
+   description, base, current head, commit history, checks, review bodies,
+   issue comments, and inline threads, including replies, resolution and
+   outdated status. Follow pagination. Prefer `gh` for GitHub operations.
+2. Read the relevant code and tests, and compare each review point with later
+   commits and author responses. Review bodies may contain feedback even
+   without inline threads. Do not treat resolved, outdated, or bot-generated
+   feedback as automatically correct, incorrect, or already answered.
+3. Make an item-by-item working inventory of the requested feedback, including
+   warnings, suggestions, questions and distinct subpoints. Record whether
+   each is already addressed, needs a change or explanation, should be
+   deferred, or warrants disagreement. Base decisions on the code and
+   evidence; do not invent a follow-up branch or claim a fix is complete.
+   Ask the user when behavior, scope, ownership or a meaningful tradeoff
+   requires a decision. If the branch or worktree is dirty or owned by
+   another session, preserve its changes and obtain authorization before
+   touching it.
+
+## Implement and validate
+
+- Make focused fixes on the existing branch when warranted. Keep unrelated
+  concerns separate, preserve existing behavior unless a change is agreed,
+  and add regression tests for changed behavior. Disagreement or deferral is
+  acceptable when supported by a specific rationale.
+- Run the checks appropriate to the change, following the target repository
+  and task guidance. For the stock upstream Juju plan, consult the
+  [breakout validation guide](../upstream-breakout/references/validation.md):
+  check tool availability and use the compiled `txncheck`, adding
+  `$HOME/go/bin` to `PATH` when needed. Report actual results and checks not
+  run; skipped checks are not passes.
+- Inspect the resulting diff and current branch, then create a conventional
+  follow-up commit with the required co-author trailer when a patch is needed.
+  Do not amend published commits unless explicitly requested. Do not commit
+  unrelated changes. If no code change is appropriate, say so.
+
+## Prepare separate review artifacts
+
+Prepare both artifacts locally, even when only one needs publication. Clearly
+identify when the existing description needs no change.
+
+**PR description:** Present the final proposed change as a prospective merge
+commit message. Explain what it does, why, important behavior and tradeoffs,
+and reviewer context needed to understand it. Preserve important existing
+context, and incorporate new facts or clarifications discovered in review
+whenever they change how the final patch should be understood, even if the
+code itself did not change. Include an alternative or earlier approach when
+it helps explain the final design or its tradeoffs; omit iteration details
+that only recount the review process. Use the repository's PR template and
+give explicit, reproducible functional QA steps, including setup commands
+and expected results. Update QA when the final behavior requires it. Review
+chronology and completed-check history belong in the review response.
+
+**Review response:** Address every item in the selected review, including
+distinct subpoints. For each, say what changed, what already satisfies the
+request, where it is deferred, or why you disagree; include evidence and links
+when useful. Do not say a future change or check has happened. Mention relevant
+validation and limitations accurately, without presenting a timed-out stress
+run or skipped check as a complete pass. Keep the response direct and
+respectful, and avoid repeating the whole PR description.
+
+Before handing off, cross-check the working inventory against the response.
+If an item is not answered or depends on a user decision, identify it
+explicitly rather than omitting it. Keep locally staged text near 80 columns
+where practical without harming readability.
+
+## Review and publication gates
+
+- Show the user the follow-up commit and exact push destination before
+  pushing. Verify the current PR head and remote branch first; stop on
+  unexpected divergence rather than overwriting another person's work.
+- Prepare and show the exact proposed PR body, destination, and edit action,
+  and the exact review response, destination, and comment or reply action.
+  Obtain explicit human approval for each publication action and its exact
+  content before publishing. A request to address feedback, tool permission,
+  approval of a code patch, or a push is not approval to publish text. If
+  content or destination changes after approval, request approval again.
+- For an approved PR body edit, use `gh api -X PATCH` on
+  `repos/OWNER/REPO/issues/NUMBER` with `-F body=@FILE` directly; do not use
+  `gh pr edit`. Verify the published body afterward.
+- Do not publish, edit or delete existing GitHub content, or resolve review
+  threads without explicit approval for that specific action. After an
+  approved publication, verify the resulting GitHub content and link.
+- Summarize the branch and commit, validation and limitations, prepared or
+  published artifacts, and any remaining decisions or review actions.

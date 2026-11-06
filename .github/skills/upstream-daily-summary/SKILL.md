@@ -43,6 +43,8 @@ those files as needed to interpret or update the queue.
    reconciliation separately from review and CI status. For unstarted items,
    distinguish unclaimed upstream branches from work already implemented in
    a PoC, and distinguish ready-to-start tasks from candidates needing scope.
+   Consult the plan's breakout claim list so reserved, active, or blocked
+   tasks are not reported as unstarted.
    If current state cannot be verified, label it as the plan's recorded state
    rather than asserting it is unstarted everywhere.
 
@@ -50,7 +52,9 @@ those files as needed to interpret or update the queue.
 
 When a PR the plan identifies as open has merged, update the local planning
 documents as part of this workflow. Confirm its merge date, merge commit, and
-final head from GitHub first.
+final head from GitHub first. Follow the plan's planning-document lock
+protocol, re-reading the affected files while holding the lock; do not hold
+the lock during GitHub calls.
 
 - Move its implementation and review history out of the open-review queue and
   into the landed section of `UPSTREAM-DONE.md`. Preserve useful rationale and

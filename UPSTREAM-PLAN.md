@@ -38,36 +38,36 @@ checks are not passes, and publication does not establish QA acceptance.
 - Stop for unresolved behaviour, unexpected dependencies or ownership
   conflicts. Do not weaken tests to make a patch pass.
 
-### Validation without repeated full static analysis
+For dispatch and validation details, read the
+[breakout validation guide](.github/skills/upstream-breakout/references/validation.md)
+when starting or reviewing implementation work.
 
-For routine code changes, run the affected tests (with `-race` and stress
-when concurrency requires them), format touched Go files with `gci`,
-check the diff, and run the repository-configured linters on affected
-packages rather than invoking every repository-wide analysis:
+## Breakout claims
 
-```sh
-golangci-lint run -c .golangci.yml ./path/to/affected/package/...
-go run ./scripts/txncheck/main.go "$PWD"
-```
+This table is the authoritative local claim list for new breakouts. Record
+the task, owner/session, branch, worktree, base, status and next action.
+Keep blocked and paused work claimed; do not assume an existing worktree is
+available. Use `reserved` until the worktree and base are confirmed, then
+`in progress`, `blocked`, or `published` as appropriate.
 
-The scoped `golangci-lint` command checks tests but not the whole repo;
-the separate `txncheck` walks Go source repository-wide and is cheap
-(about 0.6 seconds and 64 MB RSS with a warm cache in the lookup-key
-checkout). It can catch transaction-test issues the package linter
-misses. Neither command replaces schema, dependency, licence or
-vulnerability checks. Check that the binaries are on `PATH`; an absent
-tool is not a successful lint run.
+No claims recorded.
 
-`make pre-check` skips static analysis unless invoked as
-`STATIC_ANALYSIS=1 make pre-check`. The full run includes other checks
-and runs `govulncheck` across `github.com/juju/juju/...` when that tool
-is installed; it can take substantial time and memory. Do not repeat
-it for each small, local follow-up when affected tests, scoped lint,
-txncheck and PR CI provide the needed feedback. Run it locally when
-dependencies or relevant vulnerable call paths change, when an
-advisory appears, before release/integration milestones, and
-periodically to catch drift that scoped checks and CI might miss.
-Review the GitHub checks; a skipped or failing check is not a pass.
+### Coordinating planning-document writes
+
+Before a skill modifies the plan, done record, or finding register, resolve
+the planning repository's absolute common Git directory using
+`git rev-parse --path-format=absolute --git-common-dir`. Atomically create
+the directory `upstream-planning.lock` inside it with `mkdir`. If it already
+exists, another writer may be active: wait briefly or stop and ask the user;
+never remove or steal an existing lock automatically. With the lock held,
+re-read the affected documents, check claims, and make the smallest coherent
+update. Remove only the lock directory created by this invocation using
+`rmdir`, including on a failed update. Never hold the lock during user
+interaction, GitHub calls, implementation, or tests. If interrupted and a
+lock remains, ask the user to verify its owner before manual recovery.
+
+This protocol coordinates participating sessions sharing this filesystem;
+it cannot prevent edits by other tools or users that do not use the lock.
 
 ## Open reviews: finish on existing branches
 
@@ -257,7 +257,7 @@ must pass regressions with multiple revisions, expiry/rotation rows and
 both owner kinds. This does not duplicate the two local queries landed in
 #23720.
 
-Not claimed. #23720 has landed; #23688 remains open. Check its current
+#23720 has landed; #23688 remains open. Check its current
 head and file ownership before dispatching this independent rewrite. A
 PoC implementation exists (U19 in UPSTREAM-FIXES.md); an implementer may
 read it but must validate on 4.1 independently.
@@ -268,7 +268,8 @@ Each is implemented and tested on `pg-poc/05-queries` (published
 2026-11-06). An implementer may read the PoC commit but must reimplement
 or cherry-pick onto 4.1 and validate there independently. None depends on
 the PostgreSQL harness; the regressions run on SQLite and dqlite. Keep one
-branch per bullet unless review asks to combine them. Not claimed.
+branch per bullet unless review asks to combine them. Check the breakout
+claims above before dispatch.
 
 #### `4.1-storage-filesystem-attachment-row` — U22, latent bug (priority)
 
@@ -557,42 +558,7 @@ upstream landing alone does not mark it complete.
 
 ## Dispatch
 
-Supply the upstream base, one named branch/worktree, allowed paths,
-expected behaviour, prerequisites and required regression cases. The
-executor reads this guide and the target repository's instructions; task
-selection does not authorise work on other branches.
-
-Example assignment:
-
-> In stock upstream Juju 4.1 at <base>, implement <named pending task>
-> from UPSTREAM-PLAN.md on <branch> in <worktree>. Use only that
-> checkout's code and test infrastructure. Add the specified regressions,
-> run its normal validation, and report the diff and results. Stop for
-> unapproved semantics or dependencies.
-
-## Upstream validation and review
-
-- Reproduce the upstream defect where applicable, then add the regression
-  alongside the fix. For a behaviour-preserving SQL improvement, assert the
-  existing contract across relevant edge cases.
-- Run focused tests first, then affected package suites for the assigned
-  paths. Preserve unrelated behaviour; do not expand into landed fixes.
-- Use the target checkout's standard test commands, dependencies and
-  database fixtures. Include actual dqlite checks where required, and its
-  prescribed race/stress, watcher-readiness, formatting and lint checks.
-- For schema changes, confirm the release's base-DDL/incremental-upgrade
-  policy. Use `make rebuild-export` from each branch's own schema; regenerate
-  after conflicts from the combined schema, not whole-file selection.
-  Exercise writers -> storage -> export -> legacy import -> consumers,
-  recovery and supported upgrades. Generation alone is not acceptance;
-  generated output must be limited to intended changes.
-- Record the base, final commit, exact commands/build tags and results.
-  State tests not run and unresolved risks; do not claim broader coverage.
-  Explain the upstream defect/benefit and any behaviour change in the PR,
-  following the target repository's template.
-
-Return the branch, commits, test evidence and review link to the coordinator.
-The coordinator updates shared planning records; parallel agents need not
-edit them. Respect the host's test resource budget and other owners' state.
-Each independent review targets upstream 4.1; rebase/regenerate when needed
-after related changes land, without combining unrelated reviews.
+Use the [upstream-breakout skill](.github/skills/upstream-breakout/SKILL.md)
+for task selection, coordinated claims, implementation and review preparation.
+The [validation guide](.github/skills/upstream-breakout/references/validation.md)
+also applies to executors not using the skill.
