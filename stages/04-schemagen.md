@@ -78,6 +78,11 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     `rowid`), and in `translate.go` the `IIF`, `IFNULL` and `user`
     rewrites plus `0` / `1` boolean defaults and seeds. The genuine
     dialect translations are listed in DIALECT.md section 4.
+  - Task 04-current-timestamp (D56, pending): change the seven
+    `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'utc')` defaults in the shared
+    schema to `CURRENT_TIMESTAMP`, regenerate, and remove the `STRFTIME`
+    branch of `callsNow` in `translate.go` once no DDL uses it. The base
+    DDL edit changes the schema hash; recreate disposable PoC databases.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support

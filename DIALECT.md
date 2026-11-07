@@ -45,7 +45,7 @@ fixes must not gain PostgreSQL-specific SQL or support dependencies.
 | X24 | `x IN name` where `name` is a table or CTE, with no parentheses | Allowed, same as `x IN (SELECT * FROM name)` | Syntax error | Shared fix (Stage 5): `x IN (SELECT col FROM name)`. Eleven production sites in `domain/application/state` (`application_endpoint.go`, `k8sservice.go`), `domain/removal/state/model` (`unit.go`, `application.go`, `storage.go`), `domain/operation/state` (`task.go`, `prune.go`) and `domain/relation/state/relation.go`. Seen as `ep_names` errors in the Stage 6 suites. |
 | X29 | `JOIN` / `LEFT JOIN` with no `ON` or `USING` | Allowed; a cross join | Syntax error | Schema views (production), masked by Stage 4 overrides: `v_model_all` `LEFT JOIN controller AS ctrli` (`0007-model.diff`, `ON TRUE`); `v_secret_permission` and `v_secret_owner` `JOIN model AS m` (`0012-secret.diff`); `v_machine_target_agent_version` and `v_unit_target_agent_version` `JOIN agent_version AS av` (`0018-machine.diff`, `0020-unit.diff`), all three as `CROSS JOIN`. All five remain in upstream 4.1 at `148e09f015`. The shared fix is an explicit `CROSS JOIN` (precedent X38) or `ON TRUE`. Upstream candidate (D55 audit); #23751 also edits `v_model_all`. Test: `domain/access/state/permission_test.go` `ensurePermission` uses `LEFT JOIN permission_object_type AS pot WHERE ...` (Stage 6). No state-package query found. |
 | X30 | `instr(s, sub)` | Built in | Missing; `strpos(s, sub)` or `position(sub IN s)`, which SQLite lacks | Fixed in the PoC (U11). `domain/crossmodelrelation/state/model/secrets.go` (2 queries) derives the application name with `substr(unit_name, 1, instr(unit_name, '/')-1)`. Found by a production code scan in Stage 6; not in the Stage 6 suites. The legacy offer import test used it too; fixed on Stage 6 by `test(crossmodelrelation): match secret consumer units without instr` (`substr` and `length`). The production queries no longer use it: U11 (`8f2c49c355` on Stage 5, cherry-picked from juju/juju#23688) matches units by an exact `<application>/` prefix. Fixed in the PoC; upstream in review. |
-| X31 | `rowid` | Implicit column on tables without `WITHOUT ROWID`; insertion order for a non-integer primary key | No such column (`ctid` is physical and not stable) | `domain/blockcommand/state` `GetBlocks` used `ORDER BY rowid`; fixed on Stage 5 by `fix(blockcommand): order blocks by type instead of rowid` (at most one block per type, so the order is deterministic). `domain/recovery/state` reads `rowid` from `foreign_key_check` (dqlite only, X21). Found by a production code scan in Stage 6. Schema: `v_application_constraint` (`0019-application.sql`) orders tags, spaces and zones by the implicit `rowid` of `constraint_tag`, `constraint_space` and `constraint_zone`. `GetApplicationConstraints` documents insertion order as its contract. The PoC adds PostgreSQL-only identity `rowid` columns (D17, `0014-constraint.diff`), leaving dqlite reliant on the implicit column. Upstream candidate (D55 audit): an explicit ordering column, or a decision that order is not part of the contract. |
+| X31 | `rowid` | Implicit column on tables without `WITHOUT ROWID`; insertion order for a non-integer primary key | No such column (`ctid` is physical and not stable) | `domain/blockcommand/state` `GetBlocks` used `ORDER BY rowid`; fixed on Stage 5 by `fix(blockcommand): order blocks by type instead of rowid` (at most one block per type, so the order is deterministic). `domain/recovery/state` reads `rowid` from `foreign_key_check` (dqlite only, X21). Found by a production code scan in Stage 6. Schema: `v_application_constraint` (`0019-application.sql`) orders tags, spaces and zones by the implicit `rowid` of `constraint_tag`, `constraint_space` and `constraint_zone`. `GetApplicationConstraints` documents insertion order as its contract. The PoC adds PostgreSQL-only identity `rowid` columns (D17, `0014-constraint.diff`), leaving dqlite reliant on the implicit column. Upstream candidate (D55 audit): order is likely a real contract, so record it in an explicit per-row sequence column rather than relying on `rowid`. |
 | X32 | Catalog queries | `sqlite_master` | `information_schema` / `pg_catalog` | `internal/worker/dbaccessor`: the dqlite tracker backend checks `sqlite_master` for `change_log` to detect an initialised model; the PostgreSQL backend checks the D44 marker through `pg_catalog` with `postgresql.SchemaInitialised` (Stage 8, D48). `internal/worker/dbrepl` queries `sqlite_master` throughout (out of scope). `pg_catalog`'s `"char"` columns, such as `relkind` and `prokind`, need `::text` before `\|\|` (Stage 8 delete tests). |
 | X33 | `octet_length(x)` of a non-text value | Any type; numbers are measured in their text form | Only `text`, `bytea` and `bit`; `octet_length(bigint)` and `octet_length(timestamptz)` do not exist (42883) | Shared fix (Stage 5, `fix(operation): measure pruned operation sizes as text`): `octet_length(CAST(x AS TEXT))`, which is portable. `domain/operation/state/prune.go` estimates operation sizes with `octet_length` over every column, including `INTEGER`, `BOOLEAN`, `DATETIME` and `object_store_metadata.size`. SQLite is unchanged. On PostgreSQL the estimate counts the text form (a timestamp is 29 bytes, not 8 stored), which is close to what SQLite stores, since it keeps datetimes as text. No portable "stored bytes" function exists. `pg_column_size(x)` or page-based `pg_total_relation_size` would need backend-aware state code; UPSTREAM-FIXES follow-up. Found in Stage 6 (`domain/operation/state` prune-by-size tests). |
 | X36 | Several `ON CONFLICT` clauses on one `INSERT` | Allowed (3.35+); clauses are tried in order | One clause only; a second is a syntax error | Shared fix (Stage 5, `fix(objectstore): use a single conflict clause when putting metadata`): one untargeted `ON CONFLICT DO NOTHING`. `domain/objectstore/state` `putMetadata` had `ON CONFLICT (sha_256)` and `ON CONFLICT (sha_384)`. The table's only other unique key is the `uuid` primary key, so a reused uuid now returns `ErrHashAndSizeAlreadyExists` instead of a constraint error (new test). Every charm, resource and agent binary put failed on PostgreSQL (147 `domain/removal/state/model` failures). A scan found no other multi-clause statement. |
@@ -120,10 +120,39 @@ UPSTREAM-PLAN.md candidate:
 
 Genuine differences (keep in the generator): type names, `STRICT`,
 `WITHOUT ROWID`, `AUTOINCREMENT`, trigger bodies, forward references,
-identifier length. Undecided: `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW',
-'utc')` defaults (seven sites). `CURRENT_TIMESTAMP` is portable but
-drops sub-second precision on SQLite, so this stays a translation until
-precision requirements are decided.
+identifier length.
+
+Tentative (D56): `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'utc')` column
+defaults (seven sites). The PoC uses `CURRENT_TIMESTAMP`. Changing
+upstream to it is a possibility, not a commitment: on SQLite it drops
+millisecond precision, which nothing currently needs but which costs
+little to keep. On PostgreSQL, `CURRENT_TIMESTAMP` is `now()` and keeps
+microseconds. Sub-second precision is unused at six sites:
+
+- `change_log.created_at` (controller and model): every generated
+  trigger writes whole-second `DATETIME('now', 'utc')`, and the stream
+  scans the value without using it.
+- `change_log_witness.updated_at` (controller and model): the stream
+  writes `DATETIME('now', 'utc')`; only export reads it.
+- `removal.scheduled_for`: every production insert binds it from Go.
+- `machine_requires_reboot.created_at`: the default applies, but only
+  export and import read it.
+
+The exception is `charm.create_time`. The default applies
+(`setCharmState` omits it), and `GetLatestPendingCharmhubCharm` returns
+the first row of `ORDER BY create_time DESC`. A millisecond timestamp
+does not guarantee a unique order, and PostgreSQL `now()` is the
+transaction start time. This is a separate ordering candidate whatever
+the default becomes.
+
+`CURRENT_TIMESTAMP` is always UTC on SQLite and stores the same
+`YYYY-MM-DD HH:MM:SS` text as `DATETIME('now', 'utc')`, which the stream
+and `Watermark` already write and scan into `time.Time`. Checked with
+sqlite3 3.46.1 under three `TZ` values. The current form relies on
+`'utc'` after `'now'`, which SQLite documents as undefined but has
+treated as a no-op since 3.10.0; dqlite builds 3.47.0
+(`scripts/dqlite/scripts/env.sh`). Existing `.SSS` rows and new
+whole-second rows still sort chronologically as text.
 
 ## 5. Transactions, errors and connections
 
