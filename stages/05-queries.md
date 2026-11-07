@@ -162,10 +162,37 @@ The PoC workaround remains historical implementation evidence, not an
 approved upstream solution. Reconcile it with the landed result under
 UPSTREAM-INTEGRATION.md; do not silently mirror an in-review design here.
 
+### 05-lease-db-time: lease times from the database clock (pending)
+
+D16 (amended 2026-11-06). `8930466847` replaced `datetime('now', ...)` in
+`domain/lease/state/state.go` (claim, extend) and
+`internal/worker/leaseexpiry/store.go` (both expiry queries) with times
+from `clock.WallClock` on the calling controller. `leaseexpiry` runs on
+every controller, so a controller whose clock runs ahead deletes leases
+early. Upstream evaluates all three on the dqlite leader, which is the
+behaviour to keep.
+
+- Expiry: compare `l.expiry < CURRENT_TIMESTAMP` in both queries. SQLite
+  compares same-format text; PostgreSQL compares `timestamptz` values.
+  Drop the store's clock.
+- Claim and extend: take "now" from the database in the same transaction,
+  for example `SELECT CURRENT_TIMESTAMP`, then keep `expiryFrom` and
+  `formatTimestamp`. SQLite returns that expression as text (no declared
+  type) and PostgreSQL as `timestamptz`; check what each driver returns
+  before choosing the scan type. The start may also come from a
+  `CURRENT_TIMESTAMP` insert value, but the expiry needs the same instant.
+- Remove the `clock` fields added to `State` and `expiryStore`.
+- Tests: claim/extend expiry against database time on both backends;
+  fold in 06-leaseexpiry-db (real-database expiry test) if convenient.
+
+Not in scope: `migration.go` `expiry >= date('now')` (date-only; see
+UPSTREAM-PLAN.md), and a replicated lease clock.
+
 ## Contracts consumers must preserve
 
-- D16 lease times are bound as UTC `YYYY-MM-DD HH:MM:SS` text; expiry is
-  rounded up to whole seconds. Stage 8 agent pools must use
+- D16 lease times come from the database clock (`CURRENT_TIMESTAMP`), not
+  a controller clock, and are stored as UTC `YYYY-MM-DD HH:MM:SS` text on
+  SQLite; expiry is rounded up to whole seconds. Stage 8 agent pools must use
   `WithTimeZoneUTC`, as the harness does (X13). Plain current-time columns
   use `CURRENT_TIMESTAMP`; port calculations without changing meaning.
 - PostgreSQL aborts a transaction after a statement error (X18). Do not
