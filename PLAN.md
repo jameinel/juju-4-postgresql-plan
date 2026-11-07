@@ -165,8 +165,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 01 | [PostgreSQL provisioning script](stages/01-provision.md) | `pg-poc/01-provision` | in review (also carries the D52 cleanup tool) |
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
-| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest and 05-unitstate-relation-key done; U15/U16 cherry-picked (D43); no known production query defect open |
+| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) pending |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest and 05-unitstate-relation-key done; U15/U16 cherry-picked (D43); 05-lease-db-time (D16) pending; no other known production query defect open |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed done (N17); sweep 2 classified, test SQL and fixture repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
@@ -176,18 +176,22 @@ missing inputs; do not ask an executor to design and implement a backlog.
 
 Next:
 
-1. Re-sweep at the new tip with one `go test -p 8` invocation and the
+1. Implement 04-current-timestamp (D56) and 05-lease-db-time (D16) and
+   restack, so later runs use the final schema and lease semantics. D56
+   changes the schema hash; recreate disposable PoC databases.
+2. Re-sweep at the new tip with one `go test -p 8` invocation and the
    unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
    production defects first (06-dialect-fixtures, 06-bind-types).
-2. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
-3. Dispatch the Stage 5 upstream break-outs scoped in
+3. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
+4. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
    rework, not an instruction to merge the deterministic-row version.
    U21's integer-schema rework is published as #23769; grouped-column work
    includes CA-certificate preservation. `4.1-boolean-and-aggregate-literals`
-   remains separately scoped.
+   remains separately scoped. Alongside these, audit the `0` / `1` seed
+   rows written to `BOOLEAN` columns (UPSTREAM-PLAN.md D55 audit table).
 
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
