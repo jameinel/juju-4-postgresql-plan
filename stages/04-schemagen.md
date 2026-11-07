@@ -69,6 +69,15 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     Translation and overrides remain appropriate for genuine dialect
     differences. Stop for unresolved semantics or release-policy conflicts;
     do not infer permission for a schema rewrite from a generator task.
+  - D55 audit (2026-11-06) of `pg-poc/09-bootstrap`: these overrides and
+    rewrites mask shared defects and are temporary. Remove each once its
+    UPSTREAM-PLAN.md candidate lands: predicate-free joins
+    (`0007-model`, `0012-secret`, `0018-machine`, `0020-unit`; X29),
+    `0019-model-last-login` (X16), `0034-cross-model-relation` (duplicate
+    FK name), `0014-constraint` (X25 `allocate_public_ip`; X31/D17
+    `rowid`), and in `translate.go` the `IIF`, `IFNULL` and `user`
+    rewrites plus `0` / `1` boolean defaults and seeds. The genuine
+    dialect translations are listed in DIALECT.md section 4.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support

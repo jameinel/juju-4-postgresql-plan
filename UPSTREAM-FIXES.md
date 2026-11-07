@@ -535,7 +535,8 @@ Generated artifacts: `4248ede57c` regenerated the PostgreSQL DDL at
 Stage 4 for the new base (18 files); `52b6ba047c` regenerated it at
 Stage 5 after the U15 cherry-picks. Each of the eight overrides was
 removed in turn and regenerated; all still change the output, so none
-was dropped. Freshness check: no stale generated file at any stage tip.
+was dropped. Since then U12 removed `0032-offer.diff` (`abd0d5a0ce`),
+leaving seven at `pg-poc/09-bootstrap`. Freshness check: no stale generated file at any stage tip.
 
 Validation: adjacent ancestry at every stage; `go build ./...` and
 `go vet` at the top; on the **default backend only**:
@@ -581,7 +582,7 @@ requiring these commits to be available.
 
 Source-specific cautions:
 
-- `f474710187` mixes syntax, aggregation and lease timing changes. U4's
+- `f474710187` (now `8930466847`) mixes syntax, aggregation and lease timing changes. U4's
   `formatTimestamp` depends on it; that does not make the broad rewrite
   an upstream prerequisite. Use upstream-native helpers for the task.
 - U1/U2 share a PoC commit but were split in their review branch; do not

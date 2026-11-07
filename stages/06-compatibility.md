@@ -92,6 +92,9 @@ unsigned node IDs, still require textual fixture binds.
 | 06-dialect-fixtures | Test fixtures built for SQLite that fail on PG before reaching the code under test (sweep 2): `AUTOINCREMENT` in a schema DDL passed by `internal/changestream/stream`, `domain/ssh/state/model`, `internal/worker/dbrepl`, `dbreplaccessor`, `changestreampruner` and `core/database/schema` (`schema.go:42`; 97 failures); SQLite `CREATE TRIGGER` bodies using `OLD`/`NEW` (`domain/machine/state` 21, `domain/access/state`, `domain/recovery/state`, removal model); `datetime()` in `domain/lease/state` test SQL; `sqlite_schema` in `domain`. | Find the shared fixture source first; most are one helper each. Use the harness dialect or `FailingTriggerSQL`; do not skip. |
 | 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent` in `base_test.go` `newPersistentModelVolume` and `in_use` in `import_test.go`, both fixtures, checked 2026-11-05); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: blockdevice may be a production bind, not a fixture. |
 | 06-constraint-errors | `domain/network/state`: PG 23514 (`chk_provider_id_empty`) and 23505 are not mapped to the domain errors the tests expect (8 failures). | Find where SQLite constraint errors are mapped; decide whether the mapping is production (Stage 5) or test-only. |
+| 06-unknown-column | Sweep 2 42703 failures: `domain/operation/state` (4), `domain/modelmigration/state/model` (1), `domain/crossmodelrelation` (1). | Not triaged. Determine whether each is a fixture or a production query; a production cause is a Stage 5 shared fix and an upstream candidate (D55). |
+| 06-upgradesteps | `domain/upgradedatabase/upgradesteps` (3 failures, sweep 2). | Not triaged. Classify before assuming test-only. |
+| 06-cmr-updated-at | `domain/crossmodelrelation/state/model`: 16 fixtures bind integer `0` to `relation_status.updated_at` (mainly `package_test.go` `addOfferConnection`). | Bind a time value valid on both backends; confirm no production path writes an integer. |
 | 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`. X17 class. | Assert as sets unless production relies on the order. |
 
 PostgreSQL import-specific work is deferred: X21 deferral, modelimport
@@ -233,10 +236,10 @@ Classification by cause (failure counts are tests, not packages):
 | Bind types (42804, encode plans, 22P02) | crossmodelrelation/state/model (21), provisioner/state/model (5), blockdevice/state (6), controllerupgrader/state (4), resource/state (5), ssh/state/controller (1), storage/state (part) | 06-X25, 06-bind-types. |
 | Missing function/operator (42883) | lease/state (4, `datetime`), access/state (1, `text = integer`), upgrade/state (1, U5) | 06-dialect-fixtures, 06-X29, 06-U5. |
 | X27 time precision | status/state/model (49), macaroon/state (6), removal model (most of 47), operation (1), operation/state (part), application/state (part) | 06-X27. |
-| Unknown column (42703) | operation/state (4), modelmigration/state/model (1), crossmodelrelation (1) | Not triaged. |
+| Unknown column (42703) | operation/state (4), modelmigration/state/model (1), crossmodelrelation (1) | 06-unknown-column (not triaged). |
 | Constraint mapping (23514, 23505) | network/state (5) | 06-constraint-errors. |
 | Error text, order, other | model/state/model (2, P0001 text), relation/state (1, order), domain root (2, `sqlite_schema`), controller/state root, lease/state | 06-errors, 06-order, 06-dialect-fixtures. |
-| Not classified | upgradedatabase/upgradesteps (3), internal/migration (3, X21) | Import deferred; upgradesteps not triaged. |
+| Not classified | upgradedatabase/upgradesteps (3), internal/migration (3, X21) | Import deferred; upgradesteps: 06-upgradesteps. |
 
 Re-run after the Stage 5 fixes, 2026-11-05 at `05=3a8f0090c2`
 (`domain/secret/...` and `domain/unitstate/...`, no 42803 left):

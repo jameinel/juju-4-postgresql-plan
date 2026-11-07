@@ -324,7 +324,8 @@ Validation:
 - [ ] When Juju bundles a release containing #883, review the temporary
   casts, sentinel and model/controller export NULL markers; sweep nullable
   Boolean reads. Verify NULL, false and true remain distinct where required,
-  along with nullable timestamps, on real dqlite and SQLite.
+  along with nullable timestamps, on real dqlite and SQLite. Restore
+  `constraint.allocate_public_ip` to `BOOLEAN` (DIALECT.md X25).
 
 ### `4.1-install-dependencies` — developer tooling
 
@@ -621,6 +622,26 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
 | X16 dbrepl output follow-up | Published as [#23757](https://github.com/juju/juju/pull/23757); review, CI and live REPL QA remain. |
 
+D55 audit additions (2026-11-06). Each construct below remained in upstream
+`4.1` at `148e09f015` and is masked in the PoC by a Stage 4 override,
+generator rewrite or PoC-only commit (DIALECT.md section 4). The shared fix
+must be valid SQLite and contain no PostgreSQL SQL. Base-DDL changes alter
+the schema hash, so the 4.1 beta release policy applies.
+
+| Finding | Candidate scope / next action |
+|---|---|
+| X29 predicate-free joins | Five schema views: `v_model_all`, `v_secret_permission`, `v_secret_owner`, `v_machine_target_agent_version`, `v_unit_target_agent_version`. Use explicit `CROSS JOIN` (precedent X38, #23695). Coordinate `v_model_all` with #23751. Delete the matching override hunks afterwards. |
+| X16 `v_user_last_login` | Remove the bare column from `controller/sql/0019-model-last-login.sql` while keeping a `time.Time`-scannable result on dqlite. Verify the last-login read paths on SQLite and dqlite. |
+| Duplicate FK name | Rename one `fk_offer_connection_uuid` on `application_remote_consumer` (`0034-cross-model-relation.sql`). Name-only change; check that nothing refers to the name. |
+| X31 constraint order | `v_application_constraint` orders by implicit `rowid`. Decide whether insertion order is a contract; if so, add an explicit ordering column (import/export impact), otherwise order by value. Removes D17's PostgreSQL-only identity columns. |
+| X7 remaining functions | `IFNULL` (4 files), `GROUP_CONCAT`, `INSERT OR IGNORE`, `DATETIME('now')` in removal and upgrade state. Port the non-lease parts of PoC `8930466847` per package. Separate from #23751 (`IIF`). |
+| D16 lease time | `lease/state` uses `datetime('now', ...)`. The PoC binds controller-clock text instead, which changes the time source and rounds expiry. Decide the clock source and stored representation before porting; not mechanical. |
+| X8 bare `user` | Quote `user` in seven state files and 15 schema DDL references. Valid SQLite; removes the generator's quoting. |
+| X5 scalar `MAX` | `SetLastLogTransferTime` (`modelmigration/state/model/state.go`); use `CASE` as in PoC `1e25d5bf39`. |
+| X2 empty `IN` | sqlair renders an empty slice as `IN ()`. Choose portable rendering in sqlair or caller guards; inventory callers that can pass empty slices. Removes the Stage 3 driver rewrite. |
+| `BOOLEAN DEFAULT 0` | `flag.value` (`controller/sql/0016-flag.sql`); use `FALSE`. Audit seed rows that write `0` / `1` to `BOOLEAN` columns. |
+| X25 `allocate_public_ip` | Add to the #883 removal checklist above: when Juju bundles the dqlite fix, make the column `BOOLEAN` and its export type `*bool`, removing the Stage 4 override. |
+
 ### X16 dbrepl output follow-up
 
 Session `1fedb56c-3ba7-4099-8914-c6726b9cd337` used branch
@@ -655,7 +676,8 @@ Validation on this commit:
   analysis was run.
 
 Not stock-upstream tasks: the PostgreSQL `constraint.allocate_public_ip`
-export-type mismatch needs backend-aware generation; the intentional
+export-type mismatch needs backend-aware generation until the X25 candidate
+above lands; the intentional
 `TestSetAPIAddressesSharedPeerRollsBack` NOT NULL failure is not a dqlite
 bug. Keep both recorded rather than reopening them as upstream fixes.
 

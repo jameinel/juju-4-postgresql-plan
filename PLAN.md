@@ -292,7 +292,8 @@ previously `a8591fe1b8`, old tips tagged `pg-poc-base-a8591fe1b8/*`).
 Stage 5 also
 carries unchanged cherry-picks of open upstream PRs (D43; listed in
 UPSTREAM-FIXES.md). The **top** is the
-highest stage branch that exists, currently `pg-poc/08-dbaccessor`.
+highest stage branch that exists, currently `pg-poc/09-bootstrap` (at the
+same commit as `pg-poc/08-dbaccessor`).
 
 - **New stage**: create its branch from the top
   (`git switch -c pg-poc/NN-<slug> <top>`).
