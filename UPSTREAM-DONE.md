@@ -63,6 +63,7 @@ separately demonstrated defect.
 | `4.1-removal-force-boolean`, #23690 | U9 | Match boolean writers/readers with BOOLEAN storage and bool exports; convert legacy 0/1 and reject other integers. |
 | `4.1-changestream-latest-row`, #23691 | X16 | Explicitly select the latest change ID and join to its row, avoiding ungrouped columns beside MAX. This does not fix the separate dbrepl query. |
 | `4.1-dbrepl-latest-row`, [#23730](https://github.com/juju/juju/pull/23730) | X16 | Apply explicit latest-ID selection and row join-back to the separate dbrepl change-stream query, preserving grouping, bounds, ordering and displayed fields. Merged 2026-11-04. |
+| `4.1-dbrepl-output`, [#23757](https://github.com/juju/juju/pull/23757) | X16 follow-up | Share change-log/change-stream rendering without changing either query or output. Merged 2026-11-09. |
 | `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
 | `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
 | `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare retained registration in both databases, preserving idempotency, immutability and transaction usability. Merged 2026-11-06. |
@@ -83,10 +84,9 @@ in [the register](UPSTREAM-FIXES.md#upstream-review-status).
 
 PR [#23730](https://github.com/juju/juju/pull/23730) merged on 2026-11-04
 as `f7b596bf5cb9b51aa44ec000d09b9f495aac29ad`, at head `49a1bdf808`.
-The latest-row SQL task is complete. Extracting the duplicated dbrepl row
-scanning and tabwriter output remains a separate candidate in
-UPSTREAM-PLAN.md. No PoC integration was performed; dbrepl remains outside
-the PostgreSQL PoC scope.
+The latest-row SQL task is complete. The separate duplicated-output
+refactor subsequently landed in #23757. No PoC integration was performed;
+dbrepl remains outside the PostgreSQL PoC scope.
 
 PR [#23720](https://github.com/juju/juju/pull/23720) merged on 2026-11-04
 as `edb2aef5b9f1e4cf7c5ceb890fd137d922048c30`, at head `ee07d7ccb5`.
@@ -107,6 +107,42 @@ The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
 check. Released 4.0.15 DDL is unchanged. Do not describe this as preserving
 all earlier-beta database compatibility.
+
+## Dbrepl output refactor
+
+Session `1fedb56c-3ba7-4099-8914-c6726b9cd337` used branch
+`4.1-dbrepl-output` and worktree `juju-4.1-dbrepl-output`, based on
+upstream 4.1 `08fafe7f49ee39bed52c7288e86be0df6af4adcf`. Commit
+`0583a1972cc6ecff30c36d8653c11066162c2770` shares change-log and
+change-stream row scanning and tabwriter output without changing either
+query, arguments, output, resource handling or error reporting. Tests cover
+repeated keys, zero ID, empty and identical output, and query-error logging.
+
+[#23757](https://github.com/juju/juju/pull/23757) merged on 2026-11-09 at
+17:39:23 UTC as `775513d9df09cebcfada49bf1bfcadc975b134df`, with final
+head `0583a1972cc6ecff30c36d8653c11066162c2770`. Gvantsats and
+SimonRichardson approved; Van Cleef's review was advisory. The final-head
+checks reported successes and skips, not a pass for skipped jobs.
+
+Historical validation on that commit: the dbrepl package race suite passed
+on SQLite and real dqlite; scoped lint, `txncheck`, `gci`, `gofmt` and
+`git diff --check` passed. `make pre-check` skipped static analysis.
+Real-dqlite stress completed 20 runs without failures before the bounded
+timeout, with two runs still active. Live REPL QA, PostgreSQL execution,
+the full repository suite and full static analysis were not run. Dbrepl is
+outside the PostgreSQL PoC scope.
+
+## Landed dependency follow-up (2026-11-09)
+
+[canonical/dqlite#920](https://github.com/canonical/dqlite/pull/920) merged
+on 2026-11-09 at 07:29:32 UTC as
+`b434264069050ac258646b89a31651385654be61`, with final head
+`64251023b0857cf46599ffd3c0681da7e3bcf557`. It preserves busy errors
+otherwise misreported as a nonempty statement tail, separately from #918's
+partial-response correction. GitHub merge metadata was verified on
+2026-11-09; no local validation or Juju dependency integration was performed.
+Release/backport selection and validation against Juju's actual bundled
+dependency remain in UPSTREAM-PLAN.md.
 
 ## Implemented upstream, still in review
 

@@ -253,13 +253,11 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
 
 ## Upstream review status
 
-Snapshot refreshed from GitHub on 2026-11-05, with later updates for #23756
-and #23759. The D55 review on 2026-11-06 also updates sequence, storage,
-U21 and the local grouped-column implementation below; it does not refresh
-all CI or review results. Other entries retain the earlier snapshot.
 Every listed PR targets `juju/juju` branch `4.1` from `jameinel/juju`.
-Head hashes are short SHA
-prefixes; check GitHub before acting because review and CI status can change.
+Open-PR heads and status reflect the 2026-11-09 18:56 UTC snapshot. Head
+hashes are short SHA prefixes; check GitHub before acting because review and
+CI status can change. D55's implementation assessment is separately dated
+and does not establish current CI, QA or PoC reconciliation.
 
 | Branch | Findings | PR | Head | Status |
 |---|---|---|---|---|
@@ -269,28 +267,29 @@ prefixes; check GitHub before acting because review and CI status can change.
 | `4.1-keymanager-insert-id` | U13 | [#23684](https://github.com/juju/juju/pull/23684) | `d490585ad7` | merged 2026-10-27; merge `f0adf0150d` |
 | `4.1-controller-node-id-text` | U3, U5 | [#23685](https://github.com/juju/juju/pull/23685) | `55ee33f048` | merged 2026-10-27; merge `6e98deb0e0` |
 | `4.1-lease-migration-tests` | U4 | [#23686](https://github.com/juju/juju/pull/23686) | `7e3e903650` | merged 2026-10-27; merge `146df46e46` |
-| `4.1-crossmodel-secret-revisions` | U11 | [#23688](https://github.com/juju/juju/pull/23688) | `aa6cad849c` | open; macOS cancelled/aggregate CI fails; approval required |
+| `4.1-crossmodel-secret-revisions` | U11 | [#23688](https://github.com/juju/juju/pull/23688) | `aa6cad849c` | open; current macOS and aggregate checks passed; human review required |
 | `4.1-removal-force-boolean` | U9 | [#23690](https://github.com/juju/juju/pull/23690) | `f39572e43b` | merged 2026-10-27; merge `9ea82c03bd` |
 | `4.1-changestream-latest-row` | X16 | [#23691](https://github.com/juju/juju/pull/23691) | `9e28053164` | merged 2026-10-30; merge `ece31c289c` |
 | `4.1-blockcommand-order` | U10/X31 | [#23692](https://github.com/juju/juju/pull/23692) | `495768b0aa` | merged 2026-10-27; merge `b36f88d99c` |
-| `4.1-operation-query-portability` | X34, X33 | [#23693](https://github.com/juju/juju/pull/23693) | `0fb2eb7194` | open; macOS cancelled/aggregate CI fails; review required |
+| `4.1-operation-query-portability` | X34, X33 | [#23693](https://github.com/juju/juju/pull/23693) | `0fb2eb7194` | open; current macOS and aggregate checks passed; human approval exists, GitHub review required |
 | `4.1-objectstore-conflicts` | X36 | [#23694](https://github.com/juju/juju/pull/23694) | `53feca2259` | merged 2026-10-30; merge `75ddfcbaf0` |
 | `4.1-sql-standard-syntax` | X37, X38 | [#23695](https://github.com/juju/juju/pull/23695) | `13003d8680` | merged 2026-10-27; merge `302b44cc2c` |
 | `4.1-sql-test-literals` | U6 | [#23696](https://github.com/juju/juju/pull/23696) | `11ff0981e0` | merged 2026-10-27; merge `1696e6128d` |
-| `4.1-nullable-primary-keys` | U15 (charm keys) | [#23710](https://github.com/juju/juju/pull/23710) | `838abf41ea` | open; macOS cancelled/aggregate CI fails; approval required; land before exposure; cherry-picked onto PoC Stage 5 (D43) |
+| `4.1-nullable-primary-keys` | U15 (charm keys) | [#23710](https://github.com/juju/juju/pull/23710) | `838abf41ea` | open; current macOS and aggregate checks passed; human approval exists, GitHub review required; land before exposure; cherry-picked onto PoC Stage 5 (D43) |
 | `4.1-local-secret-revisions` | U11 follow-up | [#23720](https://github.com/juju/juju/pull/23720) | `ee07d7ccb5` | merged 2026-11-04; merge `edb2aef5b9`; reconciled into PoC 2026-11-05 |
 | `4.1-application-exposure-scope` | U15 (exposure + combined guard) | [#23723](https://github.com/juju/juju/pull/23723) | `4e66f7c449` | open; no failing/pending reported checks; approval required; rebase/regenerate after charm lands; cherry-picked onto PoC Stage 5 (D43) |
 | `4.1-lookup-key-not-null` | U17 | [#23724](https://github.com/juju/juju/pull/23724) | `4e7341392f` | open; no failing/pending reported checks; approval required; independent of U15 |
 | `4.1-dbaccessor-pool-cleanup` | U14 | [juju/juju#23726](https://github.com/juju/juju/pull/23726) | `ee55bab5f4` | merged 2026-11-04; merge `5259edff43`; PoC base since 2026-11-05; reconciled (default backend only) |
 | `4.1-agentbinary-conflict` | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) | `2618d146da` | merged 2026-11-06 as `32be283d02`; PoC cherry-picks predate the shared-state refactor and require reconciliation |
-| `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; no failing/pending reported checks; approval required |
+| `4.1-lease-pin-conflict` | X18 | [#23729](https://github.com/juju/juju/pull/23729) | `c55d5839e5` | open; human approval exists, GitHub review required; evaluate November 9 suggestion |
 | `4.1-dbrepl-latest-row` | X16 | [#23730](https://github.com/juju/juju/pull/23730) | `49a1bdf808` | merged 2026-11-04; merge `f7b596bf5c` |
-| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `696c116f79` | open; checked upsert and same-transaction lookup replace RETURNING to preserve retryable errors; current-head CI and QA need checking, not inferred from the earlier failure snapshot |
-| `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `adf9f317a6` | open; query and schema views published; revision smoke/aggregate CI fail; approval required |
-| `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `02e9f73e49` | open; no failing/pending reported checks; approval required |
-| `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `15119bb898` | open; 9 checks passed, 12 skipped; approval required |
-| `4.1-lxd-default-bases` | Test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) | `23163fed56` | open; keymanager workaround and real-dqlite domain CI published; unit, default-bases smoke and aggregate checks passed at snapshot; approval required |
-| `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `f0408a92ba` | open; temporary SQL casts and full domain CI published; stacked on #23756; CI pending, approval required |
+| `4.1-sequence-upsert-target` | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) | `696c116f79` | open; current checks have no reported failures or pending jobs; earlier human approval predates head; functional QA remains |
+| `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `fcec930751` | open; revision and charms smoke, upgrade pre-check and aggregate failed; human review and functional QA remain |
+| `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `67daa565a6` | open; human follow-ups answered; revision smoke and aggregate failed; real-dqlite follow-up validation and manual QA remain |
+| `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `b78a42c7c9` | open; await Simon's response about moving guidance to AGENTS.md; 7 checks passed, 12 skipped |
+| `4.1-lxd-default-bases` | Test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) | `63a93201b5` | open; human approval predates head; GitHub review required |
+| `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `a848d4426e` | open; temporary SQL casts and full domain CI published; stacked on #23756; current upgrade pre-check and aggregate passed; human review required |
+| `4.1-controller-export-null` | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765) | `2e12c3150a` | open; evaluate bot suggestions; localhost smoke and aggregate failed; human review and backup QA remain |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | U19/X16 | not proposed | | PoC implementation on Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`); extract after the remaining #23688 review |
 | `4.1-unitstate-relation-key` | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) | `2f680f1302` | open; user reports performing functional QA; review and CI remain. Stage 5 `1afd3b9434` is a different, boundary-only PoC workaround; reconcile after landing. |
@@ -301,15 +300,15 @@ prefixes; check GitHub before acting because review and CI status can change.
 Notes:
 
 - The PR descriptions are drafted in `PR-4.1-<branch>.md`.
-- The earlier 13 open PRs were mergeable and required review in that
-  snapshot; #23759 is also mergeable and requires review. Inline review
-  threads were not refreshed. CI states are revision-specific,
-  not evidence of PoC acceptance or a diagnosis of failing jobs; skipped
-  checks are not passes.
+- The open PRs in the 2026-11-09 snapshot were mergeable but GitHub required
+  review. CI states are revision-specific, not evidence of PoC acceptance or
+  a diagnosis of failing jobs; skipped checks are not passes. See
+  UPSTREAM-PLAN.md for review, QA, CI and stack actions.
 - juju/juju#23730 completes the separate dbrepl latest-row SQL task. No PoC
   integration was performed; dbrepl remains outside the PostgreSQL PoC
-  scope. The duplicated output-helper refactor remains a separate candidate
-  in UPSTREAM-PLAN.md. Historical old/new SQLite/Dqlite checks and the
+  scope. The output-helper refactor merged in #23757 on 2026-11-09 as
+  `775513d9df` at head `0583a1972c`; live REPL QA was not recorded.
+  Historical old/new SQLite/Dqlite checks and the
   corrected REPL-only scope are preserved in
   [the execution evidence](UPSTREAM-DONE.md#dbrepl-latest-row-selection-x16).
 - juju/juju#23720 and #23726 merged on 2026-11-04 and were reconciled into

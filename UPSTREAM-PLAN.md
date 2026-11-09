@@ -11,10 +11,10 @@ focused on pending actions.
 [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) owns finding/provenance/status mappings.
 Neither is prerequisite reading for an assigned task.
 
-The review register contains a 2026-11-05 snapshot and later updates for
-#23756, #23759 and #23765. Current heads and CI must be checked before acting;
-implemented scope and historical validation are in UPSTREAM-DONE.md. Skipped
-checks are not passes, and publication does not establish QA acceptance.
+The open-review snapshot below is from 2026-11-09 18:56 UTC. Recheck heads,
+reviews and CI before acting; implemented scope and historical validation are
+in UPSTREAM-DONE.md. Skipped checks are not passes, and publication does not
+establish QA acceptance.
 
 ## Purpose and SQL/schema acceptance
 
@@ -177,8 +177,15 @@ integration has not landed. The PR body is saved at
   are proposed in [#23709](https://github.com/juju/juju/pull/23709), which
   is still open. No upstream `4.2` branch existed when checked.
 
-Next: monitor review and CI, refresh the upstream heads as needed, and obtain
-explicit approval before merging.
+At 2026-11-09 18:56 UTC, upstream `main` remained at `419d02804e`, but
+`4.1` had advanced to `775513d9df` with merged #23757, two commits beyond
+the source in this proposal. No human review had been submitted; GitHub
+required review. The [localhost LXD smoke](https://github.com/juju/juju/actions/runs/42647771546/job/129265668097)
+and aggregate failed after cleanup, with no established cause.
+
+Next: investigate CI, refresh the merge against current upstream heads,
+complete live controller/migration QA, and obtain explicit approval before
+merging. Prior validation applies to `496c7d7818`, not a refreshed merge.
 
 ## Breakout claims
 
@@ -200,23 +207,48 @@ Do not recreate these implementations. Verify outstanding review requests,
 CI and mergeability; validate any follow-up against the current head.
 Apply the D55 rework/merge holds above before treating a branch as ready.
 
+At 2026-11-09 18:56 UTC all 17 queued PRs, including #23766 and #23775
+outside this table, were open and GitHub required review. None was ready to
+merge. Current macOS and aggregate checks passed on #23688, #23693 and
+#23710, superseding their earlier cancelled-job failures. Skipped checks
+remain unvalidated; review approval, QA and stack prerequisites are separate.
+
 | Branch / PR | Finding | Remaining action / acceptance contract |
 |---|---|---|
 | `4.1-model-config-precedence`, [#23683](https://github.com/juju/juju/pull/23683) | U7 | Review follow-ups are published; reported checks have no failures or pending jobs. Obtain remaining approval. Preserve authoritative agent-table values, import filtering and one effective value per key. |
-| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Connection-scoped uniqueness and cleanup follow-ups are implemented; obtain approval. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together. |
-| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Commit identity/message and rebase requests are addressed; complete review. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
-| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Finish review and land charm first. The cancelled macOS job caused the aggregate failure; it is not being treated as an investigation task, but may still block merging. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
+| `4.1-crossmodel-secret-revisions`, [#23688](https://github.com/juju/juju/pull/23688) | U11 | Await requested human review; bot findings were answered. Keep any-unit-behind semantics, indexed connections, schema/import/recovery/cleanup and regressions together; reconcile the PoC after landing. |
+| `4.1-operation-query-portability`, [#23693](https://github.com/juju/juju/pull/23693) | X34/X33 | Human approval exists; await the remaining GitHub review gate. Commit identity/message and rebase requests were addressed. Preserve filtering and the reviewed NULL-as-zero column-size fix, which changes the old whole-row-ignored estimate. |
+| `4.1-nullable-primary-keys`, [#23710](https://github.com/juju/juju/pull/23710) | U15, charm | Simon approved; await the remaining GitHub review gate and land charm before exposure. Required container key, manifest-position key and duplicate-position diagnostics/tests are implemented. |
 | `4.1-application-exposure-scope`, [#23723](https://github.com/juju/juju/pull/23723) | U15, exposure | Reported checks have no failures or pending jobs; obtain approval. Rebase/regenerate onto `4.1` after charm lands. Preserve wildcard API/view semantics, legacy scope split/deduplication, reset-to-alpha and deletion rollback/errors. |
 | `4.1-lookup-key-not-null`, [#23724](https://github.com/juju/juju/pull/23724) | U17 | Reported checks have no failures or pending jobs; obtain approval. Schema-derived decoder inventory, direct `NotValid` classification and the transaction-test fix are implemented. Retain explicit typed deltas and the 65-key scope; later reconcile the combined guard with exposure. |
-| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Implementation, pin-contract documentation and retry-safe test-helper fix are published. Reported checks have no failures or pending jobs; obtain approval. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
-| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Head `696c116f79` replaces RETURNING with a checked upsert and same-transaction lookup to preserve retryable errors. Keep the explicit conflict target, qualified stored value and shared allocator. Recheck CI and functional QA at this head; earlier failures are not a current-head result. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
-| `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Triage revision-smoke/aggregate CI failures and obtain approval. Preserve the equivalent null-check flags in the connection query and controller views. Complete the documented functional QA and reconcile the final upstream result with the PoC separately. |
-| `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Rebased head `02e9f73e49` has no failing or pending reported checks; obtain approval. Preserve explicit single-column CTE membership and scoped cleanup, lifecycle and departure semantics. |
-| `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Monitor review and CI and obtain approval. At `15119bb898` the PR is mergeable and review is required; 9 checks passed and 12 were skipped on 2026-11-05. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
-| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Obtain review; preserve SSH-key diagnostics and failure status under `set -e`. |
-| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; finish review and rebase onto `4.1` after the parent lands. Unit Tests passed with the full dqlite domain step; the retried upgrade pre-check and aggregate check failed. Preserve NULL/false/true and the upstream-fix sentinel. |
-| `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent PR based directly on `4.1` at `148e09f015`, head `2e12c3150a`. Finish review, monitor CI and complete the PR's disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
-| `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `2f680f1302`, based on `148e09f015`. Monitor CI and obtain review; the user reports performing functional QA. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key. Reconcile the different PoC workaround after landing. |
+| `4.1-lease-pin-conflict`, [#23729](https://github.com/juju/juju/pull/23729) | X18 | Simon approved on November 9 and suggested removing `database.IsErr*` methods in favor of queries up front; evaluate and respond or defer. GitHub still requires review. Preserve competing-pin, repeated-pin and missing-lease behaviour. |
+| `4.1-sequence-upsert-target`, [#23731](https://github.com/juju/juju/pull/23731) | X3/X4 | Head `696c116f79` replaces RETURNING with a checked upsert and same-transaction lookup to preserve retryable errors. Current reported checks have no failures or pending jobs; Simon's approval predates this head. Complete functional QA and review. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity. |
+| `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Head `fcec930751`: investigate failed revision and charms smoke, upgrade pre-check and aggregate; obtain human review. Complete migration QA and reconcile with the PoC after landing. Preserve the equivalent null-check flags in the connection query and controller views. |
+| `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Head `67daa565a6`: gfouillet approved; his follow-ups were implemented and answered, awaiting confirmation. Investigate revision smoke and aggregate failures; validate the follow-up on real dqlite and complete manual QA. Preserve explicit single-column membership and scoped cleanup, lifecycle and departure semantics. |
+| `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Head `b78a42c7c9`: await Simon's response to the November 9 reply about moving guidance into `AGENTS.md`. Seven checks passed and 12 were skipped. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
+| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Human approval predates this head; await the remaining review gate. Preserve SSH-key diagnostics and failure status under `set -e`. |
+| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; await review and rebase onto `4.1` after the parent lands. Current Unit Tests, upgrade pre-check and aggregate passed. Preserve NULL/false/true and the upstream-fix sentinel. |
+| `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent head `2e12c3150a`. Evaluate Van Cleef's three suggestions; investigate failed localhost smoke and aggregate, obtain human review and complete disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
+| `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `2f680f1302`, based on `148e09f015`. Evaluate Van Cleef's two suggestions and obtain human review; the user reports performing QA, but individual results were not independently verified. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key. Reconcile the different PoC workaround after landing. |
+
+Review and CI evidence at that snapshot:
+
+- #23766: Van Cleef's November 9 verdict was Comment, with one issue and
+  two suggestions. Evaluate its claim that UUID selection may pick a stale
+  attachment; the D55 merge hold and invariant investigation remain.
+- #23765: Van Cleef's November 9 Comment had no issues and three suggestions:
+  broader nullable-field coverage, generator-drift checking and CI triage.
+  #23769 had no issues and two suggestions: mainline propagation and the
+  legacy-key conversion rationale. These are claims to evaluate, not
+  confirmed defects or automatic merge blockers.
+- The [#23750 revision](https://github.com/juju/juju/actions/runs/42653392922/job/129285455048),
+  #23751 [revision](https://github.com/juju/juju/actions/runs/42636373516/job/129225558822)
+  and [charms](https://github.com/juju/juju/actions/runs/42636373516/job/129225558842),
+  and [#23765 localhost](https://github.com/juju/juju/actions/runs/42258592467/job/128230348819)
+  LXD smoke jobs failed after cleanup; their aggregates also failed. Do not
+  infer a shared cause. #23751's separate
+  [upgrade pre-check](https://github.com/juju/juju/actions/runs/42636373516/job/129225558535)
+  reported `no snap found for "juju"`.
 
 ### Nullable primary-key review split
 
@@ -284,10 +316,12 @@ the message, hiding the retryable database error.
   Reconsider the keymanager insert/select workaround after the dependency
   fix is available and validated.
 
-Related but distinct: open
-[canonical/dqlite#920](https://github.com/canonical/dqlite/pull/920) preserves
-busy errors otherwise misreported as a nonempty statement tail. Do not
-assume the response-buffer fix also resolves that path.
+Related but distinct:
+[canonical/dqlite#920](https://github.com/canonical/dqlite/pull/920) merged
+on 2026-11-09 and preserves busy errors otherwise misreported as a nonempty
+statement tail. Merge details are in UPSTREAM-DONE.md. Identify a release or
+approved backport and validate Juju's actual dependency before treating this
+path as fixed in Juju; the response-buffer fix alone does not resolve it.
 
 Reproducer: `domain/keymanager/state/state_test.go`,
 `TestEnsureUserPublicKeyConcurrentWrite`, using real dqlite. With the original
@@ -361,8 +395,9 @@ Validation:
   reported failures; its upgrade smoke was skipped.
 
 - [ ] Complete #23756 review, then rebase #23759 onto `4.1` and finish its
-  review. Resolve or retry the failed upgrade pre-check and aggregate CI;
-  continue monitoring the real-dqlite domain step's runtime.
+  review. The later 2026-11-09 snapshot reports successful upgrade pre-check
+  and aggregate jobs; continue monitoring the real-dqlite domain step's
+  runtime on subsequent heads.
 - [ ] Finish #23765 review, CI and functional backup QA independently of
   #23759. Retain the distinct NULL, false, true and timestamp cases.
 - [ ] When Juju bundles a release containing #883, review the temporary
@@ -497,9 +532,9 @@ branches rather than redoing the implementations.
 
 | Branch / tracking reference | Published committed snapshot | Remaining work |
 |---|---|---|
-| [4.1-drop-iif](https://github.com/jameinel/juju/tree/4.1-drop-iif), [juju/juju#23751](https://github.com/juju/juju/pull/23751) | [adf9f317a6](https://github.com/jameinel/juju/commit/adf9f317a6962f5722bb1f4e401db3e9723fd768): three controller schema-view replacements, following query commit `08b9cc0d7c` | Review, CI triage and functional QA remain. |
-| [4.1-cte-membership-subqueries](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries), [#23750](https://github.com/juju/juju/pull/23750) | [02e9f73e49](https://github.com/jameinel/juju/commit/02e9f73e4936d16f8acb23aaeae5e35228b315b7): rebased eleven membership expressions and departure-scope regression | Review remains. |
-| [4.1-sequence-upsert-target](https://github.com/jameinel/juju/tree/4.1-sequence-upsert-target), [juju/juju#23731](https://github.com/juju/juju/pull/23731) | [696c116f79](https://github.com/jameinel/juju/commit/696c116f7943d16e6d1706fc857c561f90ee8aa3): checked upsert plus same-transaction lookup and stale-snapshot regression, superseding `76b4a04f09`'s RETURNING implementation | Review, current-head CI and functional QA remain. |
+| [4.1-drop-iif](https://github.com/jameinel/juju/tree/4.1-drop-iif), [juju/juju#23751](https://github.com/juju/juju/pull/23751) | `fcec930751`: migrating-model test follow-up to the query and schema-view changes | Human review, CI triage and functional QA remain. |
+| [4.1-cte-membership-subqueries](https://github.com/jameinel/juju/tree/4.1-cte-membership-subqueries), [#23750](https://github.com/juju/juju/pull/23750) | `67daa565a6`: review follow-ups to the eleven membership expressions and departure-scope regression | Reviewer confirmation, real-dqlite validation, CI triage and manual QA remain. |
+| [4.1-sequence-upsert-target](https://github.com/jameinel/juju/tree/4.1-sequence-upsert-target), [juju/juju#23731](https://github.com/juju/juju/pull/23731) | [696c116f79](https://github.com/jameinel/juju/commit/696c116f7943d16e6d1706fc857c561f90ee8aa3): checked upsert plus same-transaction lookup and stale-snapshot regression, superseding `76b4a04f09`'s RETURNING implementation | Review and functional QA remain; check CI again before acting. |
 
 Use these published heads. Historical validation below is not a new check
 of the latest heads.
@@ -507,9 +542,10 @@ of the latest heads.
 ### `4.1-drop-iif` — X7
 
 **Published for review (2026-11-04):** [juju/juju#23751](https://github.com/juju/juju/pull/23751)
-targets `4.1` from `4.1-drop-iif`, with base
+targets `4.1` from `4.1-drop-iif`, originally with base
 `e22f5666d0861d3c84e8465c1ff86fbd23f58f48` and head
-`adf9f317a6962f5722bb1f4e401db3e9723fd768`. The query commit
+`adf9f317a6962f5722bb1f4e401db3e9723fd768`; the November 9 head is
+`fcec930751`. The query commit
 `08b9cc0d7c` and schema-view commit `adf9f317a6` replace all tracked
 `IIF` calls with equivalent `IS NOT NULL` predicates. The schema change
 affects `v_model_all.is_controller_model` (also projected by `v_model`),
@@ -531,8 +567,9 @@ repository `txncheck` and `git diff --check` passed; `make pre-check` used
 its default, which skips static analysis. PostgreSQL execution and the PR's
 functional migration QA have not been performed.
 
-Remaining: monitor CI and review, complete functional QA, and reconcile
-the PoC after landing. The published PR description is also saved locally at
+Remaining: triage the current-head failures described above, obtain review,
+complete functional QA, and reconcile the PoC after landing. The published PR
+description is also saved locally at
 [PR-4.1-drop-iif.md](PR-4.1-drop-iif.md).
 
 ## Lookup-key NOT NULL task (separate session)
@@ -621,12 +658,15 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
   `make juju` built a session-local client, and `juju version` ran successfully.
   The client binary was removed.
 
-Approved PR [juju/juju#23750](https://github.com/juju/juju/pull/23750) is
-open, targets `4.1` and has verified head and description. On 2026-11-05 it is
-mergeable with review required and no failing or pending reported checks.
-Not landed; the PoC retains its earlier equivalent SQL, not a verified
-reconciliation of the final upstream result. No local PostgreSQL tests, full
-repository suite or live deployment/migration QA were run.
+PR [juju/juju#23750](https://github.com/juju/juju/pull/23750) remains open
+against `4.1`. On November 9, head `67daa565a6` included and answered
+gfouillet's November 6 review requests, though the threads remained open.
+SQLite race suites passed for the follow-ups; a real-dqlite run did not build
+because `dqlite.h` was missing. The current head's revision smoke and
+aggregate failed; human confirmation, real-dqlite validation and manual QA
+remain. Earlier passing validation above is for `02e9f73e49`. The PoC retains
+earlier equivalent SQL, not a verified reconciliation of the final upstream
+result. No PostgreSQL execution or full repository suite was recorded.
 
 ## Sequence review follow-up — X3/X4
 
@@ -664,7 +704,6 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
-| X16 dbrepl output follow-up | Published as [#23757](https://github.com/juju/juju/pull/23757); review, CI and live REPL QA remain. |
 
 D55 audit additions (2026-11-06). Each construct below remained in upstream
 `4.1` at `148e09f015` and is masked in the PoC by a Stage 4 override,
@@ -691,36 +730,11 @@ the schema hash, so the 4.1 beta release policy applies.
 
 ### X16 dbrepl output follow-up
 
-Session `1fedb56c-3ba7-4099-8914-c6726b9cd337` used branch
-`4.1-dbrepl-output` and worktree `juju-4.1-dbrepl-output`, independently
-from upstream 4.1 base `08fafe7f49ee39bed52c7288e86be0df6af4adcf`
-(verified 2026-11-05). Scope: `internal/worker/dbrepl/worker.go` and
-its existing tests. Extract the shared change-log/change-stream row
-scanning and tabwriter output, preserving each query, arguments, output,
-resource handling and error reporting. Exercise both commands, including
-empty results and failures as appropriate. #23730 is merged; no open
-4.1 PR touching this package was found. Other independent tasks remain
-available.
-
-Commit `0583a1972cc6ecff30c36d8653c11066162c2770` extracts the shared
-renderer without changing either SQL query. Tests cover change-log rows
-including repeated keys and zero ID, empty and identical output for both
-commands, query-error logging, and the existing change-stream cases.
-Published as [#23757](https://github.com/juju/juju/pull/23757); review,
-CI and live REPL QA remain outstanding.
-
-Validation on this commit:
-- `make run-go-tests TEST_PACKAGES=./internal/worker/dbrepl
-  TEST_ARGS='-p 2 -race -count=1'` passed with `dqlite,libsqlite3` tags.
-- `go test -race -p 2 -count=1 ./internal/worker/dbrepl` passed with SQLite.
-- Scoped `golangci-lint`, repository `txncheck`, `gci`, `gofmt` and
-  `git diff --check` passed. `make pre-check` passed with static analysis
-  skipped; the scoped linter was run separately.
-- Actual-Dqlite race test binary stress for change commands and query-error
-  handling completed 20 runs without failures; two were active when the
-  bounded `timeout 31` ended it with status 124.
-- No live REPL, PostgreSQL, repository-wide test suite or full static
-  analysis was run.
+[#23757](https://github.com/juju/juju/pull/23757) merged on 2026-11-09.
+Its shared renderer preserves both queries and REPL output; implementation,
+review and revision-specific validation are in
+[UPSTREAM-DONE.md](UPSTREAM-DONE.md#dbrepl-output-refactor).
+Live REPL QA was not recorded. Dbrepl is outside the PostgreSQL PoC scope.
 
 Not stock-upstream tasks: the PostgreSQL `constraint.allocate_public_ip`
 export-type mismatch needs backend-aware generation until the X25 candidate
