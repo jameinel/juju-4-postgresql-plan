@@ -35,6 +35,16 @@ execution a new requirement for stock 4.1 work.
    concerns, unanswered warnings, optional suggestions, and approval requests.
    An empty unresolved-thread list does not mean there is no feedback in a
    review body.
+   Classify each reviewer by `user.type` and login. Human reviewers come
+   first: their comments, questions, change requests and approvals determine
+   merge readiness, and an unanswered human comment is the highest-priority
+   review action. Van Cleef (`lee-van-cleef[bot]`) is an important automated
+   reviewer; record its verdict and the count and substance of its issues
+   and suggestions, and whether each has been answered or addressed since.
+   Its verdict is not a human approval. Other bots are lower priority unless
+   they block merging. Do not present bot findings as established defects;
+   they still need evaluation with the user (see the
+   `prepare-pr-review-response` skill).
 4. For failing or canceled checks, identify the affected job and, when useful,
    inspect its steps and logs. Report specific symptoms and links without
    claiming a root cause that the evidence does not establish. Check the
@@ -85,6 +95,9 @@ Lead with the most important changes and actionable blockers. Give:
 - A linked entry for each unmerged PR, with the branch or concern and the
   specific action on the user's side: review response, approval, CI
   investigation, functional QA, stack dependency, or none beyond waiting.
+  Report human review state first (approvals, change requests, unanswered
+  comments, or no human review yet), then Van Cleef's outstanding issues and
+  suggestions, then other bots only when relevant.
   Separate verified failures from hypotheses and optional review suggestions.
 - A list of unstarted upstream branches and other follow-ups, identifying
   prerequisites and PoC work already done.
