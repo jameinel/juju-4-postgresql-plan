@@ -482,7 +482,7 @@ and developer schema-evolution documentation; merged on 2026-10-30 at head
 `0e9be8ddd7` (merge `8369e6e2a9`). PoC reintegration was not part of that
 review; it was completed in the 2026-11-05 reconciliation below.
 Race-enabled tests, 52 stress iterations and targeted lint passed; live QA
-not run. [PR draft](PR-4.1-sqlite-integers.md) and
+not run. [PR draft](archive/pr-descriptions/PR-4.1-sqlite-integers.md) and
 [review decisions/evidence](COMMENT-4.1-sqlite-integers-review.md) hold details.
 
 ### Separate agent-workflow guidance

@@ -191,7 +191,7 @@ Implemented locally on `4.1-dbrepl-latest-row`, worktree
 branch was pushed and published as
 [juju/juju#23730](https://github.com/juju/juju/pull/23730), from
 `jameinel:4.1-dbrepl-latest-row` to `juju/juju:4.1`. The
-[local PR text](PR-4.1-dbrepl-latest-row.md) matches the published title/body.
+[local PR text](archive/pr-descriptions/PR-4.1-dbrepl-latest-row.md) matches the published title/body.
 The PR subsequently merged on 2026-11-04 as `f7b596bf5cb9`; the detailed
 validation below records the original implementation, not a new test run.
 No PoC integration was performed; dbrepl remains outside the PoC scope.
@@ -288,7 +288,7 @@ Implemented independently from refreshed upstream 4.1 base
 `tracker_test.go` in `internal/worker/dbaccessor`. After explicit approval,
 the branch was pushed to `jameinel/juju` and published as
 [juju/juju#23726](https://github.com/juju/juju/pull/23726), targeting `4.1`.
-The [local PR text](PR-4.1-dbaccessor-pool-cleanup.md) matches the published
+The [local PR text](archive/pr-descriptions/PR-4.1-dbaccessor-pool-cleanup.md) matches the published
 title/body. No published comments or review threads were modified.
 
 The tracker leaked pools after foreign-key pragma setup failure, model
@@ -385,7 +385,7 @@ Session `2b06495a-18f9-4418-ba5c-b2e8fd908dd1` implemented
 `323807680f7a5249f65d2d7378c0c2158cb3edee` and comment-only follow-up
 `6a66e5ed1be4cc0bde5fee269b6da1f87da56440` were pushed after approval
 as juju/juju#23728. The revised description was approved and verified
-against [the local text](PR-4.1-agentbinary-conflict.md).
+against [the local text](archive/pr-descriptions/PR-4.1-agentbinary-conflict.md).
 
 Conflict-safe inserts and affected-row checks preserve error sentinels and
 immutability. New tests cover same-transaction writes after both conflict
@@ -607,7 +607,7 @@ external static linking with Go `go1.27.3`. gofmt and prescribed gci ran on
 all four changed Go files. No dependencies were installed; deployment smoke,
 PostgreSQL and IDE worktree builds were not run.
 
-The commit, [description](PR-4.1-objectstore-conflicts.md) and
+The commit, [description](archive/pr-descriptions/PR-4.1-objectstore-conflicts.md) and
 [reply](COMMENT-4.1-objectstore-conflicts-review.md) were reviewed locally and
 published only after explicit approval. `gh pr edit` failed on deprecated
 classic-project GraphQL fields; the approved body was updated with
