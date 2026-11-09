@@ -136,6 +136,18 @@ For dispatch and validation details, read the
 [breakout validation guide](.github/skills/upstream-breakout/references/validation.md)
 when starting or reviewing implementation work.
 
+## Mainline integration requests
+
+1. Request a merge of upstream `4.1` into `main` and check that the
+   integration is clean, including conflicts and appropriate validation.
+   Check current branch heads and obtain approval before publishing or
+   merging anything.
+2. Afterward, audit `main` for SQL `IIF` and ensure it is cleaned up.
+   [juju/juju#23751](https://github.com/juju/juju/pull/23751) targets `4.1`
+   and is still in review; verify whether its changes reached `main`
+   rather than assuming the merge included them. If `IIF` remains,
+   prepare a separately scoped mainline change preserving its behavior.
+
 ## Breakout claims
 
 This table is the authoritative local claim list for new breakouts. Record
