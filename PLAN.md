@@ -10,13 +10,15 @@ Current instructions supersede handoffs; open choices are not instructions.
 
 ## Goal and scope
 
-This proof of concept has three outcomes:
+This proof of concept has four outcomes:
 
 1. A functioning PostgreSQL-backed controller suitable for benchmarking
    and comparative testing.
 2. SQL portability findings that expose accidental dqlite dependencies
    and incomplete architectural assumptions.
 3. Concrete, independently reviewable fixes for upstream Juju 4.1.
+4. A Juju 4.1-based branch that can run the domain test suite against
+   PostgreSQL to maintain SQL consistency as future changes land.
 
 Compare three cases (D38): a pinned stock upstream Juju build, the PoC
 build using dqlite, and the same PoC build using PostgreSQL. Record the
@@ -31,7 +33,26 @@ Out of scope: Kubernetes controllers, migrating a dqlite controller,
 `dbrepl` / `dbreplaccessor`, credential rotation, the controller-charm
 relation, production hardening and performance optimisation. Benchmarking
 and comparative testing are in scope; workload-specific acceptance still
-needs agreement.
+needs agreement. Test-suite performance work for the PostgreSQL regression
+branch described below is also in scope.
+
+### PostgreSQL SQL-regression branch
+
+Bootstrapping remains a higher priority than this outcome. As the breakouts
+in [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) and
+[UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) progress, retain a path to a Juju
+4.1-based branch with the shared fixes and PostgreSQL test infrastructure
+needed to run the domain test suite. The goal is repeatable regression
+validation of SQL consistency, independent of PostgreSQL controller runtime
+support. Include the SQL-owning infrastructure and worker packages outside
+`./domain/...` identified by N16; a domain-only run leaves coverage gaps.
+
+If the suite can run in **under 15 minutes**, it can become part of the
+pre-commit checks run on every PR. Measure the complete selected suite on
+documented hardware and configuration before adopting that gate; passing a
+smaller smoke selection does not establish this target. This is a desired
+end state, not an already available check or a new acceptance requirement
+for each individual upstream breakout.
 
 ### Shared SQL/schema fixes versus PostgreSQL support
 
