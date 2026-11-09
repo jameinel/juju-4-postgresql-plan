@@ -148,6 +148,38 @@ when starting or reviewing implementation work.
    rather than assuming the merge included them. If `IIF` remains,
    prepare a separately scoped mainline change preserving its behavior.
 
+### Local mainline merge preparation (2026-11-09)
+
+Worktree `4.1-into-4.2`, branch `4.1-into-4.2`: local merge commit
+`496c7d78187be3d0425fb66b386e17638872ce4a` merges upstream `4.1`
+`bd36cef53587f60bbdb4d910eb6338b9d95fba4a` into upstream `main`
+`419d02804e5df3a1facb80c7eb749be7176bfc84`. Git reported no conflicts;
+the merge tree matches the independent `git merge-tree` result. It brings
+14 commits, including three PR merges. The branch is pushed to
+`jameinel/juju:4.1-into-4.2` and proposed as
+[#23775](https://github.com/juju/juju/pull/23775), targeting `main`; the
+integration has not landed. The PR body is saved at
+[PR-4.1-into-4.2.md](PR-4.1-into-4.2.md).
+
+- Affected backups, CLI commands, modelcmd, agent-binary controller/model
+  state and resource state suites passed with `-p 2 -race -count=1` on
+  SQLite and with `make run-go-tests` using real dqlite and the shared
+  `_deps` headers and static libraries.
+- `make go-build`, `STATIC_ANALYSIS=1 make pre-check` and
+  `git diff --check` passed. Live controller and migration QA were not run.
+  The first pre-check attempt with `GOPROXY=off` failed on an uncached
+  license-analysis dependency; the normal-proxy retry passed.
+- The merge still contains four SQL `IIF` expressions. #23751 remains open
+  against `4.1`, so its cleanup is not part of this merge. Audit `main`
+  again after integration rather than treating this inventory as final.
+- Existing `.github/workflows/merge.yml` checks `4.1` -> `main` for
+  conflicts but does not publish or merge PRs. Automated merge-forward PRs
+  are proposed in [#23709](https://github.com/juju/juju/pull/23709), which
+  is still open. No upstream `4.2` branch existed when checked.
+
+Next: monitor review and CI, refresh the upstream heads as needed, and obtain
+explicit approval before merging.
+
 ## Breakout claims
 
 This table is the authoritative local claim list for new breakouts. Record
