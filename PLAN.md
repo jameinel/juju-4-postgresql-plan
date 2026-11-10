@@ -195,10 +195,10 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; trigger helpers and all six repair batches integrated locally (`3d4afe2592`); affected integration checks complete, with reported PostgreSQL failures retained; final 142-package sweep and skip/production decisions remain pending; thermal limit is two jobs total, each GOMAXPROCS=2 / -p 2 |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; six repair batches and resource ordering repair integrated; final 142-package sweep and approved production repairs remain pending; thermal limit is two jobs total, each GOMAXPROCS=2 / -p 2 |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); four review checkpoint commits remain at 09 pending redistribution to their owning layers; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
@@ -211,9 +211,11 @@ Next:
    checks passed; W4 passed 219 affected methods per backend, W5 passed
    62 on dqlite and 61 with one known legacy-data failure on PostgreSQL,
    and W6 passed 19 per backend. The final-stack build passed.
-   Review the single proposed new skip (the legacy empty timestamp)
-   and reported production/ordering-contract findings before choosing
-   fixes or retaining explicit known failures for the final sweep.
+   The legacy empty-timestamp skip and ordering-contract decisions were
+   reviewed; the resource-list assertion repair is integrated. The
+   approved SSH and controllerupgrader production fixes remain pending;
+   distribute the review checkpoints into their owning layers before
+   the final sweep.
    Use precompiled binaries and at most two validation jobs total,
    each `GOMAXPROCS=2` / Go `-p 2`. Follow changed-layer validation
    rather than repeating earlier passing suites; run the full agreed
@@ -246,12 +248,14 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=76aac853dd`, `06=3d4afe2592`, `07=ff77106845`,
-`08=09=3a590b446f`. Step 0 and all six repair batches are committed locally.
+`04=f957a3ae5e`, `05=76aac853dd`, `06=ea288e5fca`, `07=96dbb7ed7e`,
+`08=18474bf226`, `09=982e0c2fb7`. Stage 9 also carries four review
+checkpoint commits awaiting redistribution. Step 0 and all six repair
+batches are committed.
 The removed worker branches were created from the earlier verified
 Step 0 tip `09=0bb336f089`.
 See [the repair run](stages/06-compatibility.md#parallel-repair-run-2026-11-10-in-progress)
-for evidence. No repair-round commits have been pushed.
+for evidence. The latest restack has not been pushed.
 
 Previous local tips (2026-11-09, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
@@ -374,8 +378,7 @@ previously `a8591fe1b8`, old tips tagged `pg-poc-base-a8591fe1b8/*`).
 Stage 5 also
 carries unchanged cherry-picks of open upstream PRs (D43; listed in
 UPSTREAM-FIXES.md). The **top** is the
-highest stage branch that exists, currently `pg-poc/09-bootstrap` (at the
-same commit as `pg-poc/08-dbaccessor`).
+highest stage branch that exists, currently `pg-poc/09-bootstrap`.
 
 - **New stage**: create its branch from the top
   (`git switch -c pg-poc/NN-<slug> <top>`).

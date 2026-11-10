@@ -103,6 +103,12 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 
 ### Unassigned test findings (2026-11-10)
 
+- **Latent (test), X17:** `domain/resource/state/resource_test.go`
+  assumed database order for unit, application and repository resource
+  lists. Stage 6 `ea288e5fca` compares unordered membership while
+  retaining complete resource data, multiplicity and unit ownership.
+  At `09=982e0c2fb7` both affected tests passed five times on PostgreSQL
+  and real dqlite. Upstream home is unassigned.
 - **Portability (test), X35:** `internal/changestream/stream/stream_test.go`
   read fixture change-log IDs with `LastInsertId`, unsupported by pgx.
   W1 uses `INSERT ... RETURNING id`, retaining the retry reset and stream
@@ -292,12 +298,11 @@ upstream breakout remain separate actions.
   application and repository resources. Charm revisions can have
   different sets of resource names. Preserve the slice-based
   `ApplicationResources` API; changing it to maps is not necessary.
-  The local core type comments now state the name-based association and
-  unspecified ordering (PoC commit `bcae4d6038`). The original
-  order-sensitive test remains
-  unchanged pending the queued repair: compare membership and
-  multiplicity, retain resource-name/UUID/revision associations and unit
-  ownership, and handle nested resource order independently. Do not
+  The local core type comments state the name-based association and
+  unspecified ordering (PoC checkpoint `3b49ed0203`). Stage 6
+  `ea288e5fca` repairs the assertions, retaining membership,
+  multiplicity, resource-name/UUID/revision associations and unit
+  ownership while handling nested resource order independently. Do not
   discard duplicates by converting actual results to maps or impose
   `ORDER BY` merely to retain incidental SQLite order. The focused
   PostgreSQL failure is an assertion-order mismatch, not established

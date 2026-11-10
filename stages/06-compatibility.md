@@ -485,6 +485,27 @@ resolved locally as recorded above; stack integration remains pending.
 The provisioner nullable-boolean investigation did not establish a
 production defect: SQLair maps NULL to false for a plain bool field.
 
+### Resource-list ordering repair (2026-11-10)
+
+Stage 6 `ea288e5fca` removes incidental ordering assumptions from both
+resource-list tests. Application and repository resource slices and the
+unit slice are compared with `tc.SameContents`. Each unit's resources
+are sorted by name before comparing the complete unit records, preserving
+membership, multiplicity, resource data and unit ownership. The fixture
+has distinct resource names within a unit.
+
+After restacking, `06=ea288e5fca`, `07=96dbb7ed7e`,
+`08=18474bf226`, `09=982e0c2fb7`. Range-diff confirms all later commits
+are unchanged, including the four Stage 9 review checkpoints. At the 09
+tip, the two affected tests each passed five times with `-race` on
+PostgreSQL and real dqlite, with no failures or skips. Precompiled
+binaries used `GOMAXPROCS=2`, Go `-p 2`, and a 120-second test timeout;
+the PostgreSQL invalid-URL probe failed with connection refused as
+expected. Logs and compile output are in session
+`ef9819ef-16f7-41e1-ad0d-472d923f2889/files/resource-tip-*`.
+The 142-package final sweep and Stage 9 checkpoint redistribution remain
+pending; this is not final-sweep evidence.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared
