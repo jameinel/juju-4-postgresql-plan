@@ -33,6 +33,7 @@ fixes must not gain PostgreSQL-specific SQL or support dependencies.
 
 | Id | Construct | SQLite | PostgreSQL | Handling |
 |---|---|---|---|---|
+| X46 | Dropping a trigger | `DROP TRIGGER IF EXISTS name`; no separate trigger function | Requires `DROP TRIGGER IF EXISTS name ON table`; the trigger function survives and prevents recreation with 42723 | Stage 6 `f4d3cbb673`: `DropFailingTriggerSQL` drops both the test trigger and its function; `DropTriggerSQL` drops only a schema trigger, preserving its schema-owned function. Execute the multi-statement DDL through `database/sql`, not sqlair. Verified on PostgreSQL and real dqlite at `09=0bb336f089`. |
 | X1 | Placeholders `?` and `@sqlair_N` | Native | Uses `$N` | Driver rewrite (Stage 3, D5). |
 | X2 | Empty list `x IN ()` / `x NOT IN ()` | False / true, even for NULL `x` | Syntax error | Driver rewrite (Stage 3) to `x = ANY ('{}')` / `x <> ALL ('{}')`. sqlair emits `IN ()` for an empty slice input (`$S[:]`; `internal/expr/querybuilder.go`, `len(bc.vals) == 0`), so the construct is non-standard SQL from the query layer, not a dialect difference. Upstream candidate (D55 audit 2026-11-06): portable empty-list rendering in sqlair, or caller guards. |
 | X3 | `ON CONFLICT DO UPDATE` with no conflict target | Allowed | "requires inference specification or constraint name" | Shared fix (Stage 5): name the target. |

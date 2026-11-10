@@ -195,7 +195,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; 146-package re-sweep has 35 failing packages; 307 test-side failures in 31 packages split into six parallel worker handoffs (N18) |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; trigger drop helpers done locally (`f4d3cbb673`); W1–W4 dispatched (N18), W5–W6 pending; 146-package re-sweep baseline still has 35 failing packages |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
@@ -205,8 +205,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 Next:
 
 1. Run the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
-   (N18): the integrator adds the trigger drop helpers (Step 0), then
-   dispatches workers W1–W4, then W5–W6, at most four at a time, and
+   (N18): Step 0 is verified at `09=0bb336f089`; W1–W4 are running on
+   GPT-6.1 Terra. Dispatch W5–W6 as slots open, at most four at a time, and
    integrates each onto Stage 6. Workers report production defects
    rather than fixing them; route approved ones to Stage 5. Then rerun
    the re-sweep. Out of scope for this round: the three deferred import
@@ -230,7 +230,15 @@ Next:
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
-Current local tips (2026-11-09, base `5259edff43`):
+Current local tips (2026-11-10, base `5259edff43`):
+`00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
+`04=f957a3ae5e`, `05=76aac853dd`, `06=f4d3cbb673`, `07=de24e7d3c2`,
+`08=09=0bb336f089`. Step 0 of the parallel repairs is committed locally
+and verified on PostgreSQL and real dqlite; W1–W4 branch from this 09
+tip. See [the repair run](stages/06-compatibility.md#parallel-repair-run-2026-11-10-in-progress)
+for evidence. No repair-round commits have been pushed.
+
+Previous local tips (2026-11-09, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
 `04=f957a3ae5e`, `05=76aac853dd`, `06=ebba92514b`, `07=fae300116a`,
 `08=09=a3818782aa`. D56 and the D16 lease-clock correction are restacked

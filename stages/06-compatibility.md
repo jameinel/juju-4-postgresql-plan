@@ -52,6 +52,40 @@ approved skips. New blockers return to their owning task; do not silently
 weaken the gate. Gates use the N16 tiers and levels: the readiness level
 runs tiers A and B in full; do not add packages outside them.
 
+## Parallel repair run (2026-11-10, in progress)
+
+Step 0 is complete locally: `06=f4d3cbb673` adds
+`DropFailingTriggerSQL` and `DropTriggerSQL`; the restacked tips are
+`07=de24e7d3c2`, `08=09=0bb336f089`. The first helper drops the
+PostgreSQL trigger function as well as the trigger, allowing recreation;
+the second preserves schema-owned functions (X46). Trigger DDL runs
+through `database/sql`, not sqlair.
+
+At `09=0bb336f089`, `go build ./...` passed. Full package runs with
+`-race -count=1 -p 2 -timeout 120s -v` passed on PostgreSQL (untagged)
+and real dqlite (`make run-go-tests`, `dqlite,libsqlite3`):
+
+| Package | PG pass / fail / skip | dqlite pass / fail / skip |
+|---|---|---|
+| `domain/schema/testing` | 3 / 0 / 0 | 3 / 0 / 0 |
+| `domain/controllernode/state` | 37 / 0 / 0 | 37 / 0 / 0 |
+
+The new tests cover unconditional and conditional failure injection,
+rollback, repeated drops, recreation and preservation of the schema
+trigger function. An invalid-URL probe of
+`TestTriggerSuite/TestFailingTrigger` failed with connection refused,
+proving PostgreSQL selection. An initial SQLite fallback run also passed
+all three helper tests. `make pre-check` passed with static analysis
+disabled by the default target; this is not a full lint result.
+Logs: `~/pg-poc-work/integrator/step0-{build,pg,dqlite,backend-probe,sqlite,pre-check}.log`.
+
+W1–W4 are dispatched on GPT-6.1 Terra, each from
+`0bb336f0895c27f3eaf2f497e9678f382c030509` in its assigned
+`../juju-4-pg-wN` worktree, with a PostgreSQL `-p 2` budget each.
+W5–W6 await slots. No worker repairs have been integrated or counted as
+passing yet. No branches have been pushed; bootstrap and cleanup remain
+deferred under N22.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared
