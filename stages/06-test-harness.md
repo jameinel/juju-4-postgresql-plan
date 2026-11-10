@@ -60,7 +60,9 @@ setup reading.
    first 06-dialect-fixtures (tests applying SQLite DDL or trigger
    bodies on PostgreSQL) and 06-bind-types, which hide whole packages;
    then 06-constraint-errors, 06-order, X27 and the untriaged 42703 and
-   upgradesteps failures.
+   upgradesteps failures. The immediate bounded task is the
+   [stream fixture handoff](../handoffs/2026-11-10-stage-6-stream-fixture.md)
+   for `internal/changestream/stream`.
 2. Use D42's runtime-entry package list in the detail file. Keep deferred
    PostgreSQL import/export (D40) distinct from blockers. Later gates use
    N16's tiers and levels (smoke before commits, full post-commit,
