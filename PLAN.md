@@ -248,8 +248,8 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=76aac853dd`, `06=ea288e5fca`, `07=96dbb7ed7e`,
-`08=18474bf226`, `09=982e0c2fb7`. Stage 9 also carries four review
+`04=f957a3ae5e`, `05=76aac853dd`, `06=555506ac67`, `07=adfd796cfd`,
+`08=7ab3de4367`, `09=06c6cce905`. Stage 9 also carries four review
 checkpoint commits awaiting redistribution. Step 0 and all six repair
 batches are committed.
 The removed worker branches were created from the earlier verified

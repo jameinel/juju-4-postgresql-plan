@@ -105,7 +105,7 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 
 - **Latent (test), X17:** `domain/resource/state/resource_test.go`
   assumed database order for unit, application and repository resource
-  lists. Stage 6 `ea288e5fca` compares unordered membership while
+  lists. Stage 6 `555506ac67` compares unordered membership while
   retaining complete resource data, multiplicity and unit ownership.
   At `09=982e0c2fb7` both affected tests passed five times on PostgreSQL
   and real dqlite. Upstream home is unassigned.
@@ -299,8 +299,8 @@ upstream breakout remain separate actions.
   different sets of resource names. Preserve the slice-based
   `ApplicationResources` API; changing it to maps is not necessary.
   The local core type comments state the name-based association and
-  unspecified ordering (PoC checkpoint `3b49ed0203`). Stage 6
-  `ea288e5fca` repairs the assertions, retaining membership,
+  unspecified ordering (PoC checkpoint `04d04bee87`). Stage 6
+  `555506ac67` repairs the assertions, retaining membership,
   multiplicity, resource-name/UUID/revision associations and unit
   ownership while handling nested resource order independently. Do not
   discard duplicates by converting actual results to maps or impose

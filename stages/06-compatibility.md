@@ -506,6 +506,13 @@ expected. Logs and compile output are in session
 The 142-package final sweep and Stage 9 checkpoint redistribution remain
 pending; this is not final-sweep evidence.
 
+The Stage 6 commit message was amended to remove literal `\n` sequences
+and the stack restacked. The replacement commit is `06=555506ac67`;
+`07=adfd796cfd`, `08=7ab3de4367`, and `09=06c6cce905`. The old and new
+09 trees are identical and range-diff confirms the later commits are
+unchanged. The tests above ran at the old 09 revision, not the rewritten
+commit.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared
