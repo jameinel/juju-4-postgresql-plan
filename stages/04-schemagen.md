@@ -88,9 +88,11 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     Verification: `go build ./...` and affected `go vet` passed; 23 packages
     passed with `-race` both untagged and via `make run-go-tests`
     (`dqlite,libsqlite3`, `-p 4`); `TestPostgreSQLSuite` passed against
-    PostgreSQL 16.15 (controller and model DDL comparison). App-state tests
-    have not been run on PostgreSQL at this stage because the branch predates
-    the PostgreSQL test harness; validate them on a restacked Stage 9 branch.
+    PostgreSQL 16.15 (controller and model DDL comparison). The Stage 4
+    branch predates the PostgreSQL test harness, so the charm-order state
+    tests were run after restacking to Stage 9: the focused
+    `TestGetLatestPendingCharmhubCharm` cases passed against PostgreSQL
+    16.15; the focused legacy-import delta test passed under dqlite.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support
