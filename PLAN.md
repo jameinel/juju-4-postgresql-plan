@@ -118,7 +118,8 @@ before their corresponding execution tasks begin.
 
 Sessions run in `~/dev/go/src/github.com/juju/juju-4-postgresql`
 (`origin=jameinel/juju`). Keep PoC work in one tree. Dedicated worktrees
-are allowed for upstream-only review branches (N11), not extra PoC trees.
+are allowed for upstream-only review branches (N11) and for Stage 6
+test-repair workers (N18), not extra PoC trees.
 Plans live in sibling `../juju-4-postgresql-plan`
 (`origin=jameinel/juju-4-postgresql-plan`, branch `main`); grant session
 access if needed. Never commit plan documents to the code repository.
@@ -147,9 +148,12 @@ missing inputs; do not ask an executor to design and implement a backlog.
    approved one, and implemented work from verified work.
 5. Keep one PoC implementation/restack stream. Upstream-only fixes may
    run concurrently in dedicated worktrees under [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
-   (N11); do not switch or restack another owner's tree. PostgreSQL package
-   tests and benchmarks must not overlap. Run multiple packages from one
-   `go test` invocation with `-p 4` to `-p 8`; tests within a package run
+   (N11), and Stage 6 test-repair workers in theirs (N18); do not switch
+   or restack another owner's tree. Concurrent PostgreSQL test runs may
+   share the server while their `-p` values sum to at most 8; bootstrap,
+   benchmarks, stress and full sweeps need it alone (N19). Run multiple
+   packages from one `go test` invocation with `-p 4` to `-p 8`; tests
+   within a package run
    serially, so packages one at a time are several times slower
    ([OPERATIONS.md](OPERATIONS.md#postgresql-test-runs)). Bound every run
    and check its progress at least every two minutes
@@ -191,24 +195,28 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; 146-package re-sweep has 35 failing packages and test SQL/fixture repairs open |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; 146-package re-sweep has 35 failing packages; 307 test-side failures in 31 packages split into six parallel worker handoffs (N18) |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; re-sweep triage and D56 database recreation remain before run 4 |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next:
 
-1. Triage the [PostgreSQL re-sweep](stages/06-compatibility.md#postgresql-re-sweep).
-   Fix the test-side classes that hide production defects first
-   (06-dialect-fixtures, 06-bind-types), then resolve workload-specific
-   blockers. Newly observed assertions are tracked under 06-X16 and
-   06-order; do not assume every remaining failure is test-only.
-2. Before bootstrap, inspect resources and obtain explicit approval of
-   cleanup targets before any teardown or database recreation:
-   04-current-timestamp (D56) changes the schema hash. Run bootstrap 4
-   and the D54 scenario; then the dqlite comparison run.
+1. Run the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
+   (N18): the integrator adds the trigger drop helpers (Step 0), then
+   dispatches workers W1–W4, then W5–W6, at most four at a time, and
+   integrates each onto Stage 6. Workers report production defects
+   rather than fixing them; route approved ones to Stage 5. Then rerun
+   the re-sweep. Out of scope for this round: the three deferred import
+   packages (D40), `domain/recovery/state` and 06-schema-skip; see the
+   handoff.
+2. Reassess bootstrap run 4 with the user (N22). Before bootstrap,
+   inspect resources and obtain explicit approval of cleanup targets
+   before any teardown or database recreation: 04-current-timestamp
+   (D56) changes the schema hash. Then run bootstrap 4 and the D54
+   scenario, then the dqlite comparison run.
 3. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
    respecting current claims and the D55 review. Storage #23766 has a

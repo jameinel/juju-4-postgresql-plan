@@ -168,8 +168,10 @@ Select packages by N16's tiers and levels (smoke, full, readiness).
   packages, `-p 8` took about 10 minutes, compared with about 58 minutes
   when packages ran one at a time
   ([measurements](stages/06-compatibility.md#06-test-speed-result)).
-  Do not overlap separate invocations, stress workers or benchmarking on
-  the shared server. The harness takes a per-process schema change lock
+  Concurrent invocations may share the server while their `-p` values
+  sum to at most 8 (N19); bootstrap, benchmarks, PostgreSQL stress runs
+  and full sweeps need the server to themselves. The harness takes a
+  per-process schema change lock
   key (N17, from `08=eac5b916c7`), so packages no longer queue on D53.
   Below that revision, or on a server with 64 locks per transaction, run
   one package at a time: parallel packages queue on D53 or exhaust the

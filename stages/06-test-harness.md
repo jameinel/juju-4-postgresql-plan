@@ -54,15 +54,14 @@ setup reading.
 
 ## Next tasks and completion
 
-1. Repair one named issue from the task table. Route production-query work
-   to Stage 5; do not combine it silently with fixture changes. The
-   [re-sweep](06-compatibility.md#postgresql-re-sweep) orders the work:
-   first 06-dialect-fixtures (tests applying SQLite DDL or trigger
-   bodies on PostgreSQL) and 06-bind-types, which hide whole packages;
-   then 06-constraint-errors, 06-order, X27 and the untriaged 42703 and
-   upgradesteps failures. The immediate bounded task is the
-   [stream fixture handoff](../handoffs/2026-11-10-stage-6-stream-fixture.md)
-   for `internal/changestream/stream`.
+1. Repair the re-sweep failures. Route production-query work to Stage 5;
+   do not combine it silently with fixture changes. The current round is
+   the
+   [parallel repairs handoff](../handoffs/2026-11-10-stage-6-parallel-repairs.md)
+   (N18): trigger drop helpers first, then six worker handoffs covering
+   307 failing leaf tests in 31 packages, split by package rather than
+   by [re-sweep](06-compatibility.md#postgresql-re-sweep) class and
+   integrated onto this branch. Then rerun the re-sweep.
 2. Use D42's runtime-entry package list in the detail file. Keep deferred
    PostgreSQL import/export (D40) distinct from blockers. Later gates use
    N16's tiers and levels (smoke before commits, full post-commit,

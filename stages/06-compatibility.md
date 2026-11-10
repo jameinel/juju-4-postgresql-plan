@@ -69,6 +69,25 @@ SQL/schema corrections to their owning stage; ask if this conflicts with a
 task's test-only scope. Correct textual representations, including U3/U5's
 unsigned node IDs, still require textual fixture binds.
 
+**2026-11-10 assignment.** The re-sweep failures are split by package
+into six worker handoffs under the
+[parallel repairs handoff](../handoffs/2026-11-10-stage-6-parallel-repairs.md)
+(N18). Workers own packages, not rows, so one row can span several
+workers:
+
+| Worker | Rows |
+|---|---|
+| W1 stream fixtures | 06-dialect-fixtures (stream, ssh model, pruner; dbrepl and dbreplaccessor skips, N21) |
+| W2 removal model | 06-X23, 06-X25 (`force`), 06-X27 (schedules), 06-X16, 06-X9, 06-DDL, 06-trigger-drop, 06-failure-injection, 06-errors (FK) |
+| W3 application | 06-X27 (`since`), 06-order (NULL sort, storage directives), 06-failure-injection, 06-X9, 06-errors (unique), 06-X16 |
+| W4 timestamps and `%q` | 06-X27 (status, secretbackend, secret, macaroon, operation), X28, 06-unknown-column (operation, modelmigration), 06-order (secret watcher), 06-status-diagnosis |
+| W5 bind types | 06-bind-types, 06-X25 (provisioner), 06-U5, 06-upgradesteps, 06-cmr-updated-at, 06-unknown-column (crossmodelrelation `rowid`), 06-errors (resource FK), 06-order (resource, cmr ingress) |
+| W6 errors, triggers and order | 06-constraint-errors, 06-errors (model), 06-failure-injection and 06-fk-check (machine), 06-X29, 06-dialect-fixtures (`domain` root), 06-order (relation, unitstate) |
+
+The integrator updates each row's revision and evidence when it
+integrates a worker. 06-X17 is not in the re-sweep failures; 06-test-levels,
+06-schema-skip and `domain/recovery/state` are outside this round.
+
 | ID | Scope / required result | Readiness |
 |---|---|---|
 | 06-X23 | `domain/removal/state/model/secret_test.go`: bind revision IDs as strings to `secret_value_ref` and `secret_deleted_value_ref` TEXT columns if TEXT is the intended domain representation. | Confirm the representation against production writers/consumers first (D55), then verify affected tests. If the schema is incorrect, stop and scope its correction rather than masking it with a fixture conversion. |
@@ -76,26 +95,26 @@ unsigned node IDs, still require textual fixture binds.
 | 06-X27 | Removal schedule tests, `domain/status/state/model` (48 `Since` round trips) and `domain/macaroon/state`: use microsecond-representable times for round-trip assertions. X28: replace the out-of-range max-int sentinel with a representable bound. | Preserve boundary/ordering coverage; do not merely relax comparisons. Ask if production precision semantics must change. |
 | 06-X16 | `domain/removal/state/model/application_test.go`, `TestEnsureApplicationOnMultipleMachines`: `COUNT(*), uuid` without grouping. `domain/application/state/unit_test.go`, `TestUpdateCAASUnitSetsFQDN`: `fa.address, fa.scope_id, COUNT(*)` without grouping. | Preserve the count and selected values; the FQDN test must also reach its repeated-update/idempotence check. Clarify the assertions before choosing grouping versus separate queries. |
 | 06-X9 | `CONCAT('application_', ?)` lacks PG parameter type context in both `domain/application/state/application_test.go` and `domain/removal/state/model/application_test.go`. | Choose a portable typed expression or bind the full fixture name; preserve the value. |
-| 06-DDL | Application `application_test.go` / `unit_test.go`: test `charm_external_reference.created_at DATETIME`. | Use supported test DDL (`TIMESTAMP` proposed); verify time decoding. |
-| 06-trigger-drop | Application `model_test.go`, `TestIsControllerModelControllerModel`: PG requires `DROP TRIGGER ... ON model`. | Use the harness dialect when a shared form is unavailable; verify both paths. |
-| 06-errors | Machine FK-error assertion; model/model immutable-row assertions. | Keep typed/domain errors where exposed, otherwise match the specific message in both formats (X20/X26). |
-| 06-X17 | `domain/model/state/controller/state_test.go`, `TestGetActivatedModelUUIDs`: assert the returned UUIDs with `tc.SameContents`, not by index. The query has no `ORDER BY`, and its only caller (`getWatchActivatedModelsMapper`) uses the result as a set. | Defined; test-only. |
-| 06-failure-injection | Removal `relation_test.go`, `relationwithremoteofferer_test.go`; machine `reprovision_test.go`; application `application_refresh_test.go`: use `schematesting.FailingTriggerSQL`. | Preserve failing operation, condition and rollback checks. Approve helper extension before implementation. |
+| 06-DDL | Removal model `application_test.go` (`TestDeleteCharmReturnConstraintError`) and `unit_test.go` (`TestDeleteUnitWithDanglingCharmReference`): ad hoc tables with `DATETIME` (42704). Corrected 2026-11-10; earlier text placed these in application state. | Use supported test DDL (`TIMESTAMP` proposed); verify time decoding. W2. |
+| 06-trigger-drop | Removal model `model_test.go`, `TestIsControllerModelControllerModel`: PG requires `DROP TRIGGER ... ON model`. Corrected 2026-11-10; earlier text placed this in application state. | Use `schematesting.DropTriggerSQL` (Step 0 of the parallel repairs handoff); verify both paths. W2. |
+| 06-errors | Removal model FK assertion (`TestDeleteMachineWithForceDoesNotCheckChildMachines`), application unique-index assertions, resource FK assertion, model/model immutable-row assertions. | Test-only (N20): use the `internal/database` constraint helpers where the error is a constraint violation, otherwise match the specific message unanchored (X20/X26). W2, W3, W5, W6. |
+| 06-X17 | `domain/model/state/controller/state_test.go`, `TestGetActivatedModelUUIDs`: assert the returned UUIDs with `tc.SameContents`, not by index. The query has no `ORDER BY`, and its only caller (`getWatchActivatedModelsMapper`) uses the result as a set. | Defined; test-only. Passed in the 2026-11-10 re-sweep; not assigned. |
+| 06-failure-injection | Removal `relation_test.go`, `relationwithremoteofferer_test.go`; machine `reprovision_test.go`; application `application_refresh_test.go` and `exposed_test.go`; network `space_remove_test.go`: use `schematesting.FailingTriggerSQL`. | Preserve failing operation, condition and rollback checks. Loops drop the trigger with `DropFailingTriggerSQL` on each pass. The machine side-effect trigger gets a test-local backend switch (N18 handoff). W2, W3, W6. |
 | 06-X29 | Access `permission_test.go`, `ensurePermission`: predicate-free `LEFT JOIN`. | Determine intended fixture cardinality before selecting the replacement join. |
 | 06-U5 | `domain/upgrade/state/state_test.go`: bind node IDs as text. | Defined substitution; preserve IDs and assertions. |
-| 06-fk-check | Machine `reprovision_test.go`: SQLite `PRAGMA foreign_key_check`. | Limit only the backend-specific assertion; confirm retained PG coverage before a whole-test skip (N10). |
+| 06-fk-check | Machine `reprovision_test.go`: SQLite `PRAGMA foreign_key_check`. | Run the assertion on dqlite only: the PostgreSQL schema has no deferrable foreign keys, so a violation fails at the statement. Keep the rest of the test on both backends (N10). W6. |
 | 06-status-diagnosis | `domain/status/state/model`: 48 failures, diagnosed 2026-10-26 at `08=c5f185e6f6`: all 48 are X27 round-trip precision assertions (`Since` nanoseconds versus PG microseconds; 27 via `assertStatusInfoEqual`, the rest `DeepEquals` on `Since`). No SQL errors; 125 pass. Production status code has no in-memory comparison of stored timestamps (status history filtering reads the log file). | Not a runtime blocker. Repair with 06-X27: microsecond-representable fixture times, preserving the assertions. |
-| 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips 105 trigger and schema leaf tests on PG at `09=a3818782aa` (93 at the earlier gate). Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. |
+| 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips 105 trigger and schema leaf tests on PG at `09=a3818782aa` (93 at the earlier gate). Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. Out of scope for the 2026-11-10 parallel round; a separate optional task. |
 | 06-test-levels | Script the N16 levels: smoke (fixed core plus the domains touched by a diff), full and readiness (tiers A and B), each run on both backends with per-package logs, pass/fail/skip counts and a known-failure list for readiness. | Defined; selection from N16. Check the tier lists against `go list` when run, so new packages are not missed. |
 | 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Parallel packages done (N17, `08=eac5b916c7`): unit-test profile plus a per-process D53 key; see [06-test-speed result](#06-test-speed-result). Per-test cost is unchanged (~0.5 s). Optional follow-ups: move schema drop off the test's critical path; split `domain/application/state` and `domain/removal/state/model`, which bound `-p 8` wall time. A database pool was measured and gives no gain ([database pool PoC](#database-pool-poc), N17). |
 | 06-leaseexpiry-db | `internal/worker/leaseexpiry/store.go` runs its own SQL. Exercise expiry against a real controller schema on both backends. | Done in Stage 5 `76aac853dd`: `TestDatabaseStoreSuite/TestExpireLeases` covers expired, future, null-expiry and pinned rows. Full affected packages pass with `-race` on SQLite, real dqlite and PostgreSQL at `09=a3818782aa`; deterministic SQLite tests also cover skew and the equality boundary. |
 | 06-dialect-fixtures | Test fixtures built for SQLite that fail on PG before reaching the code under test (sweep 2): `AUTOINCREMENT` in a schema DDL passed by `internal/changestream/stream`, `domain/ssh/state/model`, `internal/worker/dbrepl`, `dbreplaccessor`, `changestreampruner` and `core/database/schema` (`schema.go:42`; 97 failures); SQLite `CREATE TRIGGER` bodies using `OLD`/`NEW` (`domain/machine/state` 21, `domain/access/state`, `domain/recovery/state`, removal model); `sqlite_schema` in `domain`. | Find the shared fixture source first; most are one helper each. Use the harness dialect or `FailingTriggerSQL`; do not skip. The `domain/lease/state` `datetime()` fixtures were fixed in Stage 6 `ebba92514b`; the package passes on PostgreSQL at `09=a3818782aa`. |
 | 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent` in `base_test.go` `newPersistentModelVolume` and `in_use` in `import_test.go`, both fixtures, checked 2026-11-05); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: blockdevice may be a production bind, not a fixture. |
-| 06-constraint-errors | `domain/network/state`: PG 23514 (`chk_provider_id_empty`) and 23505 are not mapped to the domain errors the tests expect (8 failures). | Find where SQLite constraint errors are mapped; decide whether the mapping is production (Stage 5) or test-only. |
-| 06-unknown-column | Sweep 2 42703 failures: `domain/operation/state` (4), `domain/modelmigration/state/model` (1), `domain/crossmodelrelation` (1). | Not triaged. Determine whether each is a fixture or a production query; a production cause is a Stage 5 shared fix and an upstream candidate (D55). |
-| 06-upgradesteps | `internal/worker/upgradedatabase/upgradesteps` (3 failures in the re-sweep and sweep 2). | Not triaged. Classify before assuming test-only. |
+| 06-constraint-errors | `domain/network/state`: PG 23514 (`chk_provider_id_empty`) and 23505 are not mapped to the domain errors the tests expect (8 failures in sweep 2; 4 X20 in the 2026-11-10 re-sweep, plus one trigger test). | Test-only (N20): the tests match SQLite message text, not domain errors. Use `IsErrConstraintCheck`/`IsErrConstraintUnique` and keep the constraint name or wrapping context where both backends report it. W6. |
+| 06-unknown-column | Sweep 2 42703 failures: `domain/operation/state` (4), `domain/modelmigration/state/model` (1), `domain/crossmodelrelation` (1). | Triaged 2026-11-10, all test SQL: `%q` makes a string literal an identifier on PostgreSQL (X6, operation and modelmigration; W4), and `ORDER BY rowid` (X31, crossmodelrelation; W5, rewrite through the ordered getter). |
+| 06-upgradesteps | `internal/worker/upgradedatabase/upgradesteps` (3 failures in the re-sweep and sweep 2). | Triaged 2026-11-10: fixtures bind `0` to boolean `cloud.skip_tls_verify` (X25); test-only. W5. |
 | 06-cmr-updated-at | `domain/crossmodelrelation/state/model`: 16 fixtures bind integer `0` to `relation_status.updated_at` (mainly `package_test.go` `addOfferConnection`). | Bind a time value valid on both backends; confirm no production path writes an integer. |
-| 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`, and both `TestGetEndpointsForPopulatedUnit` / `TestGetEndpointsForUnpopulatedUnit` in `domain/unitstate/state/updateunitports_test.go`. X17 class. | The unitstate query has no ordering and its production caller consumes endpoints as map keys. Both assertions reproduced intermittently on PG; preserve membership and multiplicity with an order-independent check. |
+| 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`, and both `TestGetEndpointsForPopulatedUnit` / `TestGetEndpointsForUnpopulatedUnit` in `domain/unitstate/state/updateunitports_test.go`. X17 class. | The unitstate query has no ordering and its production caller consumes endpoints as map keys. Both assertions reproduced intermittently on PG; preserve membership and multiplicity with an order-independent check. 2026-11-10 triage: the relation goal-state failure is X27 (timestamp precision), not order; re-run it with `-count=5` after the fix to check inner-slice order (W6). Further cases: application endpoint helpers sort `NULL` differently under `ORDER BY` (`NULLS FIRST`, `Dialect: new`) and storage directives have no `ORDER BY` (W3); resource `ListResources` and cmr `GetRelationNetworkIngress` have no `ORDER BY` (W5; check callers, report any production need); secret revision-expiry changes (W4). |
 
 PostgreSQL import-specific work is deferred: X21 deferral, modelimport
 `typeof` checks, and the SQLite trigger in `internal/migration/abort_test.go`.
@@ -240,7 +259,8 @@ deferred import tests, so this is a re-sweep, not a readiness gate.
 
 To reproduce the selection from the code repository, follow
 [OPERATIONS.md](../OPERATIONS.md) for the profile, safety checks and
-progress monitoring; do not overlap PostgreSQL invocations. Set
+progress monitoring. A full sweep needs the shared server to itself
+(N19). Set
 `LOG_FILE` to a path outside both repositories:
 
 ```bash
@@ -328,9 +348,11 @@ schemas remained after the sweep or focused rerun.
 | `internal/worker/upgradedatabase/upgradesteps` | 3 |
 
 Most failures fall under the existing fixture, bind, precision, ordering,
-constraint and unknown-column tasks above. Import remains deferred;
-unknown-column, constraint and upgrade-step failures still need
-production-versus-test triage. Two findings need particular attention:
+constraint and unknown-column tasks above. Import remains deferred.
+The 2026-11-10 triage for the parallel repairs handoff classed the
+unknown-column, constraint and upgrade-step failures as test-side (see
+their rows); `domain/recovery/state` is not yet triaged. Two findings
+need particular attention:
 
 - `domain/unitstate/state` previously passed but
   `TestGetEndpointsForUnpopulatedUnit` failed on row order. Its query has
@@ -368,10 +390,10 @@ Classification by cause (failure counts are tests, not packages):
 | Bind types (42804, encode plans, 22P02) | crossmodelrelation/state/model (21), provisioner/state/model (5), blockdevice/state (6), controllerupgrader/state (4), resource/state (5), ssh/state/controller (1), storage/state (part) | 06-X25, 06-bind-types. |
 | Missing function/operator (42883) | lease/state (4, `datetime`), access/state (1, `text = integer`), upgrade/state (1, U5) | 06-dialect-fixtures, 06-X29, 06-U5. |
 | X27 time precision | status/state/model (49), macaroon/state (6), removal model (most of 47), operation (1), operation/state (part), application/state (part) | 06-X27. |
-| Unknown column (42703) | operation/state (4), modelmigration/state/model (1), crossmodelrelation (1) | 06-unknown-column (not triaged). |
-| Constraint mapping (23514, 23505) | network/state (5) | 06-constraint-errors. |
-| Error text, order, other | model/state/model (2, P0001 text), relation/state (1, order), domain root (2, `sqlite_schema`), controller/state root, lease/state | 06-errors, 06-order, 06-dialect-fixtures. |
-| Not classified | upgradedatabase/upgradesteps (3), internal/migration (3, X21) | Import deferred; upgradesteps: 06-upgradesteps. |
+| Unknown column (42703) | operation/state (4), modelmigration/state/model (1), crossmodelrelation (1) | 06-unknown-column (triaged 2026-11-10: test SQL, X6 and X31). |
+| Constraint mapping (23514, 23505) | network/state (5) | 06-constraint-errors (test-only, N20). |
+| Error text, order, other | model/state/model (2, P0001 text), relation/state (1, order; X27 per the 2026-11-10 triage), domain root (2, `sqlite_schema`), controller/state root, lease/state | 06-errors, 06-order, 06-dialect-fixtures. |
+| Not classified | upgradedatabase/upgradesteps (3), internal/migration (3, X21) | Import deferred; upgradesteps: 06-upgradesteps (X25, triaged 2026-11-10). |
 
 Re-run after the Stage 5 fixes, 2026-11-05 at `05=3a8f0090c2`
 (`domain/secret/...` and `domain/unitstate/...`, no 42803 left):
