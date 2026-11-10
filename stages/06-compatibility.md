@@ -282,6 +282,60 @@ The UTC `DatabaseNow()` helper is a separate follow-up in the
 [repair handoff](../handoffs/2026-11-10-stage-6-parallel-repairs.md#separate-follow-up-database-fixture-time-helper).
 Complete the existing repair work before that fixture cleanup.
 
+### W4 integrated; changed-layer checks (2026-11-10)
+
+The W4 pre-integration PostgreSQL queue completed all 64 invocations:
+781 method passes, zero failures or skips, all exits zero. Together with
+the earlier status-model and modelmigration runs, all eight packages'
+618 unique methods have passing evidence on both backends. The changed
+secret expiry watcher completed three real-dqlite stress runs with no
+failures before the intentional 31-second outer timeout (exit 124).
+Logs: `~/pg-poc-work/integrator/w4-compiled-pg/results.tsv` and
+`w4-secret-dqlite-stress.log`.
+
+Ten root-cause commits were integrated without conflicts:
+`0104af5f6d`, `6292cb32d5`, `6c170aa4a3`, `53d3fc725a`,
+`4d10e82eda`, `1a53fd6290`, `d24b792afc`, `e3e16386f0`,
+`3a31d43367`, `03cd9331d0`. Restacked tips:
+`06=03cd9331d0`, `07=83fc7ad519`, `08=09=0a754365e3`.
+The eight packages' integrated contents match the frozen worker tree.
+
+At that exact 09 tip, changed-layer validation passed **219 methods per
+backend**, in 18 invocations each, with zero failures or skips. The passing
+method sets match the selected inventory exactly. Scope includes every
+consumer of changed fixtures: all 176 status-model methods use the changed
+base setup; other packages select the changed tests and helper consumers,
+not unrelated full suites. Counts: status 176, macaroon 11,
+secretbackend 14, secret state 10, operation state 5, and one each in
+operation, modelmigration and secret service. Race-enabled binaries were
+compiled sequentially before the globally two-slot mixed-backend queue.
+Each job used `GOMAXPROCS=2`; compilation used `-p 2`. No unrelated
+full build or full package sweep was repeated.
+
+Evidence: `~/pg-poc-work/integrator/w4-affected-selectors.tsv`,
+`w4-affected-inventory.json`, `w4-tip-targets.tsv`,
+`w4-tip-compile-*.log`, `w4-tip-targeted/integrated-{pg,dqlite}/results.tsv`
+and `w4-tip-targeted.log`. This completes W4's integration checks, not
+the final agreed full sweep.
+
+W5's remaining affected checks reused earlier completed coverage.
+CMR offer-fixture consumers passed 19 methods per backend, and the changed
+remote timestamp passed one each. PostgreSQL resource fixture consumers
+passed four methods. The CMR secret fixture exposed one additional
+SQLite-only duplicate-constraint assertion; after matching the specific
+PostgreSQL `secret_permission_pkey` as well, all four fixture consumers
+passed on both backends. This preserves the state boundary's intentional
+driver-error masking. Logs: `~/pg-poc-work/integrator/w5-targeted/` and
+`w5-import-fixed/`. W5 has 15 root-cause commits prepared, not integrated.
+
+Two focused contract checks reproduced their original PostgreSQL failures:
+`TestResourceSuite/TestListResources` ordering and
+`TestRelationNetworkStateSuite/TestGetRelationNetworkIngressSortedOrder`.
+The CMR check passed real dqlite; the earlier full dqlite resource group
+also passed. Neither assertion was weakened and no production fix was
+made. These join the existing controllerupgrader parameter findings and
+legacy-empty-timestamp skip proposal for user review.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared

@@ -163,6 +163,18 @@ while the boolean literal correction (`ea2a3332f2`) belongs to
 `4.1-boolean-and-aggregate-literals`. Worker history was not rewritten.
 Relation failure triggers (`61bfd2eaee`, X46) remain PoC helper usage.
 
+W4's test candidates are integrated locally: modelmigration availability
+zone binds (`0104af5f6d`, latent/X6), status-model precision
+(`6292cb32d5`, X27), secretbackend precision (`6c170aa4a3`, X27),
+secret-state precision (`53d3fc725a`, X27), macaroon root-key precision
+(`4d10e82eda`, X27), representable root-key bounds (`1a53fd6290`, X28),
+operation task-log precision (`d24b792afc`, X27), operation row-count
+binds (`e3e16386f0`, latent/X6), imported-operation precision
+(`3a31d43367`, X27), and order-independent secret expiry watcher
+assertions (`03cd9331d0`, latent/X17). All have `Upstream-Home: new`;
+the two X6 changes follow U6. Non-UTC input coverage, exact time
+comparisons, bounds and watcher multiplicity are preserved.
+
 ### Production findings from parallel repairs (2026-11-10)
 
 These are reports, not approved Stage 5 implementation tasks.
@@ -196,14 +208,16 @@ These are reports, not approved Stage 5 implementation tasks.
 - **CMR ingress order, contract review:** W5 found
   `domain/crossmodelrelation/state/model/relation_network.go:109-119`
   lacks ordering while the sorted-ingress test asserts a sequence.
-  Grouped validation did not reach a conclusive result for this item.
+  Focused validation now reproduces unsorted CIDRs on PostgreSQL;
+  the unchanged sorted-order test passes on real dqlite.
   Confirm the contract before adding `ORDER BY cidr`; do not
   automatically change sibling egress queries.
 - **Resource-list index association, contract review:**
   `core/resource/application.go:18-23` documents corresponding indexes,
   but W5 found name-based consumers and independently appended query
-  results. The original order-sensitive test is restored. Its parent
-  group timed out, so there is no new completed assertion result.
+  results. The original order-sensitive test is restored. A focused
+  PostgreSQL run now reproduces its ordering assertion failure; the
+  earlier complete real-dqlite resource group passed.
   Resolve the contract rather than silently relaxing the assertion.
 - **Provisioner nullable bool, unverified:** W6 identified
   `domain/provisioner/state/model/state.go:605` scanning nullable
