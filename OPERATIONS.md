@@ -294,6 +294,19 @@ no log output. Inspect progress and resources before stopping a run.
 
 ## Required evidence
 
+### Incremental layers and final-stack coverage
+
+Validate each layer's changed behavior and affected fixture/helper
+consumers on both backends. After integration, run those affected checks
+at the top; do not repeat unrelated full package suites at every restack.
+Expand the selection for shared-code, schema, harness or semantic conflict
+changes according to their impact. Compile affected packages during this
+phase; reserve the full build and full agreed test selection for the
+completed, restacked tip, once per backend. Required targeted repetitions,
+watcher stress and explicit known failures/skips remain in force.
+
+### Recording results
+
 For each required run, record: source revision, package/suite selector,
 backend and build tags, command/budget, exit status, failures and skips,
 and a redacted log location. Keep three states distinct: passed at the

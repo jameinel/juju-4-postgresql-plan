@@ -40,6 +40,32 @@ budget for this handoff. Compile test binaries before running validation,
 and do not overlap standalone builds or test compilation with tests.
 Keep the bounded-run and progress checks; timeouts remain inconclusive.
 
+### Validation update: changed layer first, full suite once
+
+Per the user's 2026-11-10 direction, this supersedes the older full-package
+requirements in the individual worker handoffs:
+
+- During repair, run the tests affected by that layer on PostgreSQL and
+  real dqlite. Include every consumer of a changed package-local fixture
+  or helper, not just the originally reported failing test.
+- After integration/restacking, check the affected tests at the new top.
+  Do not repeat unrelated package suites, earlier layers' passing tests,
+  or a whole-stack build for a test-only change. Compile the affected
+  packages; broaden checks when production, shared helpers, schema or
+  harness changes affect more consumers, or a conflict changes semantics.
+- Keep required focused repetitions for timestamp/order repairs and
+  bounded real-dqlite watcher stress. These apply to affected selectors,
+  not entire packages by default.
+- After all repairs are integrated and the stack is restacked, run the
+  full agreed selection once per backend at that final tip. Retain the
+  deferred packages, approved skips and known failures explicitly.
+  If a final run exposes a defect, rerun its affected checks after the
+  fix; invalidate and repeat broader results only where the fix affects
+  them. Do not claim final-tip coverage from historical runs.
+
+Existing complete runs remain useful evidence; do not repeat them merely
+to satisfy the superseded per-worker procedure.
+
 ### Separate follow-up: database fixture time helper
 
 - [ ] Add `internal/testing.DatabaseNow() time.Time`, returning
@@ -153,11 +179,12 @@ On PostgreSQL `FailingTriggerSQL` also creates a trigger function, which
    `git cherry-pick <commits>` in order. Do not use `-x`; the worker
    branches are deleted afterwards. Then
    `git switch pg-poc/09-bootstrap && git rebase --update-refs
-   pg-poc/06-test-harness` and `go build ./...`.
-3. Rerun the worker's touched packages at the new 09 tip on PostgreSQL
-   and real dqlite, within the budget. Removal and application need a
-   long-run budget (N13). A conflict, or a failure that the worker's
-   evidence did not show, goes back to the worker.
+   pg-poc/06-test-harness`.
+3. Compile the affected packages and run the changed layer's affected
+   tests at the new 09 tip on PostgreSQL and real dqlite, within the
+   budget. Follow the validation update above rather than repeating
+   full package suites after each integration. A conflict, or a failure
+   that the worker's evidence did not show, goes back to the worker.
 4. Fold the report into the plan:
    - [06-compatibility.md](../stages/06-compatibility.md): task rows,
      revisions and evidence;
@@ -178,11 +205,11 @@ On PostgreSQL `FailingTriggerSQL` also creates a trigger function, which
 
 ### After both batches
 
-1. Rerun the full
+1. Run the full
    [re-sweep selection](../stages/06-compatibility.md#postgresql-re-sweep)
-   at the new 09 tip, with the server to yourself, plus
-   `domain/schema/testing`. Record it as a new dated run; keep the
-   2026-11-10 results.
+   once per backend at the final 09 tip, with the server to yourself,
+   plus `domain/schema/testing`. Record new dated results; keep the
+   earlier 2026-11-10 results. Do not add deferred packages implicitly.
 2. Reassess bootstrap run 4 with the user (N22): what still fails, the
    D56 database recreation, and the cleanup targets, which need explicit
    approval before any teardown.
@@ -315,9 +342,10 @@ replace the real dqlite run.
   and require a connection failure.
 - Before each commit: the changed tests pass on PostgreSQL and real
   dqlite.
-- Before reporting: every package you own passes on both backends,
-  apart from reported items. A package that cannot finish in 120 s gets
-  the longer budget in its handoff, with checks every two minutes.
+- Before reporting: affected tests and consumers of changed fixtures
+  pass on both backends, apart from reported items. Record exact
+  selectors and leave broader package coverage pending until the final
+  suite. Split selectors to fit the bounded-run budget.
 - Do not run bootstraps, benchmarks, stress on PostgreSQL, or full
   sweeps.
 - Before each commit, run on every touched Go file:

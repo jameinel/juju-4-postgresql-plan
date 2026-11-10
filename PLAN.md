@@ -377,8 +377,14 @@ same commit as `pg-poc/08-dbaccessor`).
 - Amendments and upstream-base changes: use
   [the exceptional procedures](OPERATIONS.md#exceptional-stack-operations).
   Change the upstream base only when the user asks.
-- After any restack, run `go build ./...` on the top and the tests of the
-  packages the fix touched.
+- After a restack, validate the changed layer at the top: compile affected
+  packages and run affected tests, including consumers of changed
+  fixtures/helpers. Broaden checks for shared code, schema, harness or
+  semantic conflict resolutions. Do not repeat unrelated suites or a
+  whole-stack build for each test-only layer. Once the planned stack is
+  fully integrated/restacked, run the full build and agreed full suite
+  once per backend at that final tip. Preserve exact-revision evidence
+  and explicit outstanding failures/skips.
 - **Push** every stage branch together:
 
   ```sh

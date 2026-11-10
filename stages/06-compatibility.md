@@ -265,6 +265,15 @@ passed twice and modelmigration already passed in full.
 Manifest: `~/pg-poc-work/integrator/w4-compiled-pg-groups.tsv`.
 Logs will be under `w4-compiled-pg/` and `w4-compiled-pg.log`.
 
+The user subsequently changed incremental validation policy: run checks
+for the changed layer and affected fixture/helper consumers, then run the
+full agreed selection once per backend at the final restacked tip.
+The [handoff validation update](../handoffs/2026-11-10-stage-6-parallel-repairs.md#validation-update-changed-layer-first-full-suite-once)
+supersedes older per-worker full-package requirements. Completed W1–W4
+coverage is retained, not repeated after unrelated restacks. W5/W6 and
+post-integration W4 checks should use affected selectors, with scope
+expanded for genuinely shared impacts.
+
 The existing W5 and W6 invalid-URL probe logs confirm all nine and seven
 packages respectively failed with connection errors; backend selection
 is established, not successful functional validation.
