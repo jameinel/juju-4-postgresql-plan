@@ -208,8 +208,9 @@ Next:
    (N18): Step 0, W1 and W3 are integrated at `09=ca4301a672`.
    All six GPT-6.1 Terra workers have been dispatched, at most four at
    a time. Validate and integrate the remaining repairs onto Stage 6.
-   Validation jobs are stopped after resource pressure and repeated
-   timeouts; resume with the build first and lower test concurrency.
+   The build passed after stopping overloaded validation jobs; W3's
+   integrated package is being retried with only one PostgreSQL job
+   and one dqlite job. Keep later validation at lower concurrency.
    Workers report production defects
    rather than fixing them; route approved ones to Stage 5. Then rerun
    the re-sweep. Out of scope for this round: the three deferred import

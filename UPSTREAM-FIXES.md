@@ -149,6 +149,19 @@ helpers therefore cannot classify those state-returned errors. This is
 expected boundary behavior, not a production defect; the repaired tests
 retain constraint-specific messages and operation context.
 
+W2's remaining shared test candidates are committed on its worker branch,
+not integrated: secret revision text binds (`7cc9e4de6a`, latent/X23),
+job force bool binds (`53eebc39ae`, latent/X25), schedule/job timestamp
+fixtures (`b617657d47`, `7e0db9ea27`, X27), unordered job comparison
+(`6263c4e819`, X17), portable timestamp fixture DDL (`10b8d615d6`,
+X13), foreign-key messages (`976c325827`, X20), and complete sequence
+namespace binds (`aa3bf07b3e`, X9). All use `Upstream-Home: new`.
+The combined model trigger/bool worker commit (`ac85980e0f`) must be
+split during integration: PoC helper usage has home `none`, while the
+boolean literal correction is a shared candidate. No worker history
+rewrite is required. Relation failure triggers (`6e01b1da4c`, X46)
+remain PoC helper usage.
+
 ### Production findings from parallel repairs (2026-11-10)
 
 These are reports, not approved Stage 5 implementation tasks.
@@ -172,6 +185,30 @@ These are reports, not approved Stage 5 implementation tasks.
   handling. Do not treat this as an established new dialect difference
   or silently weaken clean-shutdown checks. Investigation and any fix
   need separate approval.
+- **Controllerupgrader stream parameter, X9:** W5's grouped PostgreSQL
+  run reproduced all four `TestGetAllAgentStoreBinariesForStream*`
+  failures across the controller and model suites.
+  `domain/controllerupgrader/state/controller.go:46-55` and
+  `model.go:281-303` project an integer parameter without type context;
+  pgx infers text. A typed projection or filling the stream in Go is a
+  proposed fix, not an approved change.
+- **CMR ingress order, contract review:** W5 found
+  `domain/crossmodelrelation/state/model/relation_network.go:109-119`
+  lacks ordering while the sorted-ingress test asserts a sequence.
+  Grouped validation did not reach a conclusive result for this item.
+  Confirm the contract before adding `ORDER BY cidr`; do not
+  automatically change sibling egress queries.
+- **Resource-list index association, contract review:**
+  `core/resource/application.go:18-23` documents corresponding indexes,
+  but W5 found name-based consumers and independently appended query
+  results. The original order-sensitive test is restored. Its parent
+  group timed out, so there is no new completed assertion result.
+  Resolve the contract rather than silently relaxing the assertion.
+- **Provisioner nullable bool, unverified:** W6 identified
+  `domain/provisioner/state/model/state.go:605` scanning nullable
+  `sva.read_only` into a bool. The affected PostgreSQL machine test
+  still needs a conclusive run. This is a risk report, not a confirmed
+  production defect or an approved implementation task.
 
 Worker evidence: `~/pg-poc-work/w1/{all-pg-final,all-dqlite-final,watermark-pg-focused-retry}.log`
 at worker head `e6585b9fb4`. Integrator reruns at `09=33bbe9d88e`:

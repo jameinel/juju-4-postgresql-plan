@@ -136,8 +136,13 @@ its 8-minute bound while compiling; the full dqlite run exceeded its
 14-minute test budget while progressing; the PostgreSQL run was stopped
 after progress became too slow to finish within its 25-minute budget.
 No application assertion failure was observed in those incomplete runs.
-The IDE build reported success with limited diagnostics; that does not
-replace a complete command-line build.
+The IDE build reported success with limited diagnostics. After stopping
+the other validation jobs, `make go-build` passed; its log is
+`~/pg-poc-work/integrator/w3-build-low-concurrency.log`.
+Full application retries are now running alone, one PostgreSQL job
+(25-minute test budget) and one real-dqlite job (14-minute test budget),
+with 90-second progress monitoring and separate
+`w3-{pg,dqlite}-low-concurrency.{jsonl,log}` logs.
 Logs: `~/pg-poc-work/integrator/w3-build.log`,
 `w3-{pg,dqlite}.{jsonl,log}`. Keep the W3 worktree until verification
 finishes.
