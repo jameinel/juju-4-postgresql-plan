@@ -175,6 +175,44 @@ assertions (`03cd9331d0`, latent/X17). All have `Upstream-Home: new`;
 the two X6 changes follow U6. Non-UTC input coverage, exact time
 comparisons, bounds and watcher multiplicity are preserved.
 
+W5 is integrated locally. Boolean fixture follow-ups belong to
+`4.1-boolean-and-aggregate-literals` (U20): block-device usage
+(`9281dbe007`), provisioner attachments (`3ea5198180`) and public-IP
+allocation (`7981608f56`), imported block devices (`0f3aebfa2f`),
+persistent storage volumes (`97061eea35`), cloud TLS
+(`85dbf94401`), and secret pruning (`4e8fae0802`).
+
+W5's `Upstream-Home: new` candidates are storage timestamp precision
+(`ed0de74a01`, X27), resource foreign-key classification (`76acf3c533`,
+X20), NULL-safe numeric revision comparisons (`59cdf35528`, X10/X49),
+empty SSH public-key byte binds (`845439fa58`, X48), relation-status
+timestamps (`a033cd444e`, X13), precise secret-permission constraint
+messages (`dfa44478f3`, X20/X26), and canonical offer endpoint getter
+assertions (`d8c9bcbc44`, X31). The getter rewrite tests externally
+ordered results, not physical row insertion order. The controller node-ID
+literal correction (`24633d1b47`, latent/X10) is a follow-up to
+juju/juju#23685; its legacy empty-timestamp test still fails on PostgreSQL,
+and the proposed backend-specific skip is not approved or added.
+
+W6's shared test candidates are integrated locally: network check and
+unique-constraint assertions (`40ff7cb706`, `4621d353d4`, X20),
+textual permission grants (`b1872be5c2`, latent/X23), explicit permission
+fixture cross joins (`682bc1efd5`, X29), immutable-model trigger messages
+(`5500e4dae4`, X26), relation fixture precision (`1d6c14b08b`, X27),
+order-independent unitstate endpoint assertions (`8712a55006`,
+latent/X17), and portable prepared-statement fixtures (`e68252e6cb`,
+X32). These all have home `new`. The INTEGER projections retaining
+nullable-boolean assertions (`3d4afe2592`, latent/X25) follow
+juju/juju#23759.
+
+W6's network failure triggers (`0d4744cad0`, X46/X50), machine integrity
+PRAGMA guard (`2032592a1c`, X21), delete-side-effect trigger
+(`389ac9326e`, X50) and abort trigger (`6a6140ade9`, X50) are PoC helper
+or backend-specific test adaptations, with home `none`. The worker's
+unitstate commit `81755046f6` used a portability classification; its
+integration copy `8712a55006` corrects that to latent without rewriting
+worker history or changing the tested patch.
+
 ### Production findings from parallel repairs (2026-11-10)
 
 These are reports, not approved Stage 5 implementation tasks.
@@ -219,11 +257,12 @@ These are reports, not approved Stage 5 implementation tasks.
   PostgreSQL run now reproduces its ordering assertion failure; the
   earlier complete real-dqlite resource group passed.
   Resolve the contract rather than silently relaxing the assertion.
-- **Provisioner nullable bool, unverified:** W6 identified
+- **Provisioner nullable bool, not reproduced:** W6 identified
   `domain/provisioner/state/model/state.go:605` scanning nullable
-  `sva.read_only` into a bool. The affected PostgreSQL machine test
-  still needs a conclusive run. This is a risk report, not a confirmed
-  production defect or an approved implementation task.
+  `sva.read_only` into a bool. The affected PostgreSQL machine
+  volume-cleanup case now passes after the test-only INTEGER projections;
+  both cleanup cases pass on real dqlite too. No production defect is
+  established by this report, and no production change was made.
 
 Worker evidence: `~/pg-poc-work/w1/{all-pg-final,all-dqlite-final,watermark-pg-focused-retry}.log`
 at worker head `e6585b9fb4`. Integrator reruns at `09=33bbe9d88e`:

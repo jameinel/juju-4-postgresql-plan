@@ -336,6 +336,93 @@ also passed. Neither assertion was weakened and no production fix was
 made. These join the existing controllerupgrader parameter findings and
 legacy-empty-timestamp skip proposal for user review.
 
+### W5 integrated; W6 affected checks (2026-11-10)
+
+W5's fifteen commits integrated without conflicts:
+`9281dbe007`, `3ea5198180`, `7981608f56`, `0f3aebfa2f`,
+`97061eea35`, `ed0de74a01`, `76acf3c533`, `59cdf35528`,
+`24633d1b47`, `85dbf94401`, `845439fa58`, `a033cd444e`,
+`dfa44478f3`, `4e8fae0802`, `d8c9bcbc44`.
+Restacked tips: `06=d8c9bcbc44`, `07=e064f14054`,
+`08=09=927fa11f71`. All fourteen integrated test files match the worker
+snapshot exactly.
+
+Affected checks at that 09 tip passed **62 methods on real dqlite** and
+**61 on PostgreSQL**, with the one known PostgreSQL legacy empty-timestamp
+fixture failure (22007). Ten invocations ran per backend; there were no
+skips, timeouts, race reports or unexpected failures. Counts:
+blockdevice 8, provisioner 5, storage 15, resource 4, upgrade 1,
+upgradesteps 4, SSH controller 1, CMR offer 19, remote application 1,
+and secret import 4. The unchanged controllerupgrader and ordering
+contract failures retain their earlier evidence rather than being rerun
+for these test-only commits. No skip was added.
+
+The same globally two-slot queue validated W6's remaining affected tests
+from its frozen worker snapshot: **13 passes per backend**, zero failures
+or skips, in seven invocations each. Network checks, unique errors and
+trigger injection account for five methods; machine foreign-key,
+delete-side-effect trigger, abort trigger and nullable-boolean assertions
+account for five; unitstate endpoint order accounts for two; relation
+timestamp/order accounts for one. Both PostgreSQL multi-statement trigger
+bodies executed successfully. The three INTEGER projections retain NULL
+assertions and pass on both backends. The PostgreSQL volume-cleanup case
+also passes; no nullable-bool production defect is established.
+
+The required PostgreSQL relation run with native `-test.count=5` passed
+all five executions. Earlier full access, model and domain runs already
+passed on both backends; those were not repeated before W6 commit
+preparation. W6 integration checks remain pending at this checkpoint.
+
+Evidence: `~/pg-poc-work/integrator/w5-tip-selector-rules.tsv`,
+`w5-tip-w6-targets.tsv`, `w5-tip-w6-compile-*.log`,
+`w5-tip-w6-targeted/{integrated,w6}-{pg,dqlite}/results.tsv`,
+`w5-tip-w6-targeted.log`, and `w6-relation-count5.{jsonl,log}`.
+Compilation finished before any test execution; all jobs used
+`GOMAXPROCS=2`, with Go `-p 2` during compilation.
+
+The final sweep manifest is prepared, not executed:
+`~/pg-poc-work/integrator/final-sweep-packages.txt`. It reproduces the
+original 146-package selection, excludes the four explicitly deferred
+packages (`domain/modelimport`, `domain/modelimport/state/model`,
+`internal/migration`, `domain/recovery/state`), and retains
+`domain/schema/testing`. All 142 remaining paths resolve through current
+`go list`; the output is `final-sweep-go-list.txt`. No final-tip full sweep
+or bootstrap run is claimed from this preparation.
+
+### W6 integrated; repair batches complete (2026-11-10)
+
+All six repair batches are integrated locally. W6's thirteen integration
+commits are `40ff7cb706`, `4621d353d4`, `0d4744cad0`, `2032592a1c`,
+`389ac9326e`, `6a6140ade9`, `b1872be5c2`, `682bc1efd5`,
+`5500e4dae4`, `1d6c14b08b`, `8712a55006`, `e68252e6cb`,
+`3d4afe2592`. There were no conflicts. Unitstate's integration copy
+corrects the classification to latent; no worker history was rewritten,
+and all ten integrated test files match the frozen worker snapshot.
+Final restacked tips: `06=3d4afe2592`, `07=ff77106845`,
+`08=09=3a590b446f`.
+
+At that exact 09 tip, `GOMAXPROCS=2 GOFLAGS=-p=2 make --quiet go-build`
+passed. The seven affected packages' race binaries were compiled before
+execution. W6's **19 affected methods passed per backend**, in ten
+invocations each, with zero failures or skips and all exits zero:
+network 5, machine 5, access 2, model 2, relation 1, unitstate 2,
+domain prepared-statement tests 2. The globally two-slot queue kept the
+same execution budget. No earlier layer's unrelated suites were rerun.
+
+Logs: `~/pg-poc-work/integrator/final-stack-build.log`,
+`w6-tip-compile-*.log`, `w6-tip-targets.tsv`,
+`w6-tip-targeted/integrated-{pg,dqlite}/results.tsv`,
+and `w6-tip-targeted.log`. All completed worker worktrees and branches
+have been removed; reports and validation logs remain outside the
+repositories. Nothing was pushed.
+
+The final 142-package sweep has not started. The single proposed new
+skip still needs approval: PostgreSQL cannot represent the legacy empty
+timestamp in `TestSetControllerDoneCompleteUpgradeEmptyCompletedAt`.
+Confirmed SSH conflict-recovery and controllerupgrader parameter failures
+and the two ordering-contract questions also remain explicit user-review
+items. No production fix or new skip was added by this repair round.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared
