@@ -423,6 +423,68 @@ Confirmed SSH conflict-recovery and controllerupgrader parameter failures
 and the two ordering-contract questions also remain explicit user-review
 items. No production fix or new skip was added by this repair round.
 
+### User review decisions (2026-11-10, after repair integration)
+
+The following supersede the pending-approval statements above. The reviewed
+code changes are saved on `pg-poc/09-bootstrap` at `7e513ceaa8`. These are
+checkpoint commits, not a redistribution into their owning stack layers.
+
+- **Empty completion timestamp:** the user approved a PostgreSQL-only skip
+  for `TestSetControllerDoneCompleteUpgradeEmptyCompletedAt`. It tests an
+  empty string as an already-completed non-NULL marker, not default timestamp
+  creation; no historical producer of this value was established. The local
+  skip comment calls out the dubious assertion and points to valid-time
+  coverage. All three completion cases passed on real dqlite; PostgreSQL
+  passed the two valid-time cases and skipped only the empty-string case.
+  Saved as `3bbf66fd93`.
+- **SSH conflict recovery:** conflict-safe insert followed by reading the
+  persisted key is approved. Queue the production repair on Stage 5 and an
+  independent upstream breakout, U24 / `4.1-ssh-host-key-conflict`.
+  Implementation remains pending.
+- **Controllerupgrader stream parameter:** populate the stream directly from
+  the Go method argument when building each result, rather than passing it
+  through SQL. Preserve the model stream check and controller-store behavior.
+  Stage 5 repair and independent upstream breakout U25 /
+  `4.1-controllerupgrader-stream-result` are approved but not implemented.
+- **Resource lists:** the linkage is by resource name, not index; different
+  charm revisions can have different resource names. Preserve the slice-based
+  API. Core comments clarify this contract and unspecified order in
+  `bcae4d6038`.
+  The order-sensitive test repair remains pending; preserve membership,
+  multiplicity, resource associations and unit ownership.
+- **CMR ingress:** the user chose guaranteed lexical ordering. The local
+  production query adds `ORDER BY cidr` (qualified by its table alias), and
+  state/service contracts document it. The expanded sorted-order test covers
+  mixed IPv4/IPv6 and lexical rather than numeric address ordering. All ten
+  ingress getter state cases passed with race detection on each backend;
+  all nine mocked service getter cases passed. Egress queries are unchanged.
+  Saved as `0de25187bf`; Stage 5 integration remains pending.
+  Original upstream intent is not
+  established: `4.1-cmr-ingress-order` in UPSTREAM-PLAN.md requires asking
+  maintainers whether sorting was strictly intended and reporting their
+  response back to the user.
+- **Stream shutdown:** IDE debugging confirmed that the retry wrapper
+  preserves `context.Canceled`, but applying `errors.Cause` before
+  `errors.Is` loses the matching part of the chain. The approved local
+  fix (`7e513ceaa8`) checks the full error chain and adds direct/wrapped
+  cancellation regressions. The affected suite and bounded race stress
+  passed on real
+  dqlite and PostgreSQL. Natural failure was reproduced only on PostgreSQL,
+  not SQLite/dqlite; the regression injects the wrapped error. The user
+  deferred upstream extraction until the future effort to run the upstream
+  test suite on PostgreSQL. Do not create a standalone upstream fix now.
+
+Evidence for the local skip and CMR edits is retained under
+`~/.copilot/session-state/fbc8c37e-644c-44ad-8442-79c9a7222baf/files/`:
+`upgrade-state-skip-{compile,dqlite,pg}.log` and
+`cmr-ingress-{state-compile,service-compile,dqlite,pg,service}.log`.
+These runs used precompiled race binaries, at most two execution jobs, and
+`GOMAXPROCS=2`; compilation used `-p 2` and finished before execution.
+The final 142-package sweep has not run. The stream-shutdown finding is
+resolved locally as recorded above; stack integration remains pending.
+The provisioner nullable-boolean investigation did not establish a
+production defect: SQLair maps NULL to false for a plain bool field.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared

@@ -272,6 +272,87 @@ Never generalize this exception to secret content, grants or core model data.
 
 ## Follow-up tasks
 
+### `4.1-cmr-ingress-order` — X17, explicit CIDR ordering
+
+**Status:** guaranteed lexical ordering chosen by the user on 2026-11-10
+and implemented locally in the PoC. Upstream intent remains unconfirmed;
+no upstream breakout branch or PR has been created.
+
+`GetRelationNetworkIngress` in
+`domain/crossmodelrelation/state/model/relation_network.go` selects CIDRs
+without ordering, while `TestGetRelationNetworkIngressSortedOrder` explicitly
+expects sorted output. The primary key is `(relation_uuid, cidr)`, which can
+yield incidental index order on SQLite; the firewaller consumes a set.
+
+The local decision is to preserve the sorted behavior explicitly with
+`ORDER BY cidr`, document lexical ordering in the state/service contracts,
+and retain coverage distinguishing lexical from numeric address ordering.
+Do not extend this decision to sibling egress queries.
+
+**Required upstream review question:** was sorted output strictly intended
+as an API contract, or was the test capturing incidental SQLite ordering?
+When preparing the upstream fix, explain the local decision and ask
+maintainers to confirm the intended contract. Record their response and
+report it back to the user; do not present the historical intent as settled.
+If upstream intends an unordered collection instead, revisit the local
+decision with the user before changing direction.
+
+### `4.1-controllerupgrader-stream-result` — U25, remove SQL pass-through
+
+**Status:** approach and independent upstream breakout approved 2026-11-10;
+not implemented or claimed. Refresh the upstream base and check both current
+implementations before starting.
+
+`GetAllAgentStoreBinariesForStream` in
+`domain/controllerupgrader/state/controller.go` and `model.go` currently
+projects the caller's integer stream argument as a constant SQL result
+column. The parameter has no type context, and it contributes no stored
+information: every returned agent binary receives the same stream argument.
+Both methods collect all rows with `GetAll` and return a Go slice; there is
+no paging or cursor contract to preserve.
+
+Select only the stored version and architecture fields, using an appropriate
+result type, and set `AgentBinary.Stream` directly from the method argument
+when constructing the result slice. Remove the unnecessary parameter from
+query preparation and execution. Preserve the model's target-stream check,
+empty results, version parsing errors and existing controller-store behavior;
+do not add stream filtering, change storage or mask incorrect stored types.
+
+Cover controller and model results with several binaries and more than one
+supported stream, empty stores and a mismatched model stream. Validate SQLite
+and real dqlite. PostgreSQL exposed the parameter-typing issue but its runtime
+or harness is not part of this independent upstream patch. Record the branch,
+source commits, validation and eventual PoC reconciliation separately.
+
+### `4.1-ssh-host-key-conflict` — U24, conflict-safe host-key creation
+
+**Status:** approach and independent upstream breakout approved 2026-11-10;
+not implemented or claimed. Refresh the upstream base and confirm the current
+machine and unit virtual-host-key paths before starting.
+
+`domain/ssh/state/model/state.go` implements
+`EnsureMachineVirtualHostKeyByMachineName` and
+`EnsureUnitVirtualHostKeyByUnitName`. Each must persist the proposed key only
+when no key exists, otherwise return the existing persisted key. The service
+can generate competing candidates after concurrent absence checks. The
+current insert/catch-constraint/read formulation depends on a transaction
+remaining usable after a failed statement.
+
+Use `INSERT ... ON CONFLICT (machine_uuid) DO NOTHING` and the corresponding
+`unit_uuid` form, followed by reading the persisted key in the transaction.
+Preserve the transaction runner's retry semantics. Never overwrite the
+winning key or algorithm, suppress unrelated errors, or substitute a
+check-then-insert sequence that leaves the creation race unresolved.
+
+Cover both machine and unit paths: initial creation, existing keys with
+different proposed keys/algorithms, competing creators returning the same
+persisted key, missing entities and other constraint/error paths. Validate
+SQLite and real dqlite, with race detection and bounded stress for concurrent
+coverage. PostgreSQL exposed the aborted-transaction failure, but PostgreSQL
+runtime support or test infrastructure is not part of this upstream patch.
+Keep this concern independent of other SSH changes; record branch, source
+commits, validation and eventual PoC reconciliation separately.
+
 Proposed branch names below do not grant permission to modify existing owners'
 worktrees. Start new independent work from refreshed `B`, except where an
 existing review or specific sequencing is noted. Confirm each site is still
@@ -766,6 +847,21 @@ Separate documentation review: follow `4.1-pr-description-guidance` in
 changes. The older [patch](4.1-pr-description-guidance.patch) and
 [PR description](PR-4.1-pr-description-guidance.md) are historical drafts,
 not the published branch or PR description.
+
+## Deferred: PostgreSQL test-suite upstreaming
+
+This is not a stock-upstream breakout or a dispatchable standalone fix.
+User decision on 2026-11-10: carry the local changestream shutdown
+cancellation fix with or after the future effort to run the upstream test
+suite on PostgreSQL, rather than factoring it out now.
+
+PoC commit `7e513ceaa8` in `internal/changestream/stream/stream.go` checks
+`errors.Is(err, context.Canceled)` without first applying `errors.Cause`.
+Its regression covers direct and wrapped cancellation during normal
+shutdown. PostgreSQL produced the real failure; natural SQLite/dqlite
+reproduction has not been established. Preserve that distinction when
+scoping the future PostgreSQL test-suite work. Finding details and local
+validation are in UPSTREAM-FIXES.md under stream shutdown.
 
 ## PoC reconciliation handoff
 

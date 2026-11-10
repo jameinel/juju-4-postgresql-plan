@@ -98,6 +98,8 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 | U21 | latent | `domain/unitstate/state/state.go` `setUnitStateRelation`; `types.go` `unitRelationStateKeyVal` | Binds Go `int` relation IDs into `unit_state_relation.key`, declared `TEXT`. SQLite stores them by affinity, so the schema and Go type disagree unnoticed (DIALECT.md X23). pgx refuses to encode `int` as text, so every uniter relation-state commit fails on PostgreSQL. **Found 2026-11-05** in the `domain/unitstate/state` re-run once U19 no longer masked it. | PoC workaround implemented on Stage 5 (`1afd3b9434`): bind decimal text and parse on read, retaining `TEXT`. This unblocks PostgreSQL but leaves the schema mismatch unresolved. Upstream [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887`, changes the key to `INT`, regenerates the 4.1 export type and converts legacy text keys during import, without a new foreign key. Bot feedback was answered; human review and CI remain. The user reports performing functional QA; individual outcomes were not independently verified. Forward-port to main and reconcile the differing PoC implementation after landing. |
 | U22 | latent | `domain/secretbackend/state/state.go` (`ListSecretBackends`, `ListSecretBackendsForModel`, `getK8sSecretBackendForModel`); `domain/removal/state/controller/secret.go` `getK8sSecretBackendForModel`; `domain/storage/state/instance.go` `GetStorageInstanceInfo` | Bare columns with `GROUP BY` (DIALECT.md X16); storage can return an arbitrary mount point when the schema-permitted duplicate attachments share a filesystem and node. **Found 2026-11-05** by PostgreSQL sweep 2 (secretbackend, 13 failures) and by reading. | Stage 5 secretbackend `52a0eea6ee` and removal `367f754dd6` corrected SQL but retained lossy CA converters; revised upstream commit `c3f75cf032` also preserves all cloud certificates. Storage PoC `640d3bcabf` and [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9`, choose the lowest attachment UUID. **Local merge hold and rework required under D55:** the user confirmed the attachment invariant is uncertain; investigate before choosing schema enforcement or a domain-based selection rule. Determinism is not proof of the correct mount. Ownership, publication and QA remain in UPSTREAM-PLAN.md. |
 | U23 | portability (PoC bug) | `domain/lease/state/state.go` claim/extend; `internal/worker/leaseexpiry/store.go` | Stock dqlite evaluates `datetime('now', ...)` on the database leader. PoC `8930466847` instead used each controller's clock, allowing skew to expire leases too early or too late; this regression is not a stock-upstream bug. | Fixed in PoC Stage 5 `76aac853dd`: claims and extensions sample database time per transaction attempt, and expiry compares against `CURRENT_TIMESTAMP`. Full affected packages pass on SQLite, real dqlite and PostgreSQL at `09=a3818782aa`. A portable shared SQL change remains an upstream candidate, not proposed; the PoC's PostgreSQL-specific scanner is not an upstream requirement. |
+| U24 | latent | `domain/ssh/state/model/state.go` `EnsureMachineVirtualHostKeyByMachineName` and `EnsureUnitVirtualHostKeyByUnitName` | An expected primary-key conflict is followed by a read in the same transaction. SQLite permits this; PostgreSQL aborts the transaction and the read fails with 25P02 (X18). Existing-key and concurrent-creator handling must retain the first persisted host key, not replace it. | Approach approved by the user 2026-11-10: targeted conflict-safe insert followed by reading the persisted key. Not implemented. Break out independently as `4.1-ssh-host-key-conflict`; see UPSTREAM-PLAN.md. No upstream branch or PR created. |
+| U25 | portability | `domain/controllerupgrader/state/{controller,model}.go` `GetAllAgentStoreBinariesForStream` | The queries project an untyped input stream parameter into every result row; pgx resolves it as text and rejects the Go integer (X9). SQLite accepts it. The field is the same caller-supplied value for every row, not stored data. | Approved 2026-11-10: select stored version/architecture fields and populate `AgentBinary.Stream` directly from the method argument in Go. Preserve the model stream check and existing controller-store behavior. Not implemented. Independent upstream breakout queued as `4.1-controllerupgrader-stream-result`; no branch or PR created. |
 
 ### Unassigned test findings (2026-11-10)
 
@@ -215,7 +217,8 @@ worker history or changing the tested patch.
 
 ### Production findings from parallel repairs (2026-11-10)
 
-These are reports, not approved Stage 5 implementation tasks.
+These are reports unless explicitly approved below; implementation and
+upstream breakout remain separate actions.
 
 - **SSH conflict recovery, X18:** W1 unblocked the model SSH fixtures and
   reproduced PostgreSQL 25P02 in
@@ -223,46 +226,94 @@ These are reports, not approved Stage 5 implementation tasks.
   `TestEnsureUnitVirtualHostKeyReturnsExistingOnConflict`.
   `domain/ssh/state/model/state.go:308-316,436-444` catches an expected
   unique violation then reads in the aborted transaction. Both tests
-  pass on real dqlite. Proposed Stage 5 fix: conflict-safe insert SQL
-  followed by a read, preserving existing-key and concurrent retry
-  semantics. No production change made; approval required.
-- **Stream shutdown, cause unconfirmed:** W1 observed
-  `TestStreamSuite/TestWatermarkWriteIsIgnored` fail during clean
-  shutdown with `reading change: retry stopped` on PostgreSQL. It
-  passed in an earlier full run and a focused rerun, and on dqlite.
-  Candidate boundary:
-  `internal/changestream/stream/stream.go:309-321` cancellation handling
-  and `internal/database/txn/transaction.go:331-374` retry-stop
-  handling. Do not treat this as an established new dialect difference
-  or silently weaken clean-shutdown checks. Investigation and any fix
-  need separate approval.
+  pass on real dqlite. **Approved 2026-11-10, U24:** use targeted
+  conflict-safe insert SQL followed by a read, preserving existing-key
+  and concurrent retry semantics. The user also requested a separate
+  upstream breakout, queued as `4.1-ssh-host-key-conflict` in
+  UPSTREAM-PLAN.md. No production change made; implement after the
+  remaining issue walkthrough.
+- **Stream shutdown, confirmed on PostgreSQL; upstream deferred:** W1
+  observed `TestStreamSuite/TestWatermarkWriteIsIgnored` fail during clean
+  shutdown with `reading change: retry stopped`. IDE debugging reproduced
+  the same shutdown failure in `TestOneChange` on PostgreSQL:
+  `ctx.Err()` was `context canceled`, `errors.Is(err, context.Canceled)`
+  was true, but `errors.Is(errors.Cause(err), context.Canceled)` was false.
+  PostgreSQL retry handling wrapped the cancellation; applying `Cause`
+  discarded the part of the error chain needed to recognize it.
+  The approved local fix checks the full chain in
+  `internal/changestream/stream/stream.go`; direct and wrapped cancellation
+  regressions were added in `stream_test.go` (PoC commit `7e513ceaa8`).
+  The wrapped case failed
+  before the fix. The affected suite and bounded race stress passed on
+  real dqlite and PostgreSQL. No natural SQLite/dqlite reproduction was
+  established; the regression injects the wrapped error, and existing
+  cancellation/retry checks passed 100 repetitions on each backend.
+  **User decision 2026-11-10:** retain the local fix, but do not extract a
+  standalone upstream fix now. Carry it with or after the future effort
+  to run the test suite on PostgreSQL upstream. Do not claim a demonstrated
+  existing SQLite/dqlite shutdown defect.
 - **Controllerupgrader stream parameter, X9:** W5's grouped PostgreSQL
   run reproduced all four `TestGetAllAgentStoreBinariesForStream*`
   failures across the controller and model suites.
   `domain/controllerupgrader/state/controller.go:46-55` and
   `model.go:281-303` project an integer parameter without type context;
-  pgx infers text. A typed projection or filling the stream in Go is a
-  proposed fix, not an approved change.
-- **CMR ingress order, contract review:** W5 found
+  pgx infers text. **Approved 2026-11-10, U25:** remove the SQL
+  pass-through parameter and populate each result's stream from the
+  method argument in Go. These methods return a fully collected slice,
+  not pages or a cursor. Retain the model stream check and existing
+  controller-store behavior. An independent upstream breakout is queued
+  as `4.1-controllerupgrader-stream-result` in UPSTREAM-PLAN.md.
+  No production change made; implement after the remaining walkthrough.
+- **CMR ingress order, local decision 2026-11-10:** W5 found
   `domain/crossmodelrelation/state/model/relation_network.go:109-119`
   lacks ordering while the sorted-ingress test asserts a sequence.
   Focused validation now reproduces unsorted CIDRs on PostgreSQL;
   the unchanged sorted-order test passes on real dqlite.
-  Confirm the contract before adding `ORDER BY cidr`; do not
-  automatically change sibling egress queries.
-- **Resource-list index association, contract review:**
-  `core/resource/application.go:18-23` documents corresponding indexes,
-  but W5 found name-based consumers and independently appended query
-  results. The original order-sensitive test is restored. A focused
-  PostgreSQL run now reproduces its ordering assertion failure; the
-  earlier complete real-dqlite resource group passed.
-  Resolve the contract rather than silently relaxing the assertion.
-- **Provisioner nullable bool, not reproduced:** W6 identified
+  The user chose guaranteed lexical ordering. The local state query now
+  explicitly orders by CIDR, and state/service contracts document the
+  ordering. The sorted-order regression now covers mixed IPv4/IPv6 and
+  lexical rather than numeric address ordering; service fixtures follow
+  the same contract. Sibling egress queries remain unchanged.
+  This is a local decision, not proof of the original upstream intent.
+  The `4.1-cmr-ingress-order` task in UPSTREAM-PLAN.md requires raising
+  that distinction when preparing the upstream fix: ask maintainers
+  whether sorted output was strictly intended or merely incidental
+  SQLite order, record their response and report back to the user.
+  At `09=3a590b446f` plus these local edits, all ten ingress getter
+  state cases passed with race detection on PostgreSQL and real dqlite;
+  all nine mocked service getter cases also passed. Logs are retained
+  in session `fbc8c37e-644c-44ad-8442-79c9a7222baf/files/` as
+  `cmr-ingress-{pg,dqlite,service}.log`. Stage 5 integration remains
+  pending; this is working-tree evidence, not a restacked-tip result.
+  The reviewed change is saved on Stage 9 as `0de25187bf`, pending
+  redistribution into the owning stack layer.
+- **Resource-list name association, contract resolved 2026-11-10:**
+  The user confirmed that resource names, not returned indexes, link
+  application and repository resources. Charm revisions can have
+  different sets of resource names. Preserve the slice-based
+  `ApplicationResources` API; changing it to maps is not necessary.
+  The local core type comments now state the name-based association and
+  unspecified ordering (PoC commit `bcae4d6038`). The original
+  order-sensitive test remains
+  unchanged pending the queued repair: compare membership and
+  multiplicity, retain resource-name/UUID/revision associations and unit
+  ownership, and handle nested resource order independently. Do not
+  discard duplicates by converting actual results to maps or impose
+  `ORDER BY` merely to retain incidental SQLite order. The focused
+  PostgreSQL failure is an assertion-order mismatch, not established
+  evidence of incorrect resource contents; the earlier complete
+  real-dqlite resource group passed.
+- **Provisioner nullable bool, resolved by inspection:** W6 identified
   `domain/provisioner/state/model/state.go:605` scanning nullable
   `sva.read_only` into a bool. The affected PostgreSQL machine
   volume-cleanup case now passes after the test-only INTEGER projections;
-  both cleanup cases pass on real dqlite too. No production defect is
-  established by this report, and no production change was made.
+  both cleanup cases pass on real dqlite too. SQLair explicitly maps NULL
+  to the zero value for non-pointer struct fields, so this bool receives
+  false. Normal attachment creation can leave the column NULL; the
+  neighboring storage provisioning path also defaults it to false.
+  No production defect was established and no production change was made.
+  The nullable-Boolean PR juju/juju#23759 preserves NULL distinctions in
+  other paths; it does not modify this query, which exposes only a bool.
 
 Worker evidence: `~/pg-poc-work/w1/{all-pg-final,all-dqlite-final,watermark-pg-focused-retry}.log`
 at worker head `e6585b9fb4`. Integrator reruns at `09=33bbe9d88e`:
