@@ -226,6 +226,11 @@ each with `GOMAXPROCS=2`; compilation used `-p 2` and completed before
 execution. Logs: `~/pg-poc-work/integrator/w3-compiled-{pg,dqlite}/`
 and `w3-compiled-{pg,dqlite}.log`; manifest `w3-compiled-groups.tsv`.
 
+The compiled real-dqlite run completed successfully: all 46 groups
+exited zero, with 632 passing methods, zero failures and zero skips.
+PostgreSQL is still running; do not treat its partial results as a
+completed package pass.
+
 W2's reviewed test repairs are integrated at `06=61bfd2eaee`,
 `07=e267500fd0`, `08=09=0c6250bd3b`. Its removal test tree matches
 worker `6e01b1da4c` exactly. The mixed worker commit `ac85980e0f` was
