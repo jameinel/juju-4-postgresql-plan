@@ -79,12 +79,50 @@ all three helper tests. `make pre-check` passed with static analysis
 disabled by the default target; this is not a full lint result.
 Logs: `~/pg-poc-work/integrator/step0-{build,pg,dqlite,backend-probe,sqlite,pre-check}.log`.
 
-W1–W4 are dispatched on GPT-6.1 Terra, each from
+All six workers are dispatched on GPT-6.1 Terra, each from
 `0bb336f0895c27f3eaf2f497e9678f382c030509` in its assigned
-`../juju-4-pg-wN` worktree, with a PostgreSQL `-p 2` budget each.
-W5–W6 await slots. No worker repairs have been integrated or counted as
-passing yet. No branches have been pushed; bootstrap and cleanup remain
-deferred under N22.
+`../juju-4-pg-wN` worktree. W5–W6 started after W1 completed and W3
+returned its edits for integrator validation. At most four implementation
+workers run together; PostgreSQL test invocations remain within N19.
+
+W1's six commits are integrated onto Stage 6 (`06=601211fa8e`), with
+`07=cfa63fe52a`, `08=09=33bbe9d88e`. `go build ./...` passed at the new
+tip. Both-backend package reruns completed with `-race -count=1 -p 2`
+and the handoff's 120 s test timeout:
+
+| W1 package | PG pass / fail / skip | dqlite pass / fail / skip |
+|---|---|---|
+| `internal/changestream/stream` | 36 / 0 / 0 | 36 / 0 / 0 |
+| `domain/ssh/state/model` | 30 / 2 / 0 | 32 / 0 / 0 |
+| `internal/worker/changestreampruner` | 3 / 0 / 0 | 3 / 0 / 0 |
+| `internal/worker/dbrepl` | 1 / 0 / 19 | 20 / 0 / 0 |
+| `internal/worker/dbreplaccessor` | 5 / 0 / 4 | 9 / 0 / 0 |
+
+The PostgreSQL command exited 1 solely for the two reported SSH X18
+failures; real dqlite exited 0. The earlier intermittent stream shutdown
+failure did not recur, but is retained as a finding. Logs:
+`~/pg-poc-work/integrator/w1-{pg,dqlite,build}.log`.
+A bounded real-dqlite stress run of
+`TestStreamSuite/TestConcurrentWritesAreStreamedAsLatestRows` completed
+20 runs with zero failures before the 31 s outer timeout (exit 124);
+this is bounded stress evidence, not an ordinary zero-exit test run.
+Logs: `w1-stress-build.log`, `w1-dqlite-stress.log` in that directory.
+
+Source commits:
+`aeaf9f7019`, `fe0797778e`, `b9481524e4`, `678203c560`, `828c368e3f`,
+`e6585b9fb4`. Only test files in the assigned packages changed.
+The approved REPL suites are skipped only on PostgreSQL; their manifold
+coverage remains enabled.
+The clean W1 worktree and branch were removed after integration.
+
+W1 exposed two SSH X18 production failures and one intermittent stream
+shutdown failure; see
+[the upstream register](../UPSTREAM-FIXES.md#production-findings-from-parallel-repairs-2026-11-10).
+No production fix is approved or included. W3's application edits are
+undergoing full-package integrator validation on both backends; W2 and
+W4 continue their remaining fixture edits. These are not package passes.
+No branches have been pushed; bootstrap and cleanup remain deferred
+under N22.
 
 ## Bounded repair tasks
 

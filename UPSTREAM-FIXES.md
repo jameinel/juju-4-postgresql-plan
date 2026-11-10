@@ -101,6 +101,15 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 
 ### Unassigned test findings (2026-11-10)
 
+- **Portability (test), X35:** `internal/changestream/stream/stream_test.go`
+  read fixture change-log IDs with `LastInsertId`, unsupported by pgx.
+  W1 uses `INSERT ... RETURNING id`, retaining the retry reset and stream
+  ordering assertions. Implemented locally on Stage 6 as `0e1515bfa9`
+  (worker source `fe0797778e`). The full stream package passes on
+  PostgreSQL and real dqlite at `09=33bbe9d88e`; real-dqlite focused
+  stress completed 20 runs without failures. The final worker PG run
+  had a separate intermittent shutdown failure described below.
+  Not proposed upstream.
 - **Latent (test), X17:** `domain/unitstate/state/updateunitports_test.go`
   asserts the order of endpoints returned by `getEndpoints`, whose query
   has no `ORDER BY`. Its production caller uses the endpoints as map keys.
@@ -120,6 +129,35 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 Neither finding was fixed or proposed upstream by this sweep. The
 [Stage 6 re-sweep](stages/06-compatibility.md#postgresql-re-sweep) records
 the evidence and tracks the test work under 06-order and 06-X16.
+
+### Production findings from parallel repairs (2026-11-10)
+
+These are reports, not approved Stage 5 implementation tasks.
+
+- **SSH conflict recovery, X18:** W1 unblocked the model SSH fixtures and
+  reproduced PostgreSQL 25P02 in
+  `TestEnsureMachineVirtualHostKeyReturnsExistingOnConflict` and
+  `TestEnsureUnitVirtualHostKeyReturnsExistingOnConflict`.
+  `domain/ssh/state/model/state.go:308-316,436-444` catches an expected
+  unique violation then reads in the aborted transaction. Both tests
+  pass on real dqlite. Proposed Stage 5 fix: conflict-safe insert SQL
+  followed by a read, preserving existing-key and concurrent retry
+  semantics. No production change made; approval required.
+- **Stream shutdown, cause unconfirmed:** W1 observed
+  `TestStreamSuite/TestWatermarkWriteIsIgnored` fail during clean
+  shutdown with `reading change: retry stopped` on PostgreSQL. It
+  passed in an earlier full run and a focused rerun, and on dqlite.
+  Candidate boundary:
+  `internal/changestream/stream/stream.go:309-321` cancellation handling
+  and `internal/database/txn/transaction.go:331-374` retry-stop
+  handling. Do not treat this as an established new dialect difference
+  or silently weaken clean-shutdown checks. Investigation and any fix
+  need separate approval.
+
+Worker evidence: `~/pg-poc-work/w1/{all-pg-final,all-dqlite-final,watermark-pg-focused-retry}.log`
+at worker head `e6585b9fb4`. Integrator reruns at `09=33bbe9d88e`:
+`~/pg-poc-work/integrator/w1-{pg,dqlite}.log`. They reproduce only the
+two SSH failures; all five packages pass on real dqlite.
 
 ### U17: nullable INT lookup primary keys (independent PR in review)
 
