@@ -226,10 +226,11 @@ each with `GOMAXPROCS=2`; compilation used `-p 2` and completed before
 execution. Logs: `~/pg-poc-work/integrator/w3-compiled-{pg,dqlite}/`
 and `w3-compiled-{pg,dqlite}.log`; manifest `w3-compiled-groups.tsv`.
 
-The compiled real-dqlite run completed successfully: all 46 groups
+Both compiled runs completed successfully: on each backend all 46 groups
 exited zero, with 632 passing methods, zero failures and zero skips.
-PostgreSQL is still running; do not treat its partial results as a
-completed package pass.
+The passing method sets match the earlier full run exactly. PostgreSQL
+finished at approximately 10:59:30 local time. This completes W3's
+post-integration verification.
 
 W2's reviewed test repairs are integrated at `06=61bfd2eaee`,
 `07=e267500fd0`, `08=09=0c6250bd3b`. Its removal test tree matches
@@ -239,9 +240,15 @@ PoC-only trigger helper change, and `ea2a3332f2` contains the shared
 boolean fixture correction. Other integration commits are
 `12bf06e28e`, `6c65f5e1f8`, `1792abeabb`, `53be340e23`,
 `b787df58e0`, `1a80a24fb9`, `154caa56d5`, `48f5ab88d5`,
-`37c96bd542` and `61bfd2eaee`. Build and removal post-integration
-validation are pending; do not overlap them with the current tests.
-The application sources remain identical across this restack.
+`37c96bd542` and `61bfd2eaee`. The application sources remain identical
+across this restack. After W3 completed, `make go-build` passed with
+`GOMAXPROCS=2` and `GOFLAGS=-p=2`; both removal race-enabled test
+binaries were compiled sequentially before execution.
+Removal post-integration validation is running from those binaries on
+both backends, in disjoint groups covering all 381 methods. Logs:
+`~/pg-poc-work/integrator/w2-build-p2.log`,
+`w2-compile-{pg,dqlite}-p2.log`, `w2-compiled-{pg,dqlite}/`;
+manifest `w2-compiled-groups.tsv`.
 
 The existing W5 and W6 invalid-URL probe logs confirm all nine and seven
 packages respectively failed with connection errors; backend selection
