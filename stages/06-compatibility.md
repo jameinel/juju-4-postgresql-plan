@@ -250,6 +250,21 @@ both backends, in disjoint groups covering all 381 methods. Logs:
 `w2-compile-{pg,dqlite}-p2.log`, `w2-compiled-{pg,dqlite}/`;
 manifest `w2-compiled-groups.tsv`.
 
+The compiled removal real-dqlite run passed all 381 methods in 26 groups,
+with zero failures or skips and an exact match to the expected method
+set. PostgreSQL verification remains in progress.
+
+The next W4 batch is queued to start automatically only after both
+removal runners have finished. It first compiles all required binaries
+sequentially, then runs at most two PostgreSQL groups at a time.
+The inventory from W4's complete dqlite run contains 618 unique methods.
+Remaining PostgreSQL verification selects 781 method invocations:
+two rounds of secretbackend, secret state, macaroon, operation and
+operation state, plus one secret-service round. Status-model already
+passed twice and modelmigration already passed in full.
+Manifest: `~/pg-poc-work/integrator/w4-compiled-pg-groups.tsv`.
+Logs will be under `w4-compiled-pg/` and `w4-compiled-pg.log`.
+
 The existing W5 and W6 invalid-URL probe logs confirm all nine and seven
 packages respectively failed with connection errors; backend selection
 is established, not successful functional validation.
