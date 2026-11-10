@@ -45,9 +45,11 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
   - Table, view, index and trigger counts match dqlite (allowing documented
     differences).
   - Seed rows match row for row.
-- Status: implemented, in review. Subsequent fixes were incorporated
-  during Stage 6; the original commit/object inventories and verification
-  reports are [historical reference](../history/schema-generation.md).
+- Status: implemented. D56 is committed locally and the stack is restacked
+  through Stage 9; nothing has been pushed. Subsequent fixes were
+  incorporated during Stage 6; the original commit/object inventories and
+  verification reports are in the
+  [historical schema generation record](../history/schema-generation.md).
 - Current contracts:
   - The translator, trigger functions, ordering, checked-in diff overrides,
     freshness checks, embedding and backend selectors already exist.
