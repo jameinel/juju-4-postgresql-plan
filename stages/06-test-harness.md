@@ -55,9 +55,9 @@ setup reading.
 ## Next tasks and completion
 
 1. Repair one named issue from the task table. Route production-query work
-   to Stage 5; do not combine it silently with fixture changes. Sweep 2
-   ([classification](06-compatibility.md#postgresql-sweep-2)) orders the
-   work: first 06-dialect-fixtures (tests applying SQLite DDL or trigger
+   to Stage 5; do not combine it silently with fixture changes. The
+   [re-sweep](06-compatibility.md#postgresql-re-sweep) orders the work:
+   first 06-dialect-fixtures (tests applying SQLite DDL or trigger
    bodies on PostgreSQL) and 06-bind-types, which hide whole packages;
    then 06-constraint-errors, 06-order, X27 and the untriaged 42703 and
    upgradesteps failures.
@@ -69,9 +69,9 @@ setup reading.
 3. Run gates as one `go test` invocation with `-p` up to 8 on the
    unit-test server profile (N17, OPERATIONS.md), on both backends, at
    the restacked revision; record selectors, tags, skips and evidence. A
-   fixed issue remains "awaiting rerun" until tested. The next full run
-   is the re-sweep after the Stage 5 lease-clock fix, before bootstrap
-   run 4.
+   fixed issue remains "awaiting rerun" until tested. The PostgreSQL
+   re-sweep at `09=a3818782aa` completed with failures and skips; it is
+   not a passed readiness gate or a full run on both backends.
 4. The functional milestone also requires Stage 9 runtime evidence;
    passing a Stage 6 gate alone is not "functional".
 

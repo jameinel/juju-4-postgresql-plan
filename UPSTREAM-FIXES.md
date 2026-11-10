@@ -99,6 +99,28 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 | U22 | latent | `domain/secretbackend/state/state.go` (`ListSecretBackends`, `ListSecretBackendsForModel`, `getK8sSecretBackendForModel`); `domain/removal/state/controller/secret.go` `getK8sSecretBackendForModel`; `domain/storage/state/instance.go` `GetStorageInstanceInfo` | Bare columns with `GROUP BY` (DIALECT.md X16); storage can return an arbitrary mount point when the schema-permitted duplicate attachments share a filesystem and node. **Found 2026-11-05** by PostgreSQL sweep 2 (secretbackend, 13 failures) and by reading. | Stage 5 secretbackend `52a0eea6ee` and removal `367f754dd6` corrected SQL but retained lossy CA converters; revised upstream commit `c3f75cf032` also preserves all cloud certificates. Storage PoC `640d3bcabf` and [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9`, choose the lowest attachment UUID. **Local merge hold and rework required under D55:** the user confirmed the attachment invariant is uncertain; investigate before choosing schema enforcement or a domain-based selection rule. Determinism is not proof of the correct mount. Ownership, publication and QA remain in UPSTREAM-PLAN.md. |
 | U23 | portability (PoC bug) | `domain/lease/state/state.go` claim/extend; `internal/worker/leaseexpiry/store.go` | Stock dqlite evaluates `datetime('now', ...)` on the database leader. PoC `8930466847` instead used each controller's clock, allowing skew to expire leases too early or too late; this regression is not a stock-upstream bug. | Fixed in PoC Stage 5 `76aac853dd`: claims and extensions sample database time per transaction attempt, and expiry compares against `CURRENT_TIMESTAMP`. Full affected packages pass on SQLite, real dqlite and PostgreSQL at `09=a3818782aa`. A portable shared SQL change remains an upstream candidate, not proposed; the PoC's PostgreSQL-specific scanner is not an upstream requirement. |
 
+### Unassigned test findings (2026-11-10)
+
+- **Latent (test), X17:** `domain/unitstate/state/updateunitports_test.go`
+  asserts the order of endpoints returned by `getEndpoints`, whose query
+  has no `ORDER BY`. Its production caller uses the endpoints as map keys.
+  Both populated and unpopulated tests and the unordered query exist at
+  upstream base `5259edff43`. Both assertions failed intermittently on
+  PostgreSQL; 20 focused SQLite cases passed. The assertions need
+  order-independent checks that retain membership and multiplicity.
+- **Portability (test), X16:** `TestUpdateCAASUnitSetsFQDN` in
+  `domain/application/state/unit_test.go` and
+  `TestEnsureApplicationOnMultipleMachines` in
+  `domain/removal/state/model/application_test.go` select bare columns
+  alongside `COUNT(*)`. Both fixtures exist at upstream base
+  `5259edff43`; PostgreSQL rejects them with 42803. Their count and value
+  assertions remain required, as does the FQDN test's repeated-update
+  check. No dqlite correctness defect has been established for them.
+
+Neither finding was fixed or proposed upstream by this sweep. The
+[Stage 6 re-sweep](stages/06-compatibility.md#postgresql-re-sweep) records
+the evidence and tracks the test work under 06-order and 06-X16.
+
 ### U17: nullable INT lookup primary keys (independent PR in review)
 
 **Class:** latent. **Status:** implemented as independent PR

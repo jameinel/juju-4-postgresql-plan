@@ -74,8 +74,8 @@ unsigned node IDs, still require textual fixture binds.
 | 06-X23 | `domain/removal/state/model/secret_test.go`: bind revision IDs as strings to `secret_value_ref` and `secret_deleted_value_ref` TEXT columns if TEXT is the intended domain representation. | Confirm the representation against production writers/consumers first (D55), then verify affected tests. If the schema is incorrect, stop and scope its correction rather than masking it with a fixture conversion. |
 | 06-X25 | `domain/provisioner/state/model/state_test.go`: boolean fixtures for `allocate_public_ip` and `read_only`; removal-model `state_test.go`: boolean `force`. | Inspect column/driver representation on both backends, then preserve logical fixture values. |
 | 06-X27 | Removal schedule tests, `domain/status/state/model` (48 `Since` round trips) and `domain/macaroon/state`: use microsecond-representable times for round-trip assertions. X28: replace the out-of-range max-int sentinel with a representable bound. | Preserve boundary/ordering coverage; do not merely relax comparisons. Ask if production precision semantics must change. |
-| 06-X16 | `domain/application/state/application_test.go`, `TestEnsureApplicationOnMultipleMachines`: `COUNT(*), uuid` without grouping. | Clarify intended assertion before choosing grouping versus separate queries. |
-| 06-X9 | Same file: `CONCAT('application_', ?)` lacks PG parameter type context. | Choose a portable typed expression or bind the full fixture name; preserve the value. |
+| 06-X16 | `domain/removal/state/model/application_test.go`, `TestEnsureApplicationOnMultipleMachines`: `COUNT(*), uuid` without grouping. `domain/application/state/unit_test.go`, `TestUpdateCAASUnitSetsFQDN`: `fa.address, fa.scope_id, COUNT(*)` without grouping. | Preserve the count and selected values; the FQDN test must also reach its repeated-update/idempotence check. Clarify the assertions before choosing grouping versus separate queries. |
+| 06-X9 | `CONCAT('application_', ?)` lacks PG parameter type context in both `domain/application/state/application_test.go` and `domain/removal/state/model/application_test.go`. | Choose a portable typed expression or bind the full fixture name; preserve the value. |
 | 06-DDL | Application `application_test.go` / `unit_test.go`: test `charm_external_reference.created_at DATETIME`. | Use supported test DDL (`TIMESTAMP` proposed); verify time decoding. |
 | 06-trigger-drop | Application `model_test.go`, `TestIsControllerModelControllerModel`: PG requires `DROP TRIGGER ... ON model`. | Use the harness dialect when a shared form is unavailable; verify both paths. |
 | 06-errors | Machine FK-error assertion; model/model immutable-row assertions. | Keep typed/domain errors where exposed, otherwise match the specific message in both formats (X20/X26). |
@@ -85,7 +85,7 @@ unsigned node IDs, still require textual fixture binds.
 | 06-U5 | `domain/upgrade/state/state_test.go`: bind node IDs as text. | Defined substitution; preserve IDs and assertions. |
 | 06-fk-check | Machine `reprovision_test.go`: SQLite `PRAGMA foreign_key_check`. | Limit only the backend-specific assertion; confirm retained PG coverage before a whole-test skip (N10). |
 | 06-status-diagnosis | `domain/status/state/model`: 48 failures, diagnosed 2026-10-26 at `08=c5f185e6f6`: all 48 are X27 round-trip precision assertions (`Since` nanoseconds versus PG microseconds; 27 via `assertStatusInfoEqual`, the rest `DeepEquals` on `Since`). No SQL errors; 125 pass. Production status code has no in-memory comparison of stored timestamps (status history filtering reads the log file). | Not a runtime blocker. Repair with 06-X27: microsecond-representable fixture times, preserving the assertions. |
-| 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips all 93 trigger and schema tests on PG. Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. |
+| 06-schema-skip | `domain/schema` `schemaBaseSuite.SetUpTest`: one blanket `SkipOnPostgreSQL` (added in `09b78ef3a2`, never approved) skips 105 trigger and schema leaf tests on PG at `09=a3818782aa` (93 at the earlier gate). Make them backend-aware: select DDL with `ModelDDLForBackend`/`ControllerDDLForBackend`, make assertions dialect-neutral, and limit skips to genuinely SQLite-only checks with N10 reasons. | Probe at `08=c5f185e6f6` (temporary edit, reverted): trigger suites 51 pass, 2 upstream skips, 8 fail (7 SQLite `datetime()` fixtures, 1 SQLite error text); schema suites 9 pass, 2 upstream skips, 21 fail (`sqlite_master` introspection, SQLite error-text regexes where guard triggers raise the right message, `typeof()`, bool view column scanned as int, SQLite-only DDL in `storage_test.go`). No production defect found. Logs: session `files/d42/schemaprobe/`. |
 | 06-test-levels | Script the N16 levels: smoke (fixed core plus the domains touched by a diff), full and readiness (tiers A and B), each run on both backends with per-package logs, pass/fail/skip counts and a known-failure list for readiness. | Defined; selection from N16. Check the tier lists against `go list` when run, so new packages are not missed. |
 | 06-test-speed | Cut the per-test PostgreSQL setup cost and allow parallel PostgreSQL packages without changing production `Ensure` (moved from Stage 11). See [06-test-speed measurements](#06-test-speed-measurements). | Parallel packages done (N17, `08=eac5b916c7`): unit-test profile plus a per-process D53 key; see [06-test-speed result](#06-test-speed-result). Per-test cost is unchanged (~0.5 s). Optional follow-ups: move schema drop off the test's critical path; split `domain/application/state` and `domain/removal/state/model`, which bound `-p 8` wall time. A database pool was measured and gives no gain ([database pool PoC](#database-pool-poc), N17). |
 | 06-leaseexpiry-db | `internal/worker/leaseexpiry/store.go` runs its own SQL. Exercise expiry against a real controller schema on both backends. | Done in Stage 5 `76aac853dd`: `TestDatabaseStoreSuite/TestExpireLeases` covers expired, future, null-expiry and pinned rows. Full affected packages pass with `-race` on SQLite, real dqlite and PostgreSQL at `09=a3818782aa`; deterministic SQLite tests also cover skew and the equality boundary. |
@@ -93,9 +93,9 @@ unsigned node IDs, still require textual fixture binds.
 | 06-bind-types | Test fixtures binding values the PG driver will not encode (sweep 2): integer to boolean (`domain/blockdevice/state` 6, `domain/storage/state` `persistent` in `base_test.go` `newPersistentModelVolume` and `in_use` in `import_test.go`, both fixtures, checked 2026-11-05); integer to text (`domain/controllerupgrader/state` 4, U5 `domain/upgrade/state`); empty string to bigint (`domain/resource/state` 3). Also X25 (provisioner, crossmodelrelation). | Check each against production first: blockdevice may be a production bind, not a fixture. |
 | 06-constraint-errors | `domain/network/state`: PG 23514 (`chk_provider_id_empty`) and 23505 are not mapped to the domain errors the tests expect (8 failures). | Find where SQLite constraint errors are mapped; decide whether the mapping is production (Stage 5) or test-only. |
 | 06-unknown-column | Sweep 2 42703 failures: `domain/operation/state` (4), `domain/modelmigration/state/model` (1), `domain/crossmodelrelation` (1). | Not triaged. Determine whether each is a fixture or a production query; a production cause is a Stage 5 shared fix and an upstream candidate (D55). |
-| 06-upgradesteps | `domain/upgradedatabase/upgradesteps` (3 failures, sweep 2). | Not triaged. Classify before assuming test-only. |
+| 06-upgradesteps | `internal/worker/upgradedatabase/upgradesteps` (3 failures in the re-sweep and sweep 2). | Not triaged. Classify before assuming test-only. |
 | 06-cmr-updated-at | `domain/crossmodelrelation/state/model`: 16 fixtures bind integer `0` to `relation_status.updated_at` (mainly `package_test.go` `addOfferConnection`). | Bind a time value valid on both backends; confirm no production path writes an integer. |
-| 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`. X17 class. | Assert as sets unless production relies on the order. |
+| 06-order | Tests that depend on row order without `ORDER BY`: `domain/relation/state` goal state (`SameContents` used, but inner slices ordered), `domain/secret` `SecretTriggerSliceAssert`, and both `TestGetEndpointsForPopulatedUnit` / `TestGetEndpointsForUnpopulatedUnit` in `domain/unitstate/state/updateunitports_test.go`. X17 class. | The unitstate query has no ordering and its production caller consumes endpoints as map keys. Both assertions reproduced intermittently on PG; preserve membership and multiplicity with an order-independent check. |
 
 PostgreSQL import-specific work is deferred: X21 deferral, modelimport
 `typeof` checks, and the SQLite trigger in `internal/migration/abort_test.go`.
@@ -219,6 +219,138 @@ minutes serial, one package at a time) `-p 8` on one database is about
 about 0.5 s per test) or split the longest packages; more databases
 will not. The pool is not pursued (N17).
 
+## PostgreSQL re-sweep
+
+2026-11-10, 11:33:35–11:55:25 UTC, at `09=a3818782aa`, Go 1.27.3
+linux/amd64, PostgreSQL 16.15 on the `unit-test` profile (`fsync=off`,
+`full_page_writes=off`, `max_locks_per_transaction=512`,
+`max_connections=100`). One invocation used
+`-race -count=1 -p 8 -timeout 45m -v -json`, with no dqlite build tags
+and a 50-minute outer timeout. It exited 1 after 21m50s, not due to a
+timeout. No race detector reports appeared. This race-enabled run does
+not establish whether an uninstrumented run meets the under-15-minute
+target.
+
+The selection is the 138-package pool-benchmark manifest at
+`2e04f6fdd4:scripts/postgresql-poc/db-pool-bench/packages.txt`, plus the
+eight packages below. It was checked against current `go list` results;
+`domain/unitless/state` has tests but they use a nil state and execute no
+SQL. The original manifest also includes test-only database users and
+deferred import tests, so this is a re-sweep, not a readiness gate.
+
+To reproduce the selection from the code repository, follow
+[OPERATIONS.md](../OPERATIONS.md) for the profile, safety checks and
+progress monitoring; do not overlap PostgreSQL invocations. Set
+`LOG_FILE` to a path outside both repositories:
+
+```bash
+: "${LOG_FILE:?Set LOG_FILE to a path outside both repositories}"
+manifest=$(
+  git --no-pager show \
+    2e04f6fdd4d9c882aa6be46c764be1bf654c32d7:scripts/postgresql-poc/db-pool-bench/packages.txt
+) || exit 1
+mapfile -t packages < <(
+  {
+    printf '%s\n' "$manifest"
+    printf '%s\n' \
+      agent/agentbootstrap core/database/dialect generate/pgschemagen \
+      internal/database/connsource internal/database/drivererrors \
+      internal/database/postgresql internal/database/postgresql/testing \
+      internal/worker/leaseexpiry
+  } | sort -u
+)
+if [ "${#packages[@]}" -ne 146 ]; then
+  printf 'Expected 146 packages, got %d\n' "${#packages[@]}" >&2
+  exit 1
+fi
+unset JUJU_POSTGRESQL_TEST_URL_POOL
+JUJU_POSTGRESQL_TEST_URL=$(cat "$HOME/.config/juju-pg-poc/db-url") || exit 1
+if [ -z "$JUJU_POSTGRESQL_TEST_URL" ]; then
+  printf 'PostgreSQL test URL is empty\n' >&2
+  exit 1
+fi
+export JUJU_POSTGRESQL_TEST_URL
+set -o pipefail
+timeout 50m go test -json -v -race -count=1 -p 8 -timeout 45m \
+  "${packages[@]/#/./}" 2>&1 | tee "$LOG_FILE"
+```
+
+Of 146 packages, 108 passed, 35 failed and three had no standalone
+tests (`domain/schema/testing`, `internal/changestream/testing`,
+`internal/database/testing`). Counting only leaf test outcomes, not
+their parent suites, gives 5,139 passes, 333 failures and 170 skips.
+The skips include 105 schema tests behind the blanket PG guard
+(06-schema-skip), 17 dqlite-only `internal/database` tests, 32
+dqlite-only dbaccessor tests and one requiring a dqlite server, 10
+`internal/migration` tests and five others. They are coverage gaps, not
+passes.
+`domain/lease/state` and `internal/worker/leaseexpiry` passed; the
+PostgreSQL bootstrap and driver packages passed. Before the run the
+database had no other sessions or test/controller/model schemas; no such
+schemas remained after the sweep or focused rerun.
+
+| Failing package | Failing leaf tests |
+|---|---:|
+| `domain` | 2 |
+| `domain/access/state` | 2 |
+| `domain/application/state` | 14 |
+| `domain/blockdevice/state` | 6 |
+| `domain/controllerupgrader/state` | 4 |
+| `domain/crossmodelrelation/state/model` | 21 |
+| `domain/macaroon/state` | 6 |
+| `domain/machine/state` | 3 |
+| `domain/modelimport` | 9 |
+| `domain/modelimport/state/model` | 3 |
+| `domain/modelmigration/state/model` | 1 |
+| `domain/model/state/model` | 2 |
+| `domain/network/state` | 5 |
+| `domain/operation` | 1 |
+| `domain/operation/state` | 5 |
+| `domain/provisioner/state/model` | 5 |
+| `domain/recovery/state` | 11 |
+| `domain/relation/state` | 1 |
+| `domain/removal/state/model` | 47 |
+| `domain/resource/state` | 5 |
+| `domain/secret` | 1 |
+| `domain/secretbackend/state` | 11 |
+| `domain/secret/state` | 8 |
+| `domain/ssh/state/controller` | 1 |
+| `domain/ssh/state/model` | 32 |
+| `domain/status/state/model` | 49 |
+| `domain/storage/state` | 8 |
+| `domain/unitstate/state` | 1 |
+| `domain/upgrade/state` | 1 |
+| `internal/changestream/stream` | 36 |
+| `internal/migration` | 3 |
+| `internal/worker/changestreampruner` | 3 |
+| `internal/worker/dbrepl` | 19 |
+| `internal/worker/dbreplaccessor` | 4 |
+| `internal/worker/upgradedatabase/upgradesteps` | 3 |
+
+Most failures fall under the existing fixture, bind, precision, ordering,
+constraint and unknown-column tasks above. Import remains deferred;
+unknown-column, constraint and upgrade-step failures still need
+production-versus-test triage. Two findings need particular attention:
+
+- `domain/unitstate/state` previously passed but
+  `TestGetEndpointsForUnpopulatedUnit` failed on row order. Its query has
+  no `ORDER BY`; the production caller uses the endpoints as map keys.
+  A focused `-race -count=10` rerun of both populated and unpopulated
+  tests had three failures in 20 PostgreSQL cases (one populated, two
+  unpopulated); all 20 SQLite cases passed. Track both assertions under
+  06-order rather than assuming insertion order.
+- The observed SQLSTATE 42803 failures were in test assertions:
+  `TestEnsureApplicationOnMultipleMachines` in removal model, and
+  `TestUpdateCAASUnitSetsFQDN` in application state. In the latter, the
+  first update returned successfully but the assertion's aggregate query
+  failed before the repeated-update/idempotence check. Both are 06-X16;
+  this does not establish that the unchecked path passes.
+
+The exact package manifest, structured sweep log, leaf counts and
+focused rerun logs are in session `files/pg-sweep-a3818782aa-*` and
+`files/pg-sweep-unitstate-order-{postgresql,sqlite}.log`. These results
+do not establish a full SQLite/dqlite run or a passed functional gate.
+
 ## PostgreSQL sweep 2
 
 2026-11-05 at `08=ba634a0f13`, before the secret and unitstate X16 fixes
@@ -265,8 +397,8 @@ Re-run after 05-X16-rest and 05-unitstate-relation-key, 2026-11-05 at
   2 `in_use` integer fixture binds (06-bind-types), 4 X27 time
   comparisons.
 
-Next: re-run the sweep at the current tip with `-p 8` (N17); this
-replaces sweep 2 as the baseline.
+The later [PostgreSQL re-sweep](#postgresql-re-sweep) at
+`09=a3818782aa` supersedes this run as the current baseline.
 
 ## D42 runtime-entry gate run
 
@@ -318,8 +450,9 @@ the functional gate.
 
 ## Latest recorded evidence
 
-Rows dated 2026-10-26 are fresh runs. Undated rows are a snapshot from an
-earlier implementation handoff, not tests run during plan refinement:
+The [re-sweep](#postgresql-re-sweep) is the current full PostgreSQL
+inventory; the rows below retain useful earlier per-package detail.
+Undated rows are a snapshot from an earlier implementation handoff:
 `06=eac393da16`, `05=d658b402a6`, `08=2e67edc999`.
 The `restack/` run used that 06 tip.
 See [history](../history/compatibility.md#historical-runs-and-restacking)
@@ -338,7 +471,7 @@ historical pass to accept a new gate.
 | `domain/crossmodelrelation` (U11 watcher tests) | 0 | 2026-10-26 at `08=c5f185e6f6`: `TestWatcherSuite/TestWatchRemoteConsumedSecretsChanges*` (2 tests). |
 | `domain/secret/state` | 8 | 2026-11-05 at `05=3a8f0090c2`, full package: all X27 rotation and expiry time precision. Was 50 in sweep 2 (X16, fixed by 05-SECRET-X16). |
 | `domain/secret` | 1 | 2026-11-05 at `05=3a8f0090c2`: `TestWatchSecretsRevisionExpiryChanges` receives two changes in the other order (06-order). Was 12. |
-| `domain/unitstate/state` | 0 | 2026-11-05 at `09=760f3b675f`, after `1afd3b9434`. Was 4 (relation key), 20 in sweep 2 (X16). |
+| `domain/unitstate/state` | 1 | 2026-11-10 at `09=a3818782aa`: unordered endpoint assertion (06-order), reproduced in both populated and unpopulated focused tests. Previously passed at `09=760f3b675f` after `1afd3b9434`; was 4 (relation key), 20 in sweep 2 (X16). |
 | `domain/secretbackend/state` | 11 | 2026-11-05 at `09=760f3b675f`: all X27 rotation-time `Equal`. Was 13 (X16, fixed by `52a0eea6ee`). |
 | `domain/removal/state/controller` | 0 | 2026-11-05 at `09=760f3b675f`, after `367f754dd6`. |
 | `domain/storage/state` | 8 | 2026-11-05 at `09=760f3b675f`: 4 fixture binds (`persistent`, `in_use`; 06-bind-types), 4 X27. X16 fixed by `640d3bcabf`. |
@@ -349,14 +482,13 @@ historical pass to accept a new gate.
 | `domain/modelmigration/state/controller` | 0 | Recorded pass; not proof of full migration support. |
 | `domain/removal/state/model` | 47 | 2026-10-26 at `08=c5f185e6f6`, full package without `-race` (1333 s): 326 pass. All test-side, each mapped to a task above: 25 X27 schedule/time round trips; 11 06-X23 (`secret_test.go:299`); 2 06-X25 (`state_test.go` `force`); 2 06-DDL (`DATETIME` in `application_test.go`, `unit_test.go`); 2 06-X9 (`CONCAT`); 1 06-X16; 1 06-trigger-drop; 2 06-failure-injection; 1 06-errors (machine FK message). The older "22 X23" count was a miscount, and the 3 X38 failures are fixed. |
 | `domain/status/state/model` | 48 | 2026-10-26 at `08=c5f185e6f6`, full package without `-race` (469 s): 125 pass, 48 fail, all X27 precision (see 06-status-diagnosis). |
-| `domain/model/state/controller` | 1 | 2026-10-27 at `06=e7f3822281`, full package with `-race`: 91 pass. `TestStateSuite/TestGetActivatedModelUUIDs` expects `GetActivatedModelUUIDs` to return UUIDs in insertion order; its query (`WHERE uuid IN (...)`) has no `ORDER BY` (X17). Test-only; task 06-X17. |
+| `domain/model/state/controller` | 0 | 2026-11-10 at `09=a3818782aa`. The earlier `TestStateSuite/TestGetActivatedModelUUIDs` order failure remains possible: its query (`WHERE uuid IN (...)`) has no `ORDER BY` (06-X17). |
 | `domain/model/state/model` | 2 | 2026-10-27 at `06=e7f3822281`, full package with `-race`: 36 pass. `TestModelSuite/TestCreateModelAndUpdate` and `TestCreateModelAndDelete` match the immutable-row message exactly; PG prefixes `ERROR:` and suffixes the SQLSTATE (06-errors). |
 | D42 runtime-entry packages (13) | 0 | 2026-10-26 at `08=c5f185e6f6`; see [D42 runtime-entry gate run](#d42-runtime-entry-gate-run). `domain/schema` has a known skip gap (06-schema-skip). `TestPostgresBootstrapSuite` passes, superseding Stage 8's old operation-4 failure. |
 
-The packages once listed here as "not rerun" were all covered by
-[sweep 2](#postgresql-sweep-2) on 2026-11-05 (139 packages at
-`08=ba634a0f13`); its per-cause table supersedes older rows above for the
-packages it lists. `domain/modelimport` execution stays deferred.
+The [re-sweep](#postgresql-re-sweep) supersedes older package outcomes
+above. `domain/modelimport` execution stays deferred for the functional
+gate.
 
 A package's presence in this evidence inventory does not automatically
 make it a prerequisite for every milestone. Apply the D42 entry list above;

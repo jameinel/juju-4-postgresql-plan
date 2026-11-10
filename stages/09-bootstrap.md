@@ -5,9 +5,10 @@ Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a
 PostgreSQL-only query defect on the login and uniter paths (fixed on
 Stage 5). The lease-clock correction is also restacked and validated at
-`09=a3818782aa`. Before run 4, re-sweep the current tip and confirm
-cleanup targets before recreating disposable databases for D56. See the
-run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+`09=a3818782aa`. The re-sweep at that tip completed with failures and
+skips; triage its blockers before run 4. Obtain explicit approval of
+cleanup targets before teardown or recreating disposable databases for
+D56. See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 
@@ -182,6 +183,10 @@ Prerequisites, in order:
    05-X16-rest (`52a0eea6ee`, `367f754dd6`, `640d3bcabf`), restacked to
    `09=760f3b675f` and re-run on PostgreSQL. `destroy-controller` may now
    be tried; removal controller has no X16 left.
-2. Re-sweep (Stage 6) at `-p 8`.
-3. Tear down run 3, `make juju jujuagentd`, bootstrap, and run the D54
-   scenario. Then the dqlite comparison run from the same revision.
+2. Done at `09=a3818782aa`: the
+   [PostgreSQL re-sweep](06-compatibility.md#postgresql-re-sweep) ran at
+   `-p 8`. Triage its failures and skips for the functional workload.
+3. Inspect current resources and obtain explicit approval of any cleanup
+   targets before teardown or recreating the disposable databases for
+   D56. Run `make juju jujuagentd`, bootstrap and the D54 scenario. Then
+   run the dqlite comparison from the same revision.

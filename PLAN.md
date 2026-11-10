@@ -191,21 +191,24 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; sweep 2 classified, test SQL and fixture repairs open |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; 146-package re-sweep has 35 failing packages and test SQL/fixture repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; a re-sweep and D56 database recreation remain before run 4 |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; re-sweep triage and D56 database recreation remain before run 4 |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next:
 
-1. Re-sweep at the new tip with one `go test -p 8` invocation and the
-   unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
-   production defects first (06-dialect-fixtures, 06-bind-types).
-2. Before bootstrap, confirm the cleanup targets and recreate disposable
-   PoC databases: 04-current-timestamp (D56) changes the schema hash.
-   Run bootstrap 4 and the D54 scenario; then the dqlite comparison run.
+1. Triage the [PostgreSQL re-sweep](stages/06-compatibility.md#postgresql-re-sweep).
+   Fix the test-side classes that hide production defects first
+   (06-dialect-fixtures, 06-bind-types), then resolve workload-specific
+   blockers. Newly observed assertions are tracked under 06-X16 and
+   06-order; do not assume every remaining failure is test-only.
+2. Before bootstrap, inspect resources and obtain explicit approval of
+   cleanup targets before any teardown or database recreation:
+   04-current-timestamp (D56) changes the schema hash. Run bootstrap 4
+   and the D54 scenario; then the dqlite comparison run.
 3. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
    respecting current claims and the D55 review. Storage #23766 has a
@@ -226,10 +229,11 @@ Current local tips (2026-11-09, base `5259edff43`):
 through Stage 9. At `09=a3818782aa`, `go build ./...` and both affected
 lease packages passed with `-race` on SQLite, real dqlite and PostgreSQL;
 an invalid-URL probe proved both database suites selected PostgreSQL.
-The broader N16 smoke run still has 36 known PostgreSQL changestream
-fixture failures and existing schema-test skips; see
-[Stage 6](stages/06-compatibility.md#latest-recorded-evidence). This is
-not a full PostgreSQL re-sweep. At the previous `09=0aed8123db`,
+The 146-package PostgreSQL re-sweep completed in 21m50s: 108 packages
+passed, 35 failed and three had no tests; 170 leaf tests were skipped.
+See [Stage 6](stages/06-compatibility.md#postgresql-re-sweep) for the
+failure inventory and coverage gaps. This is not a passed readiness gate.
+At the previous `09=0aed8123db`,
 `go build ./...` passed; the focused charm
 ordering tests passed with `-race` on PostgreSQL and dqlite, the
 controller/model PostgreSQL schema comparison passed, and the legacy
