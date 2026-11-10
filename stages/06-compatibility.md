@@ -124,15 +124,34 @@ W3's frozen six-file application working tree, based on `09=0bb336f089`,
 passed full-package integrator validation on both backends: 632 suite
 methods passed, none failed or skipped, with `-race -count=1 -p 1`.
 PostgreSQL took 1133.253 s and real dqlite took 322.450 s. Logs:
-`~/pg-poc-work/w3/parent-application-{pg,dqlite}.log`. Root-cause commits
-and post-integration verification are pending.
+`~/pg-poc-work/w3/parent-application-{pg,dqlite}.log`.
 
-W2's full real-dqlite run completed with two constraint-assertion
-failures, in `TestDeleteCharmReturnConstraintError` and
-`TestDeleteMachineWithForceDoesNotCheckChildMachines`; PostgreSQL
-reproduced both and is still running the rest of the package.
-The worker is investigating these assertion changes before commits.
-Logs: `~/pg-poc-work/w2/parent-removal-{pg,dqlite}.log`.
+W3's seven root-cause commits are integrated at `06=8496478713`, with
+`07=03df000a30`, `08=09=ca4301a672`. The application package tree
+matches W3's validated tree exactly. Integrated commits are
+`8b1189db74`, `ed4ced01c6`, `0668bcdf63`, `7464de87ac`,
+`d4047b2c38`, `92f3c88638` and `8496478713`.
+Post-integration verification is incomplete: `make go-build` exceeded
+its 8-minute bound while compiling; the full dqlite run exceeded its
+14-minute test budget while progressing; the PostgreSQL run was stopped
+after progress became too slow to finish within its 25-minute budget.
+No application assertion failure was observed in those incomplete runs.
+The IDE build reported success with limited diagnostics; that does not
+replace a complete command-line build.
+Logs: `~/pg-poc-work/integrator/w3-build.log`,
+`w3-{pg,dqlite}.{jsonl,log}`. Keep the W3 worktree until verification
+finishes.
+
+W2's full pre-correction snapshots each finished with 379 passing methods,
+two failing constraint assertions and zero skips (PostgreSQL 817.815 s;
+real dqlite 274.143 s). `StateBase.CoerceError` deliberately masks driver
+types, so the two tests now match precise foreign-key messages instead.
+Both corrected tests passed on both backends (PG 5.046 s, dqlite 2.571 s).
+This is full-snapshot plus corrected-target evidence, not a single full
+pass of the final tree. Eleven commits ending at worker `6e01b1da4c`
+are ready for integration. Logs:
+`~/pg-poc-work/w2/parent-removal-{pg,dqlite}.log` and
+`parent-constraint-{pg,dqlite}.log`.
 
 W4's eight packages all passed on real dqlite at its frozen working
 tree (HEAD `4f22469897` plus uncommitted edits):
@@ -152,7 +171,10 @@ The first PostgreSQL run passed secretbackend, macaroon, operation and
 modelmigration; status, secret state, operation state and secret exceeded
 the 120 s package budget while progressing. These timeouts are
 inconclusive, not regression failures. Exhaustive smaller PostgreSQL
-groups, including two rounds for timestamp packages, are running.
+groups proved all 176 status-model methods pass in each of two rounds.
+Other groups subsequently timed out under increased load; they do not
+establish complete repeated secret/operation coverage. Invalid-URL
+probes failed in all eight packages, confirming PostgreSQL selection.
 Logs: `~/pg-poc-work/w4/parent-all-{pg,dqlite}.log` and
 `parent-pg-groups/`.
 
@@ -161,13 +183,28 @@ relation and unitstate exceeded the short package budget; real dqlite
 network and relation did likewise. Access, model state and the domain
 root passed on both backends; unitstate passed on dqlite. Two machine
 tests failed on dqlite (`CleansFilesystemAndPreservesIntent` and
-`CleansVolumeAndPreservesIntent`), under investigation rather than
-attributed to production yet. Logs:
+`CleansVolumeAndPreservesIntent`) because nullable BOOLEAN query results
+hit the known dqlite encoding bug. The test queries now cast those fields
+to INTEGER, retaining NULL assertions; validation is pending. The
+provisioner consumer's nullable-bool scan remains an unverified concern,
+not an approved production fix. Logs:
 `~/pg-poc-work/w6/parent-all-{pg,dqlite}.log`.
 
-W5 edits are ready; the resource-list ordering assertion is being
-restored pending review of its documented index-association contract.
-No worker repair outside W1 is integrated yet.
+W5 restored the resource-list ordering assertion pending review of its
+documented index-association contract. Its grouped PostgreSQL run
+reproduced four controllerupgrader stream-parameter failures and the
+legacy empty-timestamp upgrade failure. These remain report-only;
+neither a production fix nor the proposed timestamp skip is approved.
+Numerous other groups timed out, so neither W5 nor W6 has complete
+grouped validation. Logs: `~/pg-poc-work/w{5,6}/parent-{pg,dqlite}-groups/`.
+
+All implementation workers are idle with frozen contents. Validation
+jobs were stopped after load exceeded 39 and swap filled; lowering each
+group runner's concurrency did not recover the already incomplete runs.
+These observations do not prove the cause of each timeout. Resume with
+the build first, then at most two PostgreSQL jobs and one dqlite job,
+monitoring progress; the N19 ceiling is not a throughput guarantee.
+No full re-sweep has started.
 No branches have been pushed; bootstrap and cleanup remain deferred
 under N22.
 

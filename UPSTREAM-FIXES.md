@@ -126,9 +126,28 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
   assertions remain required, as does the FQDN test's repeated-update
   check. No dqlite correctness defect has been established for them.
 
-Neither finding was fixed or proposed upstream by this sweep. The
+W3's FQDN test repair is integrated locally as `8496478713`; it preserves
+cardinality and every row's values on both updates. The removal counterpart
+is committed on W2 as `ad8194c265`, awaiting integration. Neither has been
+proposed upstream. The
 [Stage 6 re-sweep](stages/06-compatibility.md#postgresql-re-sweep) records
 the evidence and tracks the test work under 06-order and 06-X16.
+
+Additional W3 test candidates are integrated locally: representable status
+fixtures (`8b1189db74`, X27), explicit endpoint NULL ordering
+(`ed4ced01c6`, X47), unordered storage directive assertions
+(`0668bcdf63`, latent/X17), specific unique-constraint assertions
+(`d4047b2c38`, X20), and complete sequence namespace binds
+(`92f3c88638`, X9). The storage assertion preserves multiplicity;
+consumers reconcile by name rather than relying on query order. Portable
+failure triggers (`7464de87ac`, X46) remain PoC helper usage, not a
+standalone upstream helper proposal.
+
+W2 confirmed that `domain.StateBase` deliberately applies `CoerceError`,
+masking driver error types while preserving messages. Constraint-class
+helpers therefore cannot classify those state-returned errors. This is
+expected boundary behavior, not a production defect; the repaired tests
+retain constraint-specific messages and operation context.
 
 ### Production findings from parallel repairs (2026-11-10)
 
