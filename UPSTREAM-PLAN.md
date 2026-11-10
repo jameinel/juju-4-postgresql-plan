@@ -526,6 +526,14 @@ all cloud CA certificates, including with multiple credential attributes and
 cloud auth types. Validate counts and certificate deduplication on both
 SQLite and real dqlite.
 
+Follow up with CI coverage for the end-to-end multi-certificate case: register
+a Kubernetes cloud with two CA certificates, create a model using its built-in
+secret backend, and verify that the backend listing returns both certificates
+and counts secrets rather than revisions. Exercise secret removal as well,
+without treating successful removal alone as proof that both certificates were
+returned. Consider extending the existing secrets integration suite and ensure
+the test actually runs in CI; this is separate from PostgreSQL validation.
+
 #### `4.1-boolean-and-aggregate-literals` — U20, portability
 
 `domain/network/state` `GetMachineAppBindings` and `GetUnitAPIAddresses`
