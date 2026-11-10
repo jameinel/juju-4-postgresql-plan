@@ -118,9 +118,56 @@ The clean W1 worktree and branch were removed after integration.
 W1 exposed two SSH X18 production failures and one intermittent stream
 shutdown failure; see
 [the upstream register](../UPSTREAM-FIXES.md#production-findings-from-parallel-repairs-2026-11-10).
-No production fix is approved or included. W3's application edits are
-undergoing full-package integrator validation on both backends; W2 and
-W4 continue their remaining fixture edits. These are not package passes.
+No production fix is approved or included.
+
+W3's frozen six-file application working tree, based on `09=0bb336f089`,
+passed full-package integrator validation on both backends: 632 suite
+methods passed, none failed or skipped, with `-race -count=1 -p 1`.
+PostgreSQL took 1133.253 s and real dqlite took 322.450 s. Logs:
+`~/pg-poc-work/w3/parent-application-{pg,dqlite}.log`. Root-cause commits
+and post-integration verification are pending.
+
+W2's full real-dqlite run completed with two constraint-assertion
+failures, in `TestDeleteCharmReturnConstraintError` and
+`TestDeleteMachineWithForceDoesNotCheckChildMachines`; PostgreSQL
+reproduced both and is still running the rest of the package.
+The worker is investigating these assertion changes before commits.
+Logs: `~/pg-poc-work/w2/parent-removal-{pg,dqlite}.log`.
+
+W4's eight packages all passed on real dqlite at its frozen working
+tree (HEAD `4f22469897` plus uncommitted edits):
+
+| Package | dqlite pass / fail / skip |
+|---|---|
+| `domain/status/state/model` | 176 / 0 / 0 |
+| `domain/secretbackend/state` | 53 / 0 / 0 |
+| `domain/secret/state` | 142 / 0 / 0 |
+| `domain/macaroon/state` | 15 / 0 / 0 |
+| `domain/operation` | 11 / 0 / 0 |
+| `domain/operation/state` | 159 / 0 / 0 |
+| `domain/modelmigration/state/model` | 41 / 0 / 0 |
+| `domain/secret` | 21 / 0 / 0 |
+
+The first PostgreSQL run passed secretbackend, macaroon, operation and
+modelmigration; status, secret state, operation state and secret exceeded
+the 120 s package budget while progressing. These timeouts are
+inconclusive, not regression failures. Exhaustive smaller PostgreSQL
+groups, including two rounds for timestamp packages, are running.
+Logs: `~/pg-poc-work/w4/parent-all-{pg,dqlite}.log` and
+`parent-pg-groups/`.
+
+W6's initial runs also need smaller groups: PostgreSQL network, machine,
+relation and unitstate exceeded the short package budget; real dqlite
+network and relation did likewise. Access, model state and the domain
+root passed on both backends; unitstate passed on dqlite. Two machine
+tests failed on dqlite (`CleansFilesystemAndPreservesIntent` and
+`CleansVolumeAndPreservesIntent`), under investigation rather than
+attributed to production yet. Logs:
+`~/pg-poc-work/w6/parent-all-{pg,dqlite}.log`.
+
+W5 edits are ready; the resource-list ordering assertion is being
+restored pending review of its documented index-association contract.
+No worker repair outside W1 is integrated yet.
 No branches have been pushed; bootstrap and cleanup remain deferred
 under N22.
 
