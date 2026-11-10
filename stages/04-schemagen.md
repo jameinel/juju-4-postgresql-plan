@@ -45,10 +45,10 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
   - Table, view, index and trigger counts match dqlite (allowing documented
     differences).
   - Seed rows match row for row.
-- Status: implemented. D56 is committed locally and the stack is restacked
-  through Stage 9; nothing has been pushed. Subsequent fixes were
-  incorporated during Stage 6; the original commit/object inventories and
-  verification reports are in the
+- Status: implemented. D56 is committed at `04=f957a3ae5e` and the stack
+  is restacked through Stage 9; current tips are in [PLAN.md](../PLAN.md).
+  Subsequent fixes were incorporated during Stage 6; the original
+  commit/object inventories and verification reports are in the
   [historical schema generation record](../history/schema-generation.md).
 - Current contracts:
   - The translator, trigger functions, ordering, checked-in diff overrides,
@@ -92,9 +92,11 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     (`dqlite,libsqlite3`, `-p 4`); `TestPostgreSQLSuite` passed against
     PostgreSQL 16.15 (controller and model DDL comparison). The Stage 4
     branch predates the PostgreSQL test harness, so the charm-order state
-    tests were run after restacking to Stage 9: the focused
-    `TestGetLatestPendingCharmhubCharm` cases passed against PostgreSQL
-    16.15; the focused legacy-import delta test passed under dqlite.
+    tests were run after restacking. At `09=0aed8123db`, the focused
+    `TestGetLatestPendingCharmhubCharm` cases passed on PostgreSQL 16.15
+    and dqlite; an invalid-URL probe confirmed PostgreSQL selection. The
+    PostgreSQL schema comparison and dqlite legacy-import delta test also
+    passed at that tip.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support
