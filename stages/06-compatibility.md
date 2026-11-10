@@ -250,9 +250,9 @@ both backends, in disjoint groups covering all 381 methods. Logs:
 `w2-compile-{pg,dqlite}-p2.log`, `w2-compiled-{pg,dqlite}/`;
 manifest `w2-compiled-groups.tsv`.
 
-The compiled removal real-dqlite run passed all 381 methods in 26 groups,
-with zero failures or skips and an exact match to the expected method
-set. PostgreSQL verification remains in progress.
+Both compiled removal runs passed all 381 methods in 26 groups per
+backend, with zero failures or skips and exact matches to the expected
+method set. This completes W2's post-integration verification.
 
 The next W4 batch is queued to start automatically only after both
 removal runners have finished. It first compiles all required binaries
