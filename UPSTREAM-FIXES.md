@@ -149,18 +149,19 @@ helpers therefore cannot classify those state-returned errors. This is
 expected boundary behavior, not a production defect; the repaired tests
 retain constraint-specific messages and operation context.
 
-W2's remaining shared test candidates are committed on its worker branch,
-not integrated: secret revision text binds (`7cc9e4de6a`, latent/X23),
-job force bool binds (`53eebc39ae`, latent/X25), schedule/job timestamp
-fixtures (`b617657d47`, `7e0db9ea27`, X27), unordered job comparison
-(`6263c4e819`, X17), portable timestamp fixture DDL (`10b8d615d6`,
-X13), foreign-key messages (`976c325827`, X20), and complete sequence
-namespace binds (`aa3bf07b3e`, X9). All use `Upstream-Home: new`.
-The combined model trigger/bool worker commit (`ac85980e0f`) must be
-split during integration: PoC helper usage has home `none`, while the
-boolean literal correction is a shared candidate. No worker history
-rewrite is required. Relation failure triggers (`6e01b1da4c`, X46)
-remain PoC helper usage.
+W2's shared test candidates are integrated locally: secret revision
+text binds (`6c65f5e1f8`, latent/X23), job force bool binds
+(`1792abeabb`, latent/X25), schedule/job timestamp fixtures
+(`12bf06e28e`, `53be340e23`, X27), unordered job comparison
+(`b787df58e0`, X17), portable timestamp fixture DDL (`1a80a24fb9`,
+X13), foreign-key messages (`154caa56d5`, X20), complete sequence
+namespace binds (`48f5ab88d5`, X9), and unit cardinality assertions
+(`37c96bd542`, X16). All use `Upstream-Home: new`.
+The combined model trigger/bool worker commit (`ac85980e0f`) was split
+during integration: PoC helper usage (`bb4ec40957`) has home `none`,
+while the boolean literal correction (`ea2a3332f2`) belongs to
+`4.1-boolean-and-aggregate-literals`. Worker history was not rewritten.
+Relation failure triggers (`61bfd2eaee`, X46) remain PoC helper usage.
 
 ### Production findings from parallel repairs (2026-11-10)
 

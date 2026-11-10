@@ -104,6 +104,13 @@ confirm that the log is growing.
 
 ## Bounded runs and check-ins
 
+For the 2026-11-10 Stage 6 repair continuation, thermal throttling requires
+a stricter limit than the server's PostgreSQL connection budget: at most
+two validation jobs total, each with `GOMAXPROCS=2` and Go `-p 2`.
+Compile test binaries before executing them. Do not overlap compilation
+or standalone builds with validation. Apply this across both backends,
+not independently per worker or runner.
+
 Nothing an agent starts may run for more than about two minutes without a
 progress check (N13). The go test timeout ends a hang; it is not how a
 hang should be noticed.

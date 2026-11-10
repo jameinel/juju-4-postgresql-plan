@@ -31,6 +31,26 @@ change none of the failing test files. Of the files in scope, only
 the sweep ran and where PostgreSQL runs of several packages at once are
 safe (N17). Commits are then cherry-picked onto 06 (N18).
 
+### Execution update (2026-11-10)
+
+The user observed thermal throttling during extended aggregate `-p 8`
+runs. Use at most two validation jobs total across both backends, each
+with `GOMAXPROCS=2` and Go `-p 2`. This replaces the earlier execution
+budget for this handoff. Compile test binaries before running validation,
+and do not overlap standalone builds or test compilation with tests.
+Keep the bounded-run and progress checks; timeouts remain inconclusive.
+
+### Separate follow-up: database fixture time helper
+
+- [ ] Add `internal/testing.DatabaseNow() time.Time`, returning
+  `time.Now().UTC().Truncate(time.Microsecond)`, and migrate ordinary
+  current-time database fixtures introduced by these repairs.
+  Document the UTC and exactly round-trippable precision contract.
+  Preserve explicit non-UTC, fixed-time and precision-boundary fixtures;
+  never truncate actual results to conceal precision loss.
+  Keep `NonZeroTime()` unchanged. This cleanup is a separate work item,
+  not a prerequisite for completing the existing repair handoffs.
+
 ## Starting state
 
 - Code repository `jameinel/juju`: the main PoC tree

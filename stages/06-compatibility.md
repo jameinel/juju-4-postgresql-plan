@@ -213,6 +213,39 @@ No full re-sweep has started.
 No branches have been pushed; bootstrap and cleanup remain deferred
 under N22.
 
+### Thermal-limited continuation
+
+The user confirmed thermal throttling during extended aggregate `-p 8`
+runs. The earlier full-package W3 retries remained incomplete:
+PostgreSQL timed out at 1500.372 s; real dqlite was terminated by the
+outer bound. Neither is counted as a pass. W3 is being rerun from
+precompiled race-enabled binaries built at `09=ca4301a672`, using
+46 disjoint groups of at most 20 methods, covering all 632 methods from
+the earlier complete passing run. One job per backend runs concurrently,
+each with `GOMAXPROCS=2`; compilation used `-p 2` and completed before
+execution. Logs: `~/pg-poc-work/integrator/w3-compiled-{pg,dqlite}/`
+and `w3-compiled-{pg,dqlite}.log`; manifest `w3-compiled-groups.tsv`.
+
+W2's reviewed test repairs are integrated at `06=61bfd2eaee`,
+`07=e267500fd0`, `08=09=0c6250bd3b`. Its removal test tree matches
+worker `6e01b1da4c` exactly. The mixed worker commit `ac85980e0f` was
+split without rewriting worker history: `bb4ec40957` contains the
+PoC-only trigger helper change, and `ea2a3332f2` contains the shared
+boolean fixture correction. Other integration commits are
+`12bf06e28e`, `6c65f5e1f8`, `1792abeabb`, `53be340e23`,
+`b787df58e0`, `1a80a24fb9`, `154caa56d5`, `48f5ab88d5`,
+`37c96bd542` and `61bfd2eaee`. Build and removal post-integration
+validation are pending; do not overlap them with the current tests.
+The application sources remain identical across this restack.
+
+The existing W5 and W6 invalid-URL probe logs confirm all nine and seven
+packages respectively failed with connection errors; backend selection
+is established, not successful functional validation.
+
+The UTC `DatabaseNow()` helper is a separate follow-up in the
+[repair handoff](../handoffs/2026-11-10-stage-6-parallel-repairs.md#separate-follow-up-database-fixture-time-helper).
+Complete the existing repair work before that fixture cleanup.
+
 ## Bounded repair tasks
 
 Owner is `pg-poc/06-test-harness` except production SQL (Stage 5) and shared

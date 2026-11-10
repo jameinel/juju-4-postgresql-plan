@@ -195,7 +195,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; trigger helpers, W1 and W3 integrated locally (`8496478713`); W2 committed and awaiting integration; W4/W5/W6 frozen for validation; post-integration verification and full re-sweep remain pending after overloaded runs |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; trigger helpers and W1/W2/W3 integrated locally (`61bfd2eaee`); W4/W5/W6 frozen for validation; post-integration verification and full re-sweep remain pending; thermal limit is two jobs total, each GOMAXPROCS=2 / -p 2 |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
@@ -205,12 +205,14 @@ missing inputs; do not ask an executor to design and implement a backlog.
 Next:
 
 1. Run the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
-   (N18): Step 0, W1 and W3 are integrated at `09=ca4301a672`.
+   (N18): Step 0 and W1/W2/W3 are integrated at `09=0c6250bd3b`.
    All six GPT-6.1 Terra workers have been dispatched, at most four at
    a time. Validate and integrate the remaining repairs onto Stage 6.
-   The build passed after stopping overloaded validation jobs; W3's
-   integrated package is being retried with only one PostgreSQL job
-   and one dqlite job. Keep later validation at lower concurrency.
+   The build passed, but W3's integrated full-package retries remained
+   incomplete. Resume with precompiled test binaries and at most two
+   validation jobs total, each `GOMAXPROCS=2` / Go `-p 2`, following
+   the thermal-throttling update in the handoff. The UTC database-time
+   fixture helper is listed there as a separate follow-up.
    Workers report production defects
    rather than fixing them; route approved ones to Stage 5. Then rerun
    the re-sweep. Out of scope for this round: the three deferred import
@@ -236,8 +238,8 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=76aac853dd`, `06=8496478713`, `07=03df000a30`,
-`08=09=ca4301a672`. Step 0, W1 and W3 are committed locally; all worker
+`04=f957a3ae5e`, `05=76aac853dd`, `06=61bfd2eaee`, `07=e267500fd0`,
+`08=09=0c6250bd3b`. Step 0 and W1/W2/W3 are committed locally; all worker
 branches use the earlier verified Step 0 tip `09=0bb336f089`.
 See [the repair run](stages/06-compatibility.md#parallel-repair-run-2026-11-10-in-progress)
 for evidence. No repair-round commits have been pushed.
