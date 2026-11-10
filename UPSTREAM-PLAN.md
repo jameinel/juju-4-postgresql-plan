@@ -405,6 +405,10 @@ Validation:
   runtime on subsequent heads.
 - [ ] Finish #23765 review, CI and functional backup QA independently of
   #23759. Retain the distinct NULL, false, true and timestamp cases.
+- [ ] Manual QA (user): run #23765's disposable-controller backup procedure
+  for head `3b733c237b`; verify NULL/false/true flags and NULL/set lease
+  timestamps, then record the results. Lease rows are exported but not
+  restored.
 - [ ] When Juju bundles a release containing #883, review the temporary
   casts, sentinel and model/controller export NULL markers; sweep nullable
   Boolean reads. Verify NULL, false and true remain distinct where required,
