@@ -122,37 +122,35 @@ Genuine differences (keep in the generator): type names, `STRICT`,
 `WITHOUT ROWID`, `AUTOINCREMENT`, trigger bodies, forward references,
 identifier length.
 
-Tentative (D56): `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'utc')` column
-defaults (seven sites). The PoC uses `CURRENT_TIMESTAMP`. Changing
-upstream to it is a possibility, not a commitment: on SQLite it drops
-millisecond precision, which nothing currently needs but which costs
-little to keep. On PostgreSQL, `CURRENT_TIMESTAMP` is `now()` and keeps
-microseconds. Sub-second precision is unused at six sites:
+D56 is implemented in the PoC: the seven shared-schema column defaults
+use `CURRENT_TIMESTAMP`, which `pgschemagen` passes through unchanged; the
+`STRFTIME` translation was removed. The upstream change remains tentative.
+Six sites do not need sub-second precision:
 
-- `change_log.created_at` (controller and model): every generated
-  trigger writes whole-second `DATETIME('now', 'utc')`, and the stream
-  scans the value without using it.
-- `change_log_witness.updated_at` (controller and model): the stream
-  writes `DATETIME('now', 'utc')`; only export reads it.
-- `removal.scheduled_for`: every production insert binds it from Go.
-- `machine_requires_reboot.created_at`: the default applies, but only
-  export and import read it.
+- `change_log.created_at` (controller and model): generated triggers write
+  whole-second `DATETIME('now', 'utc')`; the stream scans but does not use it.
+- `change_log_witness.updated_at` (controller and model): the stream writes
+  whole-second `DATETIME('now', 'utc')`; only export reads it.
+- `removal.scheduled_for`: production inserts bind it from Go.
+- `machine_requires_reboot.created_at`: only export and import read it.
 
-The exception is `charm.create_time`. The default applies
-(`setCharmState` omits it), and `GetLatestPendingCharmhubCharm` returns
-the first row of `ORDER BY create_time DESC`. A millisecond timestamp
-does not guarantee a unique order, and PostgreSQL `now()` is the
-transaction start time. This is a separate ordering candidate whatever
-the default becomes.
+`charm.create_time` is also too coarse to determine ordering. PostgreSQL's
+`CURRENT_TIMESTAMP` is the transaction start time, so charms inserted in
+one transaction can tie. The PoC adds `charm.insertion_order`, allocated
+from the model sequence in `addCharmState`; pending CharmHub charms sort by
+`insertion_order DESC, create_time DESC`. The timestamp remains a stable
+fallback when orders tie, including for legacy 4.0.12 imports, which cannot
+carry the new sequence value and default to order 0. The v4.1.0 export
+preserves both the column and the sequence state.
 
-`CURRENT_TIMESTAMP` is always UTC on SQLite and stores the same
-`YYYY-MM-DD HH:MM:SS` text as `DATETIME('now', 'utc')`, which the stream
-and `Watermark` already write and scan into `time.Time`. Checked with
-sqlite3 3.46.1 under three `TZ` values. The current form relies on
-`'utc'` after `'now'`, which SQLite documents as undefined but has
-treated as a no-op since 3.10.0; dqlite builds 3.47.0
-(`scripts/dqlite/scripts/env.sh`). Existing `.SSS` rows and new
-whole-second rows still sort chronologically as text.
+SQLite and dqlite store `CURRENT_TIMESTAMP` as UTC
+`YYYY-MM-DD HH:MM:SS`, matching the whole-second form already written by
+`DATETIME('now', 'utc')`; PostgreSQL stores the transaction timestamp with
+microsecond precision. This removes reliance on SQLite's `'utc'` modifier
+after `'now'`, which SQLite documents as undefined. The PostgreSQL schema
+comparison checks the default on controller and model schemas; it passed
+on PostgreSQL 16.15. The affected package suites also passed under the
+dqlite build.
 
 ## 5. Transactions, errors and connections
 

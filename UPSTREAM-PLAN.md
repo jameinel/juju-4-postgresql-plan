@@ -123,6 +123,10 @@ Do not reopen them merely because they contain Go conversions.
   presence does not imply permission to modify it.
 - Share existing dependencies with a `_deps` symlink to `../juju/_deps`
   when creating a worktree; do not redownload them unnecessarily.
+- `go` is a snap on this host. Never redirect its output, or the output
+  of `make` targets that run it, straight to a file: AppArmor silently
+  discards it, and the exit code is unaffected. Pipe instead, for example
+  `set -o pipefail; go test ... 2>&1 | tee "$LOG"`.
 - Keep one review concern per branch. Multiple commits are fine when they
   serve that concern. Shared generated files are an integration conflict,
   not automatically a reason to stack independent reviews.

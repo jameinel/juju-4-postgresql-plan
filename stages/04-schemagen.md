@@ -78,11 +78,19 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
     `rowid`), and in `translate.go` the `IIF`, `IFNULL` and `user`
     rewrites plus `0` / `1` boolean defaults and seeds. The genuine
     dialect translations are listed in DIALECT.md section 4.
-  - Task 04-current-timestamp (D56, pending): change the seven
-    `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'utc')` defaults in the shared
-    schema to `CURRENT_TIMESTAMP`, regenerate, and remove the `STRFTIME`
-    branch of `callsNow` in `translate.go` once no DDL uses it. The base
-    DDL edit changes the schema hash; recreate disposable PoC databases.
+  - Task 04-current-timestamp (D56, implemented on `pg-poc/04-schemagen`):
+    all seven shared-schema defaults use `CURRENT_TIMESTAMP`; the generator
+    passes it through unchanged and no longer translates `STRFTIME`. The
+    charm table has a sequence-backed `insertion_order`; pending CharmHub
+    charms sort by `insertion_order DESC, create_time DESC`. Legacy 4.0.12
+    imports leave the order at 0, with `create_time` as the tie-breaker.
+    Regeneration updates the schema hashes; recreate disposable PoC DBs.
+    Verification: `go build ./...` and affected `go vet` passed; 23 packages
+    passed with `-race` both untagged and via `make run-go-tests`
+    (`dqlite,libsqlite3`, `-p 4`); `TestPostgreSQLSuite` passed against
+    PostgreSQL 16.15 (controller and model DDL comparison). App-state tests
+    have not been run on PostgreSQL at this stage because the branch predates
+    the PostgreSQL test harness; validate them on a restacked Stage 9 branch.
   - Current 4.1 beta schema edits require explicit recreation of disposable
     PoC databases. Historic 4.0 payload types remain supported upstream.
     The generator rejects `.PATCH.sql`; future shared upgrade-patch support

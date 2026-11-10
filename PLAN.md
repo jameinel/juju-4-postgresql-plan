@@ -148,8 +148,11 @@ missing inputs; do not ask an executor to design and implement a backlog.
 5. Keep one PoC implementation/restack stream. Upstream-only fixes may
    run concurrently in dedicated worktrees under [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
    (N11); do not switch or restack another owner's tree. PostgreSQL package
-   tests and benchmarks must not overlap. Bound every run and check its
-   progress at least every two minutes
+   tests and benchmarks must not overlap. Run multiple packages from one
+   `go test` invocation with `-p 4` to `-p 8`; tests within a package run
+   serially, so packages one at a time are several times slower
+   ([OPERATIONS.md](OPERATIONS.md#postgresql-test-runs)). Bound every run
+   and check its progress at least every two minutes
    ([OPERATIONS.md](OPERATIONS.md#bounded-runs-and-check-ins), N13).
 6. Classify every change made to get PostgreSQL working, whether in code,
    tests or schema:
@@ -359,6 +362,12 @@ same commit as `pg-poc/08-dbaccessor`).
   part of a Juju controller-failure test.
 - Read [OPERATIONS.md](OPERATIONS.md) for build/test commands, backend
   proof, timeouts, schema regeneration, tool locations and server limits.
+- `go` is a snap. Never redirect its output straight to a file
+  (`go test ... > log 2>&1`): AppArmor silently discards it, and the exit
+  code is unaffected, so nothing signals the loss. Pipe instead, for example
+  `set -o pipefail; go test ... 2>&1 | tee "$LOG"`, and check that the log
+  is growing at the first check-in
+  ([OPERATIONS.md](OPERATIONS.md#snap-go-output-redirection)).
 
 ## Secrets
 

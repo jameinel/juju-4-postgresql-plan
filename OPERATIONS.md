@@ -48,6 +48,26 @@ is diagnostic context, not a command to repeat blindly.
   `canonical/postgresql-single-kernel-library`, `canonical/data-integrator`.
   Go module sources are in the module cache.
 
+### Snap Go output redirection
+
+`go` is the snap (`/snap/bin/go`). A plain file redirection such as
+`go test ./pkg > "$LOG" 2>&1` leaves the log empty, and the exit code
+still reports the result. AppArmor's `snap-confine` profile denies
+inheriting a writable file descriptor (`apparmor="DENIED"
+operation="file_inherit" profile="/usr/lib/snapd/snap-confine"` in
+`journalctl -k`), and the kernel replaces the descriptor with a null
+file. This affects every path (`/tmp`, `$HOME`, `/dev/shm`). Pipes are
+permitted, so always pipe:
+
+```bash
+set -o pipefail
+go test ... 2>&1 | tee "$LOG_FILE"
+```
+
+The same applies to `go` run by `make` or a script, because it inherits
+their file descriptors: pipe `make` output too. At the first check-in,
+confirm that the log is growing.
+
 ## Bounded runs and check-ins
 
 Nothing an agent starts may run for more than about two minutes without a
@@ -59,14 +79,17 @@ hang should be noticed.
   is the binary's `-timeout`, which panics with every goroutine's stack.
   Use `-timeout 120s` per run, inside an outer `timeout` about 30 s
   longer.
-- Split work so each run fits that budget: one package per run, and for a
-  slow PostgreSQL package one suite or a group of its tests per run, for
+- For targeted validation, split work so each run fits that budget: one
+  package per run, and for a slow PostgreSQL package one suite or a group
+  of its tests per run, for
   example `-run '^TestStateSuite$/^Test(Get|Set)'`. `tc` runs each suite
   method as a subtest. At about 2.5 s per `ModelSuite` test on
   PostgreSQL, one run holds about 40 tests. `go test -list .` lists only
   the suites; count methods in the source.
-- A run that cannot be split, such as stress or a benchmark, gets an
-  agreed budget. Run it in the background and check it at least every two
+- A run that cannot be split, such as stress, a benchmark or a parallel
+  multi-package sweep ([PostgreSQL test runs](#postgresql-test-runs)),
+  gets an agreed budget. Run it in the background and check it at least
+  every two
   minutes, reporting tests finished, the current test and failures so
   far.
 - Always pass `-v` and `tee` the output to a uniquely named log, for
@@ -101,15 +124,22 @@ it, tests use the existing SQLite/dqlite path. With it, every suite built
 on `DqliteSuite` is redirected, not just previously verified suites.
 Select packages by N16's tiers and levels (smoke, full, readiness).
 
-- Run PostgreSQL packages from one `go test` invocation, with `-p` up to
-  8, against a server deployed with the `unit-test` profile (N17). Do not
-  overlap separate invocations, stress workers or benchmarking on the
-  shared server. The harness takes a per-process schema change lock key
-  (N17, from `08=eac5b916c7`), so packages no longer queue on D53. Below
-  that revision, or on a server with 64 locks per transaction, run one
-  package at a time: parallel packages queue on D53 or exhaust the lock
-  table (SQLSTATE 53200). At `-p 8` the run takes about as long as its
-  slowest package ([measurements](stages/06-compatibility.md#06-test-speed-result)).
+- Run multiple PostgreSQL packages, such as `./domain/...`, in parallel
+  from one `go test` invocation with `-p 4` to `-p 8`. Use a server
+  deployed with the `unit-test` profile (N17). Tests within a package run
+  serially, so parallelism comes only from running packages at the same
+  time. A small `-p` cuts wall time substantially. A higher `-p` stops
+  helping once the run is limited by its slowest package,
+  `domain/application/state` (500–560 s). For a sweep of about 138
+  packages, `-p 8` took about 10 minutes, compared with about 58 minutes
+  when packages ran one at a time
+  ([measurements](stages/06-compatibility.md#06-test-speed-result)).
+  Do not overlap separate invocations, stress workers or benchmarking on
+  the shared server. The harness takes a per-process schema change lock
+  key (N17, from `08=eac5b916c7`), so packages no longer queue on D53.
+  Below that revision, or on a server with 64 locks per transaction, run
+  one package at a time: parallel packages queue on D53 or exhaust the
+  lock table (SQLSTATE 53200).
 - Prove backend selection after harness/environment changes: run the
   selected suite with
   `postgres://nobody@127.0.0.1:1/none?connect_timeout=2` and require a
@@ -118,12 +148,13 @@ Select packages by N16's tiers and levels (smoke, full, readiness).
   for goroutine, tomb or catacomb code, as required by AGENTS.md.
 - Bound every run as in [Bounded runs](#bounded-runs-and-check-ins).
   The application and removal-model packages have taken 16–17 minutes on
-  PostgreSQL; run them in suite- or test-group-sized chunks, not as one
-  run. A timeout is not evidence of a functional regression. The cost is
-  per-test setup, not query speed (see below).
+  PostgreSQL. When validating a targeted change in them, run only the
+  affected suites or test groups. Give a sweep a timeout that covers
+  these packages. A timeout is not evidence of a functional regression.
+  The cost is per-test setup, not query speed (see below).
 - Do not print the database URL. Obtain it from the private file or the
-  environment. The snap Go command has been observed to produce no output
-  with direct file redirection: use a pipe, preserving the test exit code.
+  environment. Capture `go` output with a pipe, not a file redirection
+  (see [Snap Go output redirection](#snap-go-output-redirection)).
 
 Example for one small package; substitute the task's package and budgets:
 
@@ -131,6 +162,15 @@ Example for one small package; substitute the task's package and budgets:
 set -o pipefail
 export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
 timeout 150s go test -count=1 -race -timeout 120s -v ./internal/database/postgresql/ \
+  2>&1 | tee "$LOG_FILE"
+```
+
+Example for a parallel sweep of the domain packages:
+
+```bash
+set -o pipefail
+export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
+timeout 50m go test -count=1 -p 4 -timeout 45m ./domain/... \
   2>&1 | tee "$LOG_FILE"
 ```
 
