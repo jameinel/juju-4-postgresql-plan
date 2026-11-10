@@ -202,7 +202,7 @@ available. Use `reserved` until the worktree and base are confirmed, then
 | Task | Owner/session | Branch | Worktree | Base | Status | Next action |
 |---|---|---|---|---|---|---|
 | U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9c3f117948ef667c43d195ad8a38b09`; user-requested local merge hold under D55. Investigate the attachment invariant and plan semantic rework before merge; retain ownership. Earlier SQLite/dqlite race, lint and txncheck passes do not settle the correct-mount contract. Live QA remains pending. |
-| U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `2f680f130243b52719116d746280ff2d016bca98`; monitor review and CI. The user reports performing the functional QA while editing the PR; individual outcomes were not independently verified. SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed; default pre-check skipped static analysis. PostgreSQL not tested. |
+| U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887952914d1457d10084bacfa78bd0c6d`; bot feedback answered, human review required and CI running. Forward-port to main after landing and check migration/export compatibility; reconcile the PoC workaround. The user reports performing functional QA while editing the PR; individual outcomes were not independently verified. At `2f680f1302`, SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed. The comment-only follow-up passed transformer package tests, scoped lint, txncheck and gci; default pre-check skipped static analysis. PostgreSQL not tested. |
 | X16 secret backend grouped columns | `4d032417-af51-4f77-b950-bf70dd707e46` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | in progress | Pushed commit `c3f75cf03262a98d3d1ed0606732b502a4b673e7` preserves all CA certificates in both consumers. SQLite/dqlite race suites, scoped lint, txncheck and default pre-check passed (static analysis skipped there); live QA and PostgreSQL execution not run. Proposed PR: `PR-4.1-x16-grouped-columns.md`, base `juju/juju:4.1`, head `jameinel:4.1-x16-grouped-columns`. QA steps are unverified and require review; do not create the PR without explicit approval. |
 
 ## Open reviews: finish on existing branches
@@ -233,7 +233,7 @@ remain unvalidated; review approval, QA and stack prerequisites are separate.
 | `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Human approval predates this head; await the remaining review gate. Preserve SSH-key diagnostics and failure status under `set -e`. |
 | `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; await review and rebase onto `4.1` after the parent lands. Current Unit Tests, upgrade pre-check and aggregate passed. Preserve NULL/false/true and the upstream-fix sentinel. |
 | `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent head `2e12c3150a`. Evaluate Van Cleef's three suggestions; investigate failed localhost smoke and aggregate, obtain human review and complete disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
-| `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `2f680f1302`, based on `148e09f015`. Evaluate Van Cleef's two suggestions and obtain human review; the user reports performing QA, but individual results were not independently verified. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key. Reconcile the different PoC workaround after landing. |
+| `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `9a3083a887`, based on `148e09f015`. Van Cleef's suggestions were [answered](https://github.com/juju/juju/pull/23769#issuecomment-6756558330): the transform comment explains the conversion without claiming canonical-only inputs; mainline propagation is deferred until after landing. Obtain human review and monitor CI. The user reports performing QA, but individual results were not independently verified. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key; check migration/export compatibility when forward-porting and reconcile the different PoC workaround after landing. |
 
 Review and CI evidence at that snapshot:
 
@@ -243,8 +243,9 @@ Review and CI evidence at that snapshot:
 - #23765: Van Cleef's November 9 Comment had no issues and three suggestions:
   broader nullable-field coverage, generator-drift checking and CI triage.
   #23769 had no issues and two suggestions: mainline propagation and the
-  legacy-key conversion rationale. These are claims to evaluate, not
-  confirmed defects or automatic merge blockers.
+  legacy-key conversion rationale. Subsequently, both were answered in
+  #23769; the rationale was documented and forward-porting was deferred.
+  These findings are not automatic merge blockers.
 - The [#23750 revision](https://github.com/juju/juju/actions/runs/42653392922/job/129285455048),
   #23751 [revision](https://github.com/juju/juju/actions/runs/42636373516/job/129225558822)
   and [charms](https://github.com/juju/juju/actions/runs/42636373516/job/129225558842),
@@ -481,8 +482,9 @@ the invariant or silently deduplicate data without approval. PoC: `640d3bcabf`.
 
 #### `4.1-unitstate-relation-key` — U21, type mismatch
 
-Published as [#23769](https://github.com/juju/juju/pull/23769); continue
-review and CI on the existing branch.
+Published as [#23769](https://github.com/juju/juju/pull/23769), head
+`9a3083a887`; continue human review and CI on the existing branch. After
+landing, propagate the change to main, checking migration/export compatibility.
 
 `setUnitStateRelation` binds Go `int` relation IDs to the `TEXT`
 `unit_state_relation.key`, and `GetUnitState` scans it back into `int`.
