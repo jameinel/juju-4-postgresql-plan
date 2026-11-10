@@ -48,6 +48,40 @@ is diagnostic context, not a command to repeat blindly.
   `canonical/postgresql-single-kernel-library`, `canonical/data-integrator`.
   Go module sources are in the module cache.
 
+### Real dqlite test runs
+
+An untagged `go test` uses the SQLite fallback; it does not exercise the
+real dqlite driver. Use `make run-go-tests` from the target checkout for
+real dqlite. The target adds `dqlite,libsqlite3`, selects the bundled
+`musl-gcc`, and supplies the CGO include paths, static libraries and linker
+flags. It does not depend on dqlite being registered with system
+`pkg-config` or `musl-gcc` being on the original `PATH`.
+
+The paths come from that checkout's `scripts/dqlite/Makefile`. In this
+Linux/amd64 PoC tree they are `_deps/dqlite-deps-4.0-amd64` (including
+`include/dqlite.h` and the archives) and
+`_deps/musl-amd64/output/bin/musl-gcc`. Other architectures and branches
+may select different paths. Inspect the selected paths before running:
+the Makefile's `*-install-if-missing` prerequisites may provision missing
+dependencies. Reuse an existing `_deps` rather than downloading another
+copy; upstream worktrees may share it as described in UPSTREAM-PLAN.md.
+
+For example, substituting the affected package and test selection:
+
+```bash
+set -o pipefail
+unset JUJU_POSTGRESQL_TEST_URL
+timeout 150s make run-go-tests TEST_PACKAGES=./domain/lease/state \
+  TEST_ARGS='-v -race -p 2 -count=1 -timeout 120s' \
+  TEST_FILTER='TestStateSuite/TestClaimLeaseSuccessAndLeaseQueries' \
+  2>&1 | tee "$LOG_FILE"
+```
+
+For a package suite omit `TEST_FILTER`. Use a log outside both
+repositories, and apply the bounded-run and progress rules below.
+`make go-test-alias` prints the equivalent environment when a direct
+`go test` invocation is needed.
+
 ### Snap Go output redirection
 
 `go` is the snap (`/snap/bin/go`). A plain file redirection such as

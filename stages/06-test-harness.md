@@ -64,13 +64,14 @@ setup reading.
 2. Use D42's runtime-entry package list in the detail file. Keep deferred
    PostgreSQL import/export (D40) distinct from blockers. Later gates use
    N16's tiers and levels (smoke before commits, full post-commit,
-   readiness before a bootstrap run or milestone). 06-test-speed is done
-   (N17); 06-test-levels and 06-leaseexpiry-db remain.
+   readiness before a bootstrap run or milestone). 06-test-speed (N17)
+   and 06-leaseexpiry-db are done; 06-test-levels remains.
 3. Run gates as one `go test` invocation with `-p` up to 8 on the
    unit-test server profile (N17, OPERATIONS.md), on both backends, at
    the restacked revision; record selectors, tags, skips and evidence. A
    fixed issue remains "awaiting rerun" until tested. The next full run
-   is the re-sweep after the open Stage 5 fixes, before bootstrap run 4.
+   is the re-sweep after the Stage 5 lease-clock fix, before bootstrap
+   run 4.
 4. The functional milestone also requires Stage 9 runtime evidence;
    passing a Stage 6 gate alone is not "functional".
 

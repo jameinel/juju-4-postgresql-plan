@@ -190,25 +190,23 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest and 05-unitstate-relation-key done; U15/U16 cherry-picked (D43); 05-lease-db-time (D16) pending; no other known production query defect open |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed done (N17); sweep 2 classified, test SQL and fixture repairs open |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key and 05-lease-db-time (D16) done; U15/U16 cherry-picked (D43); no other known production query defect open |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; 06-test-speed and 06-leaseexpiry-db done; sweep 2 classified, test SQL and fixture repairs open |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 are fixed; lease-clock work and a re-sweep remain before run 4 |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` (same commit as 08) | 09-functional scenario agreed (D54); query blockers from runs 2 and 3 and the lease-clock regression are fixed; a re-sweep and D56 database recreation remain before run 4 |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next:
 
-1. Implement 05-lease-db-time (D16) and restack, so later runs use the
-   intended lease semantics. 04-current-timestamp (D56) is complete and
-   changes the schema hash; recreate disposable PoC databases before
-   bootstrap, after confirming the cleanup targets.
-2. Re-sweep at the new tip with one `go test -p 8` invocation and the
+1. Re-sweep at the new tip with one `go test -p 8` invocation and the
    unit-test profile (OPERATIONS.md). Fix the test-side classes that hide
    production defects first (06-dialect-fixtures, 06-bind-types).
-3. Bootstrap run 4 and the D54 scenario; then the dqlite comparison run.
-4. Dispatch the Stage 5 upstream break-outs scoped in
+2. Before bootstrap, confirm the cleanup targets and recreate disposable
+   PoC databases: 04-current-timestamp (D56) changes the schema hash.
+   Run bootstrap 4 and the D54 scenario; then the dqlite comparison run.
+3. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
@@ -223,17 +221,27 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-09, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=efc7f1d195`, `06=b17e623484`, `07=b785b0b27d`,
-`08=09=0aed8123db`. D56 is committed on Stage 4 and restacked through
-Stage 9. At `09=0aed8123db`, `go build ./...` passed; the focused charm
+`04=f957a3ae5e`, `05=76aac853dd`, `06=ebba92514b`, `07=fae300116a`,
+`08=09=a3818782aa`. D56 and the D16 lease-clock correction are restacked
+through Stage 9. At `09=a3818782aa`, `go build ./...` and both affected
+lease packages passed with `-race` on SQLite, real dqlite and PostgreSQL;
+an invalid-URL probe proved both database suites selected PostgreSQL.
+The broader N16 smoke run still has 36 known PostgreSQL changestream
+fixture failures and existing schema-test skips; see
+[Stage 6](stages/06-compatibility.md#latest-recorded-evidence). This is
+not a full PostgreSQL re-sweep. At the previous `09=0aed8123db`,
+`go build ./...` passed; the focused charm
 ordering tests passed with `-race` on PostgreSQL and dqlite, the
 controller/model PostgreSQL schema comparison passed, and the legacy
 import delta test passed on dqlite. An invalid-URL probe confirmed that
-the state suite selected PostgreSQL. This is not a full PostgreSQL
-re-sweep; see [Stage 4](stages/04-schemagen.md) for the earlier affected
-package results and remaining recreation requirement.
+the state suite selected PostgreSQL. See [Stage 4](stages/04-schemagen.md)
+for the earlier affected package results and remaining recreation
+requirement, and [Stage 5](stages/05-queries.md#05-lease-db-time-lease-times-from-the-database-clock-done)
+for the lease validation and outstanding checker findings.
 
-The published tips checked before this restack on 2026-11-09 were
+The published tips before the lease restack were `04=f957a3ae5e`,
+`05=efc7f1d195`, `06=b17e623484`, `07=b785b0b27d`,
+`08=09=0aed8123db`. Before the D56 restack on 2026-11-09 they were
 `04=53a0bf03d9`, `05=640d3bcabf`, `06=4b1a462df0`, `07=008f3fcf15`,
 `08=09=760f3b675f`. An earlier set was `05=3a8f0090c2`,
 `06=add66191aa`, `07=d700353eb0`, `08=09=eac5b916c7`. Previously verified

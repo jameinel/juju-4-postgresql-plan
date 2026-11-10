@@ -32,6 +32,27 @@ standard commands, dependencies and database fixtures. Include actual
 dqlite checks where required, and its prescribed race/stress,
 watcher-readiness, formatting and lint checks.
 
+For real dqlite, use the target checkout's `make run-go-tests`: it adds the
+`dqlite,libsqlite3` tags and configures the bundled `_deps` musl compiler,
+headers and static libraries. Do not infer missing dqlite from `pkg-config`
+or a `PATH`-only search for `musl-gcc`. Check the paths selected by that
+checkout's `scripts/dqlite/Makefile` first, because the target's
+`*-install-if-missing` prerequisites can provision dependencies. Reuse the
+shared `_deps` described in UPSTREAM-PLAN.md instead of redownloading it.
+For example, adjust the package and selection for the change:
+
+```bash
+set -o pipefail
+unset JUJU_POSTGRESQL_TEST_URL
+timeout 150s make run-go-tests TEST_PACKAGES=./domain/lease/state \
+  TEST_ARGS='-v -race -p 2 -count=1 -timeout 120s' \
+  TEST_FILTER='TestStateSuite/TestClaimLeaseSuccessAndLeaseQueries' \
+  2>&1 | tee "$LOG_FILE"
+```
+
+Omit `TEST_FILTER` to run a package suite. Keep the log outside the
+checkout; a bounded command's timeout is not a pass.
+
 Before validation, check `PATH` for the required executables. If needed,
 add `$HOME/go/bin` to the front of `PATH` for the validation commands; this
 is where the precompiled `txncheck`, `golangci-lint`, `gci` and `stress`

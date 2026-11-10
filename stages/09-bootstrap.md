@@ -1,7 +1,13 @@
 # Stage 09: functional single controller and first comparison
 
 Branch `pg-poc/09-bootstrap`, on `pg-poc/08-dbaccessor` (no commits of its own yet).
-Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a PostgreSQL-only query defect on the login and uniter paths (fixed on Stage 5). Run 4 is unblocked: 05-unitstate-relation-key and 05-X16-rest are fixed (`09=760f3b675f`). See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
+failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a
+PostgreSQL-only query defect on the login and uniter paths (fixed on
+Stage 5). The lease-clock correction is also restacked and validated at
+`09=a3818782aa`. Before run 4, re-sweep the current tip and confirm
+cleanup targets before recreating disposable databases for D56. See the
+run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 

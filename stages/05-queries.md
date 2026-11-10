@@ -8,8 +8,9 @@ PoC runtime fixes implemented. X33–X38 and U11 are finished (U11 is
 cherry-picked from the open upstream PR). Bootstrap runs 2 and 3 and
 PostgreSQL sweep 2 (2026-11-05) found more production defects; the runtime
 failures are addressed (05-BOOT-FIXES,
-05-SECRET-X16, 05-X16-rest, 05-unitstate-relation-key; tip
-`05=640d3bcabf`). No known production query blocker remains open here.
+05-SECRET-X16, 05-X16-rest, 05-unitstate-relation-key). The lease-clock
+regression is fixed at the current tip `05=76aac853dd`. No known
+production query blocker remains open here.
 U21 is a boundary workaround, not a completed shared schema correction;
 the integer-schema upstream task and later PoC reconciliation remain open.
 The D55 review also holds upstream storage #23766 for attachment-invariant
@@ -162,7 +163,7 @@ The PoC workaround remains historical implementation evidence, not an
 approved upstream solution. Reconcile it with the landed result under
 UPSTREAM-INTEGRATION.md; do not silently mirror an in-review design here.
 
-### 05-lease-db-time: lease times from the database clock (pending)
+### 05-lease-db-time: lease times from the database clock (done)
 
 D16 (amended 2026-11-06). `8930466847` replaced `datetime('now', ...)` in
 `domain/lease/state/state.go` (claim, extend) and
@@ -172,18 +173,58 @@ every controller, so a controller whose clock runs ahead deletes leases
 early. Upstream evaluates all three on the dqlite leader, which is the
 behaviour to keep.
 
-- Expiry: compare `l.expiry < CURRENT_TIMESTAMP` in both queries. SQLite
-  compares same-format text; PostgreSQL compares `timestamptz` values.
-  Drop the store's clock.
-- Claim and extend: take "now" from the database in the same transaction,
-  for example `SELECT CURRENT_TIMESTAMP`, then keep `expiryFrom` and
-  `formatTimestamp`. SQLite returns that expression as text (no declared
-  type) and PostgreSQL as `timestamptz`; check what each driver returns
-  before choosing the scan type. The start may also come from a
-  `CURRENT_TIMESTAMP` insert value, but the expiry needs the same instant.
-- Remove the `clock` fields added to `State` and `expiryStore`.
-- Tests: claim/extend expiry against database time on both backends;
-  fold in 06-leaseexpiry-db (real-database expiry test) if convenient.
+`76aac853dd` restores the database clock. Claim and extension read
+`CURRENT_TIMESTAMP` inside each transaction attempt, preserve the
+whole-second rounding and use a transaction-local lease value on retry.
+Both expiry queries compare with `CURRENT_TIMESTAMP`; the state and store
+clocks are removed, while the worker's scheduling clock remains.
+
+The deterministic SQLite clock fixture covers controller skew, the
+equality boundary, pinning and resampling after a rolled-back attempt.
+The controller-schema tests also cover claim, extension and expiry against
+real database time, including pinned, null-expiry and future leases.
+`CURRENT_TIMESTAMP` is returned as `string` by the SQLite and real-dqlite
+drivers and as `time.Time` by pgx; the scanner also accepts `[]byte` and
+rejects invalid values (DIALECT.md X45).
+
+Validation on 2026-11-09 at `09=a3818782aa`:
+
+- `go build -v -p 2 ./...` passed.
+- Both `./domain/lease/state` and `./internal/worker/leaseexpiry` passed
+  with `-race -count=1 -p 2 -timeout 120s -v` on untagged SQLite, on real
+  dqlite via `make run-go-tests` (`dqlite,libsqlite3`), and on PostgreSQL.
+  No tests were skipped. An invalid PostgreSQL URL made each affected
+  database suite fail to connect, proving backend selection. This is not
+  a full re-sweep.
+- A 31-second, two-process real-dqlite race stress run of the worker and
+  store suites at the Stage 5 source committed as `76aac853dd` completed
+  48 iterations with no failures before the expected outer timeout.
+- The remaining N16 smoke selection was run after the commit with
+  `-race -count=1 -p 4 -timeout 120s -v`: `internal/database`,
+  `core/database/schema`, `core/watcher/eventsource`,
+  `internal/changestream/stream`, `domain/schema`,
+  `domain/changestream/state` and `domain/controllernode/state`.
+  Untagged SQLite passed. On PostgreSQL, the other packages passed but
+  `internal/changestream/stream` had 36 existing `AUTOINCREMENT` fixture
+  failures (06-dialect-fixtures). `domain/lease` has no test files.
+  PostgreSQL still skips the schema and dqlite-only tests noted in
+  [Stage 6](06-compatibility.md#latest-recorded-evidence).
+- Scoped `golangci-lint` and `txncheck` reported zero issues, and `gci`
+  was run on the changed Go files. `make pre-check` passed with
+  `STATIC_ANALYSIS` unset, so it did not run the full static-analysis
+  suite.
+- Repository-wide `txncheck` reported 11 pre-existing findings at the
+  restacked top: captured mutations in `domain/cloud/state/state_test.go`,
+  `domain/unitstate/state/commithook_test.go` and
+  `internal/database/postgresql/driver_test.go`, and assertions in
+  transactions in `internal/database/bootstrap_postgresql_test.go`.
+  Those files match the pre-restack `origin/pg-poc/09-bootstrap`; none is
+  part of this fix. The Stage 5 run reported the three mutation findings.
+
+The PostgreSQL run also completes 06-leaseexpiry-db. Logs are in the
+session's `files/09-lease-{postgresql,sqlite,dqlite}.log`, with the
+`09-lease-smoke-{postgresql,sqlite}.log`, stress, lint and
+transaction-checker logs alongside them.
 
 Not in scope: `migration.go` `expiry >= date('now')` (date-only; see
 UPSTREAM-PLAN.md), and a replicated lease clock.
