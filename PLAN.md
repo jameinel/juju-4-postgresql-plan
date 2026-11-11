@@ -194,8 +194,8 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
-| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15/U16 cherry-picked (D43) |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; six repair batches integrated; pre-redistribution 142-package sweeps failed on both backends; final sweep remains pending |
+| 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 historically met; upstream rebase validation incomplete: new PostgreSQL charm-removal timestamp fixture failure; final sweep pending |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); four review checkpoint commits remain at 09 pending redistribution to their owning layers; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
@@ -204,7 +204,12 @@ missing inputs; do not ask an executor to design and implement a backlog.
 
 Next:
 
-1. Run the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
+1. Triage the PostgreSQL charm-removal timestamp fixture failure introduced
+   by the upstream rebase; see
+   [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
+   Complete the outstanding rebase checks before treating the new base as
+   verified. The stack is local and has not been republished.
+2. Run the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
    (N18): Step 0 and all six repair batches are integrated at
    `09=3a590b446f`. All GPT-6.1 Terra workers have delivered reports
    and their completed worktrees have been removed. W2/W3's exhaustive
@@ -232,12 +237,12 @@ Next:
    deferred import
    packages (D40), `domain/recovery/state` and 06-schema-skip; see the
    handoff.
-2. Reassess bootstrap run 4 with the user (N22). Before bootstrap,
+3. Reassess bootstrap run 4 with the user (N22). Before bootstrap,
    inspect resources and obtain explicit approval of cleanup targets
    before any teardown or database recreation: 04-current-timestamp
    (D56) changes the schema hash. Then run bootstrap 4 and the D54
    scenario, then the dqlite comparison run.
-3. Dispatch the Stage 5 upstream break-outs scoped in
+4. Dispatch the Stage 5 upstream break-outs scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
@@ -250,7 +255,14 @@ Next:
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
-Current local tips (2026-11-10, base `5259edff43`):
+Current local tips (2026-11-11, base `bd970f693c`, verification incomplete):
+`00=b5e5c7f644`, `01=cc4e33a336`, `02=11c1c182dd`, `03=6ef34e58cd`,
+`04=c0f57b0134`, `05=12f56160f8`, `06=0717e45d27`, `07=8e031243e7`,
+`08=d073649e82`, `09=1caa2555f3`. The original stage tips are tagged
+`pg-poc-before-upstream-bd970f693c/00` through `/09`.
+See [reconciliation evidence](UPSTREAM-FIXES.md#poc-reconciliation-onto-bd970f693c-2026-11-11).
+
+Previous local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
 `04=f957a3ae5e`, `05=274e1a2e02`, `06=af63bd985a`, `07=1d2b6a37c0`,
 `08=3a0450153f`, `09=45744e912e`. Stage 9 also carries four review
@@ -377,8 +389,9 @@ functionality rather than disappearing from scope.
 ## Stack workflow
 
 Every stage branch sits on the one below it in the table, in one line
-(N4, N8). The base is upstream `4.1` at `5259edff43` (since 2026-11-05;
-previously `a8591fe1b8`, old tips tagged `pg-poc-base-a8591fe1b8/*`).
+(N4, N8). The base is upstream `4.1` at `bd970f693c` (since 2026-11-11;
+verification remains incomplete). The earlier base was `5259edff43`;
+older `a8591fe1b8` tips are tagged `pg-poc-base-a8591fe1b8/*`.
 Stage 5 also
 carries unchanged cherry-picks of open upstream PRs (D43; listed in
 UPSTREAM-FIXES.md). The **top** is the

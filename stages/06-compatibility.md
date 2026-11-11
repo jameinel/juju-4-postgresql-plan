@@ -52,6 +52,40 @@ approved skips. New blockers return to their owning task; do not silently
 weaken the gate. Gates use the N16 tiers and levels: the readiness level
 runs tiers A and B in full; do not add packages outside them.
 
+## Upstream rebase (2026-11-11)
+
+The stack was rebased onto upstream `bd970f693c`; final local tip
+`09=1caa2555f3`. Recovery tags preserve all prior stage tips. The new base
+is **not fully validated or published**.
+
+The newly landed key-manager stale-snapshot regression requires SQLite
+or dqlite's write contention; PostgreSQL permits the different-key writes.
+With user approval, `06=0717e45d27` skips that test on PostgreSQL, retaining
+all original assertions for SQLite and dqlite. The selected test passed on
+SQLite and real dqlite (`-race`, `dqlite,libsqlite3`), and was explicitly
+skipped on PostgreSQL at `09=1caa2555f3`. Other selected key-manager
+PostgreSQL tests passed at that tip.
+PostgreSQL serialization retry is separately covered in
+`internal/database/postgresql/driver_test.go`; key-manager-specific
+PostgreSQL contention is not covered by this skip.
+
+At `09=ebc513b003` before the test-only restack, the full build passed
+with `go build -p 2 ./...`. PostgreSQL fresh IAAS and Kubernetes state bootstrap,
+and six agent-binary registration tests in each controller/model package
+passed with `-race`; the invalid-URL probe failed as expected. Focused
+SQLite bootstrap/command suites and dqlite-initialiser tests passed with
+`-race`; the pre-existing command test stub was skipped.
+
+**Blocker:** PostgreSQL `domain/removal/state/model` `TestCharmSuite`
+failed `TestCharmScheduleRemoval`: the upstream fixture compares a
+nanosecond `s.now` with PostgreSQL's microsecond timestamp. Six other
+methods passed. Triage this as a Stage 6 fixture repair; do not weaken the
+assertion or classify the suite as passing. Logs are
+`/tmp/pg-poc-bd970-removal-charm-postgresql.log` and
+`/tmp/pg-poc-bd970-final-keymanager-postgresql.log`.
+The broader rebase checks, real-dqlite affected-package runs and final
+142-package sweeps remain outstanding.
+
 ## Parallel repair run (2026-11-10, in progress)
 
 ### Database fixture time helper (2026-11-10)

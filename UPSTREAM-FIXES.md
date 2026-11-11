@@ -101,6 +101,12 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 | U24 | latent | `domain/ssh/state/model/state.go` `EnsureMachineVirtualHostKeyByMachineName` and `EnsureUnitVirtualHostKeyByUnitName` | An expected primary-key conflict is followed by a read in the same transaction. SQLite permits this; PostgreSQL aborts the transaction and the read fails with 25P02 (X18). Existing-key and concurrent-creator handling must retain the first persisted host key, not replace it. | Fixed on PoC Stage 5 as `2f55c00439`: targeted conflict-safe inserts followed by a read of the persisted key. Focused PostgreSQL and real-dqlite checks and concurrent stress passed at `09=85e4e6b122`; see Stage 5. Break out independently as `4.1-ssh-host-key-conflict`; no upstream branch or PR created. |
 | U25 | portability | `domain/controllerupgrader/state/{controller,model}.go` `GetAllAgentStoreBinariesForStream` | The queries project an untyped input stream parameter into every result row; pgx resolves it as text and rejects the Go integer (X9). SQLite accepts it. The field is the same caller-supplied value for every row, not stored data. | Fixed on PoC Stage 5 as `274e1a2e02`: select stored version/architecture fields and populate `AgentBinary.Stream` directly from the method argument. Focused PostgreSQL and real-dqlite checks passed at `09=85e4e6b122`; see Stage 5. Independent upstream breakout `4.1-controllerupgrader-stream-result` remains unclaimed; no branch or PR created. |
 
+**U13/U16 reconciliation, 2026-11-11:** The landed key-manager follow-up
+and shared agent-binary registration implementation are in the rebased
+stack. Their earlier PoC implementations are not retained as competing
+paths. See the [reconciliation record](#poc-reconciliation-onto-bd970f693c-2026-11-11)
+for residual test work and the incomplete validation.
+
 ### Unassigned test findings (2026-11-10)
 
 - **Latent (test), X17:** `domain/model/state/controller/state_test.go`
@@ -730,6 +736,24 @@ to SQL fixes. Published as juju/juju#23755 at `15119bb898`.
 The [patch](4.1-pr-description-guidance.patch) and
 [PR draft](PR-4.1-pr-description-guidance.md) are historical text, not the
 current publication. Follow the existing PR rather than recreating it.
+
+## PoC reconciliation onto bd970f693c (2026-11-11)
+
+The local stack was rebased from `5259edff43` to upstream `bd970f693c`.
+Recovery tags `pg-poc-before-upstream-bd970f693c/00` through `/09`
+retain the original tips. U16's two old cherry-picks were dropped in
+favor of merged #23728, including its shared registration refactor.
+The merged #23756 key-manager fix replaces the earlier insertion logic;
+its PostgreSQL-specific test reconciliation is recorded in
+[Stage 6](stages/06-compatibility.md#upstream-rebase-2026-11-11).
+Upstream #23592 adds a charm removal type; `04=c0f57b0134` regenerates
+the PostgreSQL model DDL. The Stage 8 bootstrap reconciliation retains
+upstream's dqlite bind-address resolver behind the PoC database
+initialiser. Stage tips and partial checks are in PLAN.md and Stage 6.
+
+This rebase is **not fully validated or published**: the PostgreSQL
+charm-removal fixture fails on timestamp precision, and the remaining
+rebase checks and final sweeps have not run.
 
 ## PoC reconciliation onto 5259edff43 (2026-11-05)
 

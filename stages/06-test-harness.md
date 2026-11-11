@@ -32,6 +32,12 @@ setup reading.
 - `SchemaDialect()` returns the leaf `core/database/dialect` interface.
   Do not import the schema engine back into the harness and recreate the
   cycle. Use dialect-aware helpers for unavoidable backend-specific DDL.
+- Follow up with an explicit test-suite backend identity API that can
+  distinguish the SQLite fallback, real dqlite and PostgreSQL. The SQL
+  dialect alone cannot distinguish the two SQLite-compatible backends.
+  Until then, tests needing SQLite-only setup must combine the suite
+  dialect with `dqlite.Enabled`; do not infer the backend from the build
+  flag alone.
 - PG connections use UTC, SERIALIZABLE and bounded pools (cap 3 per
   namespace, X22). Stage 8 must preserve these runtime requirements.
 - PG test sessions get `lock_timeout` 30 s, `statement_timeout` 60 s and
