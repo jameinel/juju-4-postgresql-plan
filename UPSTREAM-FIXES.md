@@ -103,6 +103,12 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 
 ### Unassigned test findings (2026-11-10)
 
+- **Latent (test), X17:** `domain/model/state/controller/state_test.go`
+  assumed query order for activated model UUIDs, although the query has
+  no `ORDER BY` and the consumer uses a set. Stage 6 `af63bd985a`
+  compares complete unordered contents. Ten PostgreSQL repetitions and
+  one real-dqlite run passed with `-race`; see 06-X17. Upstream home is
+  unassigned.
 - **Portability (test), X27:** Stage 6 `306a0ae3cf` adds a UTC,
   microsecond-precision database fixture helper and uses it for the
   current-time fixtures introduced during the compatibility repairs.

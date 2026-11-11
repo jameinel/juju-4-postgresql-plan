@@ -222,8 +222,8 @@ Next:
    The user approved `-p 6` for the larger sweep when no other load runs
    concurrently; run the full agreed selection once per backend at the
    final restacked tip. Pre-redistribution sweeps at `09=ff21df57ed`
-   found the known activated-model order assertion, the PostgreSQL
-   schema-teardown catalog race, and the known dqlite nullable-BOOLEAN
+   found the activated-model order assertion (fixed in Stage 6), the
+   PostgreSQL schema-teardown catalog race, and the known dqlite nullable-BOOLEAN
    logging failure; see [sweep results](stages/06-compatibility.md#pre-redistribution-sweeps-2026-11-10).
    The UTC database-time fixture helper is implemented on Stage 6.
    Workers report production defects
@@ -252,8 +252,8 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=274e1a2e02`, `06=479dd64e05`, `07=08c41ddeae`,
-`08=11dd6efd9d`, `09=ff21df57ed`. Stage 9 also carries four review
+`04=f957a3ae5e`, `05=274e1a2e02`, `06=af63bd985a`, `07=1d2b6a37c0`,
+`08=3a0450153f`, `09=45744e912e`. Stage 9 also carries four review
 checkpoint commits awaiting redistribution. Step 0 and all six repair
 batches are committed.
 The removed worker branches were created from the earlier verified
