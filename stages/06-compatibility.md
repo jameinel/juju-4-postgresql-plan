@@ -54,8 +54,8 @@ runs tiers A and B in full; do not add packages outside them.
 
 ## Upstream rebase (2026-11-11)
 
-The stack was rebased onto upstream `bd970f693c`; final local tip
-`09=1caa2555f3`. Recovery tags preserve all prior stage tips. The new base
+The stack was rebased onto upstream `bd970f693c`; current local tip
+`09=75223c9543`. Recovery tags preserve all prior stage tips. The new base
 is **not fully validated or published**.
 
 The newly landed key-manager stale-snapshot regression requires SQLite
@@ -76,12 +76,17 @@ passed with `-race`; the invalid-URL probe failed as expected. Focused
 SQLite bootstrap/command suites and dqlite-initialiser tests passed with
 `-race`; the pre-existing command test stub was skipped.
 
-**Blocker:** PostgreSQL `domain/removal/state/model` `TestCharmSuite`
+PostgreSQL `domain/removal/state/model` `TestCharmSuite` previously
 failed `TestCharmScheduleRemoval`: the upstream fixture compares a
-nanosecond `s.now` with PostgreSQL's microsecond timestamp. Six other
-methods passed. Triage this as a Stage 6 fixture repair; do not weaken the
-assertion or classify the suite as passing. Logs are
-`/tmp/pg-poc-bd970-removal-charm-postgresql.log` and
+nanosecond `s.now` with PostgreSQL's microsecond timestamp; six other
+methods passed. Stage 6 `6cf4ccd0e1` uses `DatabaseNow()` for the
+scheduled time and preserves the exact equality assertion. At restacked
+`09=75223c9543`, all seven methods passed with `-race` on SQLite,
+PostgreSQL and real dqlite. Logs are
+`/tmp/pg-poc-bd970-removal-charm-postgresql.log`,
+`/tmp/pg-poc-charm-time-sqlite.log`,
+`/tmp/pg-poc-charm-time-postgresql.log`,
+`/tmp/pg-poc-charm-time-dqlite.log` and
 `/tmp/pg-poc-bd970-final-keymanager-postgresql.log`.
 The broader rebase checks, real-dqlite affected-package runs and final
 142-package sweeps remain outstanding.

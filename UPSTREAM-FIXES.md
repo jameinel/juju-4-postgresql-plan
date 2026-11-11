@@ -751,9 +751,10 @@ the PostgreSQL model DDL. The Stage 8 bootstrap reconciliation retains
 upstream's dqlite bind-address resolver behind the PoC database
 initialiser. Stage tips and partial checks are in PLAN.md and Stage 6.
 
-This rebase is **not fully validated or published**: the PostgreSQL
-charm-removal fixture fails on timestamp precision, and the remaining
-rebase checks and final sweeps have not run.
+This rebase is **not fully validated or published**. The PostgreSQL
+charm-removal timestamp fixture is repaired and its focused suite passes
+on all three backends; the remaining rebase checks and final sweeps have
+not run.
 
 ## PoC reconciliation onto 5259edff43 (2026-11-05)
 
