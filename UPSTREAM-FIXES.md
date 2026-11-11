@@ -119,7 +119,10 @@ for residual test work and the incomplete validation.
   microsecond-precision database fixture helper and uses it for the
   current-time fixtures introduced during the compatibility repairs.
   It preserves explicit non-UTC and precision-boundary fixtures.
-  Upstream home is unassigned.
+  Break out `DatabaseNow()` and its tests upstream separately, with
+  representative fixture conversions including charm removal. Keep this
+  PoC session focused on bringing up the controller; no upstream branch
+  or PR has been created.
 - **Latent (test), X17:** `domain/resource/state/resource_test.go`
   assumed database order for unit, application and repository resource
   lists. Stage 6 `555506ac67` compares unordered membership while
@@ -532,8 +535,8 @@ and does not establish current CI, QA or PoC reconciliation.
 | `4.1-drop-iif` | X7 | [#23751](https://github.com/juju/juju/pull/23751) | `fcec930751` | open; revision and charms smoke, upgrade pre-check and aggregate failed; human review and functional QA remain |
 | `4.1-cte-membership-subqueries` | X24 | [#23750](https://github.com/juju/juju/pull/23750) | `67daa565a6` | open; human follow-ups answered; revision smoke and aggregate failed; real-dqlite follow-up validation and manual QA remain |
 | `4.1-pr-description-guidance` | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) | `b78a42c7c9` | open; await Simon's response about moving guidance to AGENTS.md; 7 checks passed, 12 skipped |
-| `4.1-lxd-default-bases` | Test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) | `63a93201b5` | open; human approval predates head; GitHub review required |
-| `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `a848d4426e` | open; temporary SQL casts and full domain CI published; stacked on #23756; current upgrade pre-check and aggregate passed; human review required |
+| `4.1-lxd-default-bases` | U13 follow-up, test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) | `63a93201b5` | merged 2026-11-11 as `bd970f693c`; PoC rebase includes the fix but validation remains incomplete |
+| `4.1-dqlite-nullable-boolean` | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) | `a848d4426e` | open; temporary SQL casts and full domain CI published; rebase onto `4.1` after merged #23756, revalidate and obtain human review |
 | `4.1-controller-export-null` | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765) | `2e12c3150a` | open; evaluate bot suggestions; localhost smoke and aggregate failed; human review and backup QA remain |
 | `4.1-install-dependencies` | U18 | not proposed | | not implemented |
 | `4.1-secret-latest-revision` | U19/X16 | not proposed | | PoC implementation on Stage 5 (`5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`); extract after the remaining #23688 review |
