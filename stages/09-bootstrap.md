@@ -5,8 +5,8 @@ Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a
 PostgreSQL-only query defect on the login and uniter paths (fixed on
 Stage 5). Run 4 at `09=75223c9543` created the PostgreSQL schemas but
-is blocked by the Charmhub outage. Its instance and schemas are preserved;
-obtain explicit approval of cleanup targets before teardown or recreation.
+was blocked by the Charmhub outage. Its instance and schemas have been
+cleaned up with user approval.
 See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
@@ -193,17 +193,19 @@ timed out. The user confirmed Charmhub was down. This is an external
 blocker, not evidence of a PoC code failure.
 
 The bootstrap client was killed without running its default failure cleanup;
-the instance and agent remain running. Controller UUID is
+the instance and agent were left running. Controller UUID is
 `9606321a-81ab-4f1f-8ad7-597769b998c9`; controller model UUID is
-`74761cfd-a5bc-4dfb-8114-14e2f1c5b53b`. Both PostgreSQL schemas remain
-initialised, and the local controller entry `pgpoc-pg` exists. The
+`74761cfd-a5bc-4dfb-8114-14e2f1c5b53b`. Both PostgreSQL schemas were
+initialised, and the local controller entry `pgpoc-pg` existed. The
 bootstrap client exited 137 and the run is **incomplete**; no status,
 model workload or D54 scenario has been verified. Log:
 `/tmp/pg-poc-75223c-bootstrap.log`.
 
-Do not delete or recreate these resources without explicit approval.
-Reassess the existing agent and controller after Charmhub recovers; a fresh
-bootstrap would require a decision about these retained resources.
+Later, the user stopped and unregistered the controller. After the user
+approved the specific targets, the controller-specific cleanup tool
+dropped both schemas. A subsequent inventory showed no controller, model
+or test schemas and no other sessions; `public` and `login_hook` remained.
+Reassess a fresh bootstrap after Charmhub recovers.
 
 ### Run 4: prerequisites and next steps
 
@@ -217,7 +219,7 @@ Prerequisites, in order:
    [PostgreSQL re-sweep](06-compatibility.md#postgresql-re-sweep) ran at
    `-p 8`. Triage its failures and skips for the functional workload.
 3. Run 4 created fresh schemas and started the instance without prior
-   cleanup, but could not complete during the Charmhub outage. After
-   recovery, reassess the retained resources, then complete bootstrap and
-   the D54 scenario. Obtain explicit approval before cleanup or recreation.
-   Run the dqlite comparison from the same revision.
+   cleanup, but could not complete during the Charmhub outage. The failed
+   resources have since been cleaned up with user approval. After recovery,
+   reassess bootstrap and the D54 scenario, then run the dqlite comparison
+   from the same revision.

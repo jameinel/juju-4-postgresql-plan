@@ -236,8 +236,8 @@ Next:
    the three deferred import
    packages (D40), `domain/recovery/state` and 06-schema-skip; see the
    handoff.
-3. Resume bootstrap run 4 after Charmhub is reachable. The PostgreSQL
-   schemas and controller instance are preserved; see
+3. Reassess bootstrap run 4 after Charmhub is reachable. The failed
+   controller and its PostgreSQL schemas have been cleaned up; see
    [run 4](stages/09-bootstrap.md#run-4-2026-11-11-0975223c9543).
    Obtain explicit approval of cleanup targets before any teardown or
    database recreation. Then run the D54 scenario and the dqlite
