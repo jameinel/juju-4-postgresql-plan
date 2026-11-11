@@ -756,8 +756,8 @@ initialiser. Stage tips and partial checks are in PLAN.md and Stage 6.
 
 This rebase is **not fully validated or published**. The PostgreSQL
 charm-removal timestamp fixture is repaired and its focused suite passes
-on all three backends; the remaining rebase checks and final sweeps have
-not run.
+on all three backends. The final-tip sweeps completed with failures; other
+rebase checks remain outstanding.
 
 ## PoC reconciliation onto 5259edff43 (2026-11-05)
 

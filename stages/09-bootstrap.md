@@ -4,11 +4,10 @@ Branch `pg-poc/09-bootstrap`, on `pg-poc/08-dbaccessor` (no commits of its own y
 Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a
 PostgreSQL-only query defect on the login and uniter paths (fixed on
-Stage 5). The lease-clock correction is also restacked and validated at
-`09=a3818782aa`. The re-sweep at that tip completed with failures and
-skips; triage its blockers before run 4. Obtain explicit approval of
-cleanup targets before teardown or recreating disposable databases for
-D56. See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
+Stage 5). Run 4 at `09=75223c9543` created the PostgreSQL schemas but
+is blocked by the Charmhub outage. Its instance and schemas are preserved;
+obtain explicit approval of cleanup targets before teardown or recreation.
+See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
 
@@ -175,7 +174,38 @@ delete -f juju-ebeba2-0`, `juju unregister pgpoc-pg --no-prompt` and
 `destroy-controller` was not tried, because controller removal still has
 open X16 sites (U22). The database was left with no Juju schemas.
 
-### Run 4: next
+### Run 4 (2026-11-11, `09=75223c9543`)
+
+The final-tip 142-package sweeps completed with the known PostgreSQL
+catalog-teardown failures and the dqlite nullable-BOOLEAN failure; see
+[Stage 6](06-compatibility.md#final-tip-sweeps-2026-11-11). `make juju
+jujuagentd` succeeded. The previous private bootstrap config pointed to an
+old database host, so `~/.config/juju-pg-poc/bootstrap-75223c.json`
+was generated mode 0600 from the current test database URL. Inventory
+before bootstrap showed no controller, model or test schemas and no other
+database sessions.
+
+PostgreSQL bootstrap created controller and controller-model schemas and
+started LXD instance `juju-c5b53b-0`, but the controller API never came up.
+The bootstrap worker repeatedly timed out connecting to Charmhub while
+resolving `juju-controller`; HTTPS probes from both host and container
+timed out. The user confirmed Charmhub was down. This is an external
+blocker, not evidence of a PoC code failure.
+
+The bootstrap client was killed without running its default failure cleanup;
+the instance and agent remain running. Controller UUID is
+`9606321a-81ab-4f1f-8ad7-597769b998c9`; controller model UUID is
+`74761cfd-a5bc-4dfb-8114-14e2f1c5b53b`. Both PostgreSQL schemas remain
+initialised, and the local controller entry `pgpoc-pg` exists. The
+bootstrap client exited 137 and the run is **incomplete**; no status,
+model workload or D54 scenario has been verified. Log:
+`/tmp/pg-poc-75223c-bootstrap.log`.
+
+Do not delete or recreate these resources without explicit approval.
+Reassess the existing agent and controller after Charmhub recovers; a fresh
+bootstrap would require a decision about these retained resources.
+
+### Run 4: prerequisites and next steps
 
 Prerequisites, in order:
 
@@ -186,7 +216,8 @@ Prerequisites, in order:
 2. Done at `09=a3818782aa`: the
    [PostgreSQL re-sweep](06-compatibility.md#postgresql-re-sweep) ran at
    `-p 8`. Triage its failures and skips for the functional workload.
-3. Inspect current resources and obtain explicit approval of any cleanup
-   targets before teardown or recreating the disposable databases for
-   D56. Run `make juju jujuagentd`, bootstrap and the D54 scenario. Then
-   run the dqlite comparison from the same revision.
+3. Run 4 created fresh schemas and started the instance without prior
+   cleanup, but could not complete during the Charmhub outage. After
+   recovery, reassess the retained resources, then complete bootstrap and
+   the D54 scenario. Obtain explicit approval before cleanup or recreation.
+   Run the dqlite comparison from the same revision.

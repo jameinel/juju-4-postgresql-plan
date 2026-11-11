@@ -88,8 +88,39 @@ PostgreSQL and real dqlite. Logs are
 `/tmp/pg-poc-charm-time-postgresql.log`,
 `/tmp/pg-poc-charm-time-dqlite.log` and
 `/tmp/pg-poc-bd970-final-keymanager-postgresql.log`.
-The broader rebase checks, real-dqlite affected-package runs and final
-142-package sweeps remain outstanding.
+The broader rebase checks and any remaining real-dqlite affected-package
+runs remain outstanding. The final-tip sweeps below did not pass.
+
+### Final-tip sweeps (2026-11-11)
+
+At `09=75223c9543`, the prepared 142-package selection ran separately on
+PostgreSQL and real dqlite with `GOMAXPROCS=2`, `-race -count=1 -p 6`,
+`-timeout 45m` and a 50-minute outer timeout. Each selection was
+precompiled using `-exec /usr/bin/true`. PostgreSQL used untagged
+binaries and the test URL; dqlite used `dqlite,libsqlite3` and the
+bundled musl/CGO libraries. Both runs completed without race reports.
+The four deferred import and recovery packages remained excluded.
+
+| Backend | Packages pass / fail / no tests | Test-level skip events |
+|---|---|---|
+| PostgreSQL | 138 / 2 / 2 | 189 |
+| Real dqlite | 139 / 1 / 2 | 81 |
+
+Skip event counts include any skipped parent suites. PostgreSQL failed
+`domain/cloud/state` `TestDeleteCloudWithCredentials` and
+`domain/application/state`
+`TestGetStorageAttachInfoForStorageInstancesVolume`, both during
+cross-schema dependency inspection in teardown with `cache lookup failed
+for attribute` (XX000), matching the previously observed concurrent
+catalog-DDL failure. Real dqlite failed the known nullable-BOOLEAN
+`domain/logging/state` `TestSetLokiConfigInsecureSkipVerifyNil`: a nil
+value was read as a non-nil `*bool`.
+
+The PostgreSQL run exited 1 in 18m27s; the dqlite `make` run exited 2
+after its underlying tests failed in 7m47s. Structured logs and
+compile-only logs are `/tmp/pg-poc-75223c-{postgresql,dqlite}-sweep.jsonl`
+and `/tmp/pg-poc-75223c-{pg,dqlite}-precompile.log`. These failures and
+skips are not passes; broader rebase checks remain outstanding.
 
 ## Parallel repair run (2026-11-10, in progress)
 
