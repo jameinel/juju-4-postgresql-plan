@@ -207,6 +207,23 @@ dropped both schemas. A subsequent inventory showed no controller, model
 or test schemas and no other sessions; `public` and `login_hook` remained.
 Reassess a fresh bootstrap after Charmhub recovers.
 
+### Bootstrap retry preparation (2026-11-11, `09=f3340c6710`)
+
+The PostgreSQL and real-dqlite sweeps completed without failures at this
+tip; see [Stage 6](06-compatibility.md#catalog-teardown-dependency-check-2026-11-11).
+`make juju jujuagentd` succeeded, and the private bootstrap configuration
+remained mode 0600. The database inventory showed no controller, model or
+test schemas and no other sessions. Build log:
+`/tmp/pg-poc-f334-bootstrap-build.log`.
+
+Although `charmhub.io` responded over HTTPS, connections to
+`api.charmhub.io` timed out from the host and an existing LXD controller.
+All six IPv4 addresses returned by DNS timed out from the host. This
+establishes an API connectivity problem from these locations, not whether
+the service was globally unavailable. With user approval, the bootstrap
+retry was deferred until API connectivity is restored; no controller or
+bootstrap resources were created in this attempt.
+
 ### Run 4: prerequisites and next steps
 
 Prerequisites, in order:
