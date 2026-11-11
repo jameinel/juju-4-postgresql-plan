@@ -103,6 +103,11 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 
 ### Unassigned test findings (2026-11-10)
 
+- **Portability (test), X27:** Stage 6 `306a0ae3cf` adds a UTC,
+  microsecond-precision database fixture helper and uses it for the
+  current-time fixtures introduced during the compatibility repairs.
+  It preserves explicit non-UTC and precision-boundary fixtures.
+  Upstream home is unassigned.
 - **Latent (test), X17:** `domain/resource/state/resource_test.go`
   assumed database order for unit, application and repository resource
   lists. Stage 6 `555506ac67` compares unordered membership while

@@ -68,14 +68,14 @@ to satisfy the superseded per-worker procedure.
 
 ### Separate follow-up: database fixture time helper
 
-- [ ] Add `internal/testing.DatabaseNow() time.Time`, returning
+- [x] Add `internal/testing.DatabaseNow() time.Time`, returning
   `time.Now().UTC().Truncate(time.Microsecond)`, and migrate ordinary
   current-time database fixtures introduced by these repairs.
   Document the UTC and exactly round-trippable precision contract.
   Preserve explicit non-UTC, fixed-time and precision-boundary fixtures;
   never truncate actual results to conceal precision loss.
-  Keep `NonZeroTime()` unchanged. This cleanup is a separate work item,
-  not a prerequisite for completing the existing repair handoffs.
+  Keep `NonZeroTime()` unchanged. Completed on Stage 6 as `306a0ae3cf`;
+  see [validation](../stages/06-compatibility.md#database-fixture-time-helper-2026-11-10).
 
 ## Starting state
 

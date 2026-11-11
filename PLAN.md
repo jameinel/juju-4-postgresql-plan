@@ -220,8 +220,7 @@ Next:
    each `GOMAXPROCS=2` / Go `-p 2`. Follow changed-layer validation
    rather than repeating earlier passing suites; run the full agreed
    selection once per backend at the final restacked tip.
-   The UTC database-time
-   fixture helper is listed there as a separate follow-up.
+   The UTC database-time fixture helper is implemented on Stage 6.
    Workers report production defects
    rather than fixing them; route approved ones to Stage 5. Then rerun
    the 142-package re-sweep. Its prepared manifest excludes the three
@@ -248,8 +247,8 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-10, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
-`04=f957a3ae5e`, `05=76aac853dd`, `06=555506ac67`, `07=adfd796cfd`,
-`08=7ab3de4367`, `09=06c6cce905`. Stage 9 also carries four review
+`04=f957a3ae5e`, `05=76aac853dd`, `06=306a0ae3cf`, `07=37517d5572`,
+`08=48629ea0bf`, `09=cb765ceb54`. Stage 9 also carries four review
 checkpoint commits awaiting redistribution. Step 0 and all six repair
 batches are committed.
 The removed worker branches were created from the earlier verified

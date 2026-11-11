@@ -54,6 +54,31 @@ runs tiers A and B in full; do not add packages outside them.
 
 ## Parallel repair run (2026-11-10, in progress)
 
+### Database fixture time helper (2026-11-10)
+
+Stage 6 `306a0ae3cf` adds `internal/testing.DatabaseNow()`, returning
+UTC time truncated to microseconds, and migrates ordinary current-time
+fixtures introduced by the repair batches. Explicit non-UTC and
+precision-boundary fixtures remain unchanged; `NonZeroTime()` is unchanged.
+
+At restacked `09=cb765ceb54`, precompiled race-enabled test binaries ran
+252 selected test methods in 31 groups on each of PostgreSQL and real
+dqlite (`dqlite,libsqlite3`), with no failures or skips. This includes all
+176 status-model methods affected by the shared fixture and consumers of
+the other changed shared fixtures. The helper also passed with
+`TZ=Pacific/Honolulu`. An invalid PostgreSQL URL failed as expected, proving
+backend selection. A second PostgreSQL pass covered 211 methods in 13
+groups, and the relation goal-state method passed five consecutive runs.
+Real-dqlite stress of `TestWatcherSuite/TestWatchTaskLogs` completed nine
+runs with no failures in 30 seconds; an active run was stopped at the
+bound. The first stress wrapper rejected the successful run's output
+wording; the corrected bounded run supplied the recorded result.
+
+`make pre-check` passed with static analysis disabled by its default; this
+is not a full lint result. Selectors and logs are retained in
+`~/pg-poc-work/integrator/database-now/`. These focused checks do not
+replace the outstanding 142-package re-sweep or the acceptance gates.
+
 Step 0 is complete locally: `06=f4d3cbb673` adds
 `DropFailingTriggerSQL` and `DropTriggerSQL`; the restacked tips are
 `07=de24e7d3c2`, `08=09=0bb336f089`. The first helper drops the
