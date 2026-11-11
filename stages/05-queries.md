@@ -40,6 +40,22 @@ as required upstream approaches. Ask before changing an assigned scope.
 
 ## Remaining tasks
 
+### Nullable BOOLEAN dqlite workaround (integrated locally)
+
+The refreshed juju/juju#23759 breakout was integrated on Stage 5:
+`c9a168b5cd` as `0997c97b74`, `c51a0e05a1` as `0b54417c0b` and
+`39b1dc3cd8` as `6630d3b862`. These retain the upstream authors and
+messages. The temporary INTEGER projections preserve NULL, false and true
+until the bundled dqlite contains canonical/dqlite#883. Stage 6's old
+machine-test projection commit `635744b351` was dropped with user approval
+as redundant with the first upstream commit.
+
+At `09=3883b6ce94`, focused logging, provisioner, machine-reprovision and
+storage-status checks passed with `-race` on SQLite, PostgreSQL and real
+dqlite, including the formerly failing nil Loki case. This is not a full
+sweep. See [Stage 6 evidence](06-compatibility.md#nullable-boolean-integration-2026-11-11)
+for the dqlite-only sentinel and remaining catalog race.
+
 ### 05-U24 / 05-U25: SSH conflicts and agent streams (done locally)
 
 - `2f55c00439` (U24, latent/X18) uses targeted conflict-safe inserts and

@@ -231,7 +231,14 @@ order-independent unitstate endpoint assertions (`8712a55006`,
 latent/X17), and portable prepared-statement fixtures (`e68252e6cb`,
 X32). These all have home `new`. The INTEGER projections retaining
 nullable-boolean assertions (`3d4afe2592`, latent/X25) follow
-juju/juju#23759.
+juju/juju#23759. On 2026-11-11 the refreshed #23759 commits
+`c9a168b5cd`, `c51a0e05a1` and `39b1dc3cd8` were integrated on PoC
+Stage 5 as `0997c97b74`, `0b54417c0b` and `6630d3b862`, respectively.
+The superseded Stage 6 machine projection commit `635744b351` was dropped
+with user approval. The separate PoC-only sentinel guard `a4d73c395f`
+skips PostgreSQL, not real dqlite. Focused three-backend evidence and
+remaining gaps are in [Stage 6](stages/06-compatibility.md#nullable-boolean-integration-2026-11-11).
+Integration in the PoC does not mean the upstream PR has landed.
 
 W6's network failure triggers (`0d4744cad0`, X46/X50), machine integrity
 PRAGMA guard (`2032592a1c`, X21), delete-side-effect trigger

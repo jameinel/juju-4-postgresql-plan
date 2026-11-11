@@ -414,6 +414,11 @@ once NULL is preserved by the bundled library. The status output remains
 false for both NULL and false; the provisioner's nil Loki pointer retains
 the distinction between the default and explicit false.
 
+The refreshed breakout commits `c9a168b5cd`, `c51a0e05a1` and
+`39b1dc3cd8` were integrated separately into the PostgreSQL PoC on
+2026-11-11; see the [PoC evidence](stages/06-compatibility.md#nullable-boolean-integration-2026-11-11).
+That integration does not change the upstream PR's review or merge status.
+
 The independent [juju/juju#23765](https://github.com/juju/juju/pull/23765),
 head `2e12c3150a` directly on upstream `4.1` at `148e09f015`, preserves
 NULL Boolean and datetime/timestamp pointers in controller exports. It

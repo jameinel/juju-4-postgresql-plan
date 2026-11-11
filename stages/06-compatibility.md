@@ -54,8 +54,9 @@ runs tiers A and B in full; do not add packages outside them.
 
 ## Upstream rebase (2026-11-11)
 
-The stack was rebased onto upstream `bd970f693c`; current local tip
-`09=75223c9543`. Recovery tags preserve all prior stage tips. The new base
+The stack was rebased onto upstream `bd970f693c`; its tip before the
+nullable-BOOLEAN integration was `09=75223c9543`. Recovery tags preserve
+all prior stage tips. The new base
 is **not fully validated or published**.
 
 The newly landed key-manager stale-snapshot regression requires SQLite
@@ -121,6 +122,29 @@ after its underlying tests failed in 7m47s. Structured logs and
 compile-only logs are `/tmp/pg-poc-75223c-{postgresql,dqlite}-sweep.jsonl`
 and `/tmp/pg-poc-75223c-{pg,dqlite}-precompile.log`. These failures and
 skips are not passes; broader rebase checks remain outstanding.
+
+### Nullable BOOLEAN integration (2026-11-11)
+
+The refreshed juju/juju#23759 workaround was integrated on Stage 5 as
+`0997c97b74`, `0b54417c0b` and `6630d3b862`; the redundant Stage 6
+machine projection commit `635744b351` was dropped with user approval.
+At `09=3883b6ce94`, focused logging, provisioner, machine-reprovision and
+storage-status checks passed with `-race` on SQLite, PostgreSQL and real
+dqlite. The previously failing real-dqlite nil Loki case passed. Logs:
+`/tmp/pg-poc-3883-nullbool-{sqlite,postgresql,dqlite}.log`.
+
+The upstream dqlite sentinel was also selected when tagged tests redirected
+the suite to PostgreSQL, where its intentionally dqlite-specific expectation
+of false for NULL failed. With user approval, Stage 6 `a4d73c395f` skips
+only that sentinel on PostgreSQL; its dqlite assertion remains unchanged.
+At Stage 6 the `-race` tagged sentinel ran and passed on real dqlite and
+explicitly skipped on PostgreSQL. Logs:
+`/tmp/pg-poc-nullbool-guard-{dqlite,postgresql}.log`. The restacked
+`09=27fd2efa4f` differs from `09=3883b6ce94` only by that guard.
+
+The 142-package sweeps have not been repeated at this tip. The PostgreSQL
+cross-schema catalog/DDL race remains unresolved, and the failed bootstrap
+remains blocked on Charmhub availability; neither is covered by this fix.
 
 ## Parallel repair run (2026-11-10, in progress)
 
