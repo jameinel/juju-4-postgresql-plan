@@ -255,7 +255,7 @@ batches are committed.
 The removed worker branches were created from the earlier verified
 Step 0 tip `09=0bb336f089`.
 See [the repair run](stages/06-compatibility.md#parallel-repair-run-2026-11-10-in-progress)
-for evidence. The latest restack has not been pushed.
+for evidence. Check remote refs for publication status before acting.
 
 Previous local tips (2026-11-09, base `5259edff43`):
 `00=3133b016cc`, `01=8edc93c531`, `02=e7b50aad4f`, `03=92bf73a157`,
