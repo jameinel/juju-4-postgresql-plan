@@ -122,8 +122,9 @@ Do not reopen them merely because they contain Go conversions.
 - Dedicated worktrees are allowed. Assign one branch/worktree per owner;
   never switch, reset or rebase another owner's checkout. A worktree's
   presence does not imply permission to modify it.
-- Share existing dependencies with a `_deps` symlink to `../juju/_deps`
-  when creating a worktree; do not redownload them unnecessarily.
+- Place new worktrees under the primary checkout's `.worktrees/`. Share
+  existing dependencies with a `_deps` symlink to `../../_deps` from a
+  direct child worktree; do not redownload them unnecessarily.
 - `go` is a snap on this host. Never redirect its output, or the output
   of `make` targets that run it, straight to a file: AppArmor silently
   discards it, and the exit code is unaffected. Pipe instead, for example
@@ -165,18 +166,19 @@ is contextual, not a user-owned review task.
 
 This table is the authoritative local claim list for new breakouts. Record
 the task, owner/session, branch, worktree, base, status and next action.
+Worktree names are relative to the primary checkout's `.worktrees/`.
 Keep blocked and paused work claimed; do not assume an existing worktree is
 available. Use `reserved` until the worktree and base are confirmed, then
 `in progress`, `blocked`, or `published` as appropriate.
 
 | Task | Owner/session | Branch | Worktree | Base | Status | Next action |
 |---|---|---|---|---|---|---|
-| U24 SSH host-key conflict | `d36531ca-29ec-454e-af43-9c0f627b8c93` | `4.1-ssh-host-key-conflict` | `4.1-ssh-host-key-conflict` | `bd970f693c8e5060973016fe9059108570fa5bd3` | in progress | Worktree created with shared `_deps`; implement and validate the machine and unit conflict paths on SQLite and real dqlite. |
+| U24 SSH host-key conflict | `d36531ca-29ec-454e-af43-9c0f627b8c93` | `4.1-ssh-host-key-conflict` | `4.1-ssh-host-key-conflict` | `bd970f693c8e5060973016fe9059108570fa5bd3` | published | [#23807](https://github.com/juju/juju/pull/23807), head `e00ed96510b49abd0a1d78efc1d99e20cf6495f7`; human review required and CI pending. SQLite and real-dqlite affected race suites and 10 concurrent stress runs per backend passed, as did scoped lint, txncheck and diff checks. Default pre-check skipped static analysis. Initial focused dqlite invocation failed on shell quoting; the complete suite passed. PostgreSQL and live QA not run. Complete review, CI and functional QA, including the Kubernetes unit path; reconcile PoC `2f55c00439` after landing. |
 | U25 controllerupgrader stream result | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b` | `4.1-controllerupgrader-stream-result` | `4.1-controllerupgrader-stream-result` | `bd970f693c8e5060973016fe9059108570fa5bd3` | published | [#23806](https://github.com/juju/juju/pull/23806), head `a380152f9beabb42bd64cfeb2dfff252439a6b9f`, based on PoC `274e1a2e0211a56dfdcef6591c42cc75ce52b0d5`; human review required and CI pending. SQLite and real-dqlite state package race suites, scoped lint, txncheck, gci and diff checks passed; pre-check skipped static analysis. PostgreSQL and live controller QA not run. Complete QA, review and CI; reconcile PoC after landing. |
 | X17 CMR ingress CIDR ordering | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` | `4.1-cmr-ingress-order` | `4.1-cmr-ingress-order` | `bd970f693c8e5060973016fe9059108570fa5bd3` | published | [#23805](https://github.com/juju/juju/pull/23805), head `1f2411ad8c013246780abcc0e1077db179d51197`; review required. CI is running; arm64 snap build, migration, upgrade pre-check and several smoke jobs failed, cause uninvestigated. SQLite and real-dqlite affected race suites, scoped lint, txncheck, gci and diff checks passed; pre-check skipped static analysis. PostgreSQL and live controller QA not run. Triage CI, obtain maintainer confirmation of the ordering contract and complete functional QA. |
-| U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `2bfbdc7d6077364266c0756ad9898dd8a830d8ee`; merge hold remains pending acceptance of duplicate rejection and its source-repair tradeoff. Retain ownership; storage and migration QA remain pending. |
-| U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887952914d1457d10084bacfa78bd0c6d`; bot feedback answered, human review required and CI running. Forward-port to main after landing and check migration/export compatibility; reconcile the PoC workaround. The user reports performing functional QA while editing the PR; individual outcomes were not independently verified. At `2f680f1302`, SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed. The comment-only follow-up passed transformer package tests, scoped lint, txncheck and gci; default pre-check skipped static analysis. PostgreSQL not tested. |
-| X16 secret backend grouped columns | `48eb9888-f082-47eb-a43f-75ac280c4a3e` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. Review follow-up `c3161fb4ff` retains clouds with no CA certificate rows, distinguishes absent and stored empty certificates, and updates the duplication comment. Van Cleef's feedback was [answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624); shared-row refactoring and PostgreSQL test infrastructure are deferred. Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user previously reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. New no-CA functional QA and PostgreSQL execution were not run. The published PR description contains the updated QA; `PR-4.1-x16-grouped-columns.md` predates the follow-up. Follow up on multi-certificate integration CI. Do not rebase implicitly. |
+| U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `2bfbdc7d6077364266c0756ad9898dd8a830d8ee`; merge hold remains pending acceptance of duplicate rejection and its source-repair tradeoff. Retain ownership; storage and migration QA remain pending. |
+| U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887952914d1457d10084bacfa78bd0c6d`; bot feedback answered, human review required and CI running. Forward-port to main after landing and check migration/export compatibility; reconcile the PoC workaround. The user reports performing functional QA while editing the PR; individual outcomes were not independently verified. At `2f680f1302`, SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed. The comment-only follow-up passed transformer package tests, scoped lint, txncheck and gci; default pre-check skipped static analysis. PostgreSQL not tested. |
+| X16 secret backend grouped columns | `48eb9888-f082-47eb-a43f-75ac280c4a3e` | `4.1-x16-grouped-columns` | `4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. Review follow-up `c3161fb4ff` retains clouds with no CA certificate rows, distinguishes absent and stored empty certificates, and updates the duplication comment. Van Cleef's feedback was [answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624); shared-row refactoring and PostgreSQL test infrastructure are deferred. Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user previously reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. New no-CA functional QA and PostgreSQL execution were not run. The published PR description contains the updated QA; `PR-4.1-x16-grouped-columns.md` predates the follow-up. Follow up on multi-certificate integration CI. Do not rebase implicitly. |
 
 ## Open reviews: finish on existing branches
 
@@ -300,10 +302,9 @@ source commits, validation and eventual PoC reconciliation separately.
 
 ### `4.1-ssh-host-key-conflict` — U24, conflict-safe host-key creation
 
-**Status:** PoC Stage 5 `2f55c00439` implements the approved approach;
-the independent upstream breakout is not implemented or claimed. Refresh
-the upstream base and confirm the current machine and unit virtual-host-key
-paths before starting.
+**Status:** PoC Stage 5 `2f55c00439` implements the approved approach.
+The independent upstream breakout is [#23807](https://github.com/juju/juju/pull/23807),
+head `e00ed96510`; see the claim table for validation and next actions.
 
 `domain/ssh/state/model/state.go` implements
 `EnsureMachineVirtualHostKeyByMachineName` and
@@ -429,8 +430,9 @@ head `2e12c3150a` directly on upstream `4.1` at `148e09f015`, preserves
 NULL Boolean and datetime/timestamp pointers in controller exports. It
 adds `IS NULL` markers to existing queries, following model export, without
 changing the backup format. Its transaction retry resets the captured
-payload. The worktrees are `juju-4.1-dqlite-nullable-boolean` and
-`juju-4.1-controller-export-null`; both were clean at these heads.
+payload. The worktrees are `.worktrees/4.1-dqlite-nullable-boolean` and
+`.worktrees/4.1-controller-export-null` under the primary checkout; both
+were clean at these heads.
 
 Validation:
 

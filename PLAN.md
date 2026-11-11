@@ -41,18 +41,73 @@ branch described below is also in scope.
 Bootstrapping remains a higher priority than this outcome. As the breakouts
 in [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) and
 [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) progress, retain a path to a Juju
-4.1-based branch with the shared fixes and PostgreSQL test infrastructure
-needed to run the domain test suite. The goal is repeatable regression
-validation of SQL consistency, independent of PostgreSQL controller runtime
-support. Include the SQL-owning infrastructure and worker packages outside
-`./domain/...` identified by N16; a domain-only run leaves coverage gaps.
+4.1-based branch containing only the infrastructure needed to run tests
+against PostgreSQL, selected through an environment variable. Do not base
+this branch on the PoC stack or include pending upstream SQL/schema fixes.
+The goal is repeatable regression validation of SQL consistency,
+independent of PostgreSQL controller runtime support. Include the
+SQL-owning infrastructure and worker packages outside `./domain/...`
+identified by N16; a domain-only run leaves coverage gaps.
 
-If the suite can run in **under 15 minutes**, it can become part of the
-pre-commit checks run on every PR. Measure the complete selected suite on
-documented hardware and configuration before adopting that gate; passing a
-smaller smoke selection does not establish this target. This is a desired
-end state, not an already available check or a new acceptance requirement
-for each individual upstream breakout.
+The eventual PR check must take **under 30 minutes**, preferably **under
+15 minutes**. Measure the complete selected job, including database setup,
+compilation and cleanup, on documented hardware and configuration before
+adopting that gate. Passing a smaller smoke selection does not establish
+this target. This is a desired end state, not an already available check
+or a new acceptance requirement for each individual upstream breakout.
+
+#### Infrastructure workflow discussion (2026-11-11)
+
+Local branch `4.1-postgresql-tests` was created at upstream 4.1
+`bd970f693c`. Its worktree is
+`../4.1-postgresql-tests`, alongside the PoC and planning repositories
+under the primary checkout's locally Git-ignored `.worktrees/`. It links
+`_deps` to the primary checkout's `../../_deps`; the PoC retains its own
+local copy. Future worktrees for this effort also belong under
+`.worktrees/`. No implementation commits or pending upstream patches have
+been added. The PoC's tracked files remain unchanged.
+
+The user confirmed the infrastructure-only scope above. The following
+design is proposed, not approved; settle it before implementation:
+
+- Use an explicit test-backend selector, provisionally
+  `JUJU_TEST_DATABASE=sqlite|dqlite|postgresql`. Keep
+  `JUJU_POSTGRESQL_TEST_URL` for connection configuration, rather than
+  making the URL implicitly select the backend. Preserve existing
+  build-tag-selected defaults when no test backend is requested; reject
+  unsupported or inconsistent selections instead of falling back.
+- Retain the existing SQLite/dqlite build-tag distinction. Run backend
+  permutations as separate test processes or CI jobs, not three copies
+  of every suite in one binary. A shared runner can choose the necessary
+  build tags; direct `go test` must verify that the requested backend is
+  available. Expose actual backend identity separately from SQL dialect:
+  SQLite and dqlite share SQL but are not the same backend.
+- Select the driver and generated schema together in the test harness.
+  Keep environment handling out of production schema constructors.
+  Generate PostgreSQL DDL from this branch's 4.1 schema, not copied PoC
+  output; do not require moving the existing SQLite schema directories.
+- Reuse the PoC's useful driver, error, schema and harness components
+  selectively. Retain per-test namespace isolation, bounded connections
+  and deterministic cleanup. Do not carry controller configuration,
+  bootstrap or PostgreSQL runtime worker support into this branch.
+- Keep CI provisioning and PR wiring separately reviewable, potentially
+  on a second branch. CI owns a disposable PostgreSQL instance/database,
+  supplies its connection configuration and destroys it after the job.
+  Evaluate a pinned PostgreSQL service/container and explicit disposable
+  server settings before importing the charm-based PoC provisioning.
+- Build any demonstration branch separately from 4.1 plus infrastructure
+  plus the selected pending upstream branches. Rebuild that branch as
+  patches merge; its green result must not become a dependency of the
+  independently reviewable infrastructure branch.
+
+Historical timing is promising but does not establish CI readiness: the
+PoC's 138-package, warm-cache, untagged runs at `-p 8` took 566-612 s
+and still had failures. The unit-test server disabled durability and used
+`max_locks_per_transaction=512`. The longest package, rather than the
+number of databases, bounded wall time; the database-pool experiment
+showed no useful gain. See [Stage 6 measurements](stages/06-compatibility.md#database-pool-poc).
+Measure the final coverage, race configuration, skips and cold/warm build
+costs before choosing the PR gate.
 
 ### Shared SQL/schema fixes versus PostgreSQL support
 
@@ -116,19 +171,19 @@ before their corresponding execution tasks begin.
 
 ## Repositories
 
-Sessions run in `~/dev/go/src/github.com/juju/juju-4-postgresql`
-(`origin=jameinel/juju`). Keep PoC work in one tree. Dedicated worktrees
-are allowed for upstream-only review branches (N11) and for Stage 6
-test-repair workers (N18), not extra PoC trees.
-Plans live in sibling `../juju-4-postgresql-plan`
+Open `~/dev/go/src/github.com/juju/juju` as the workspace. PoC sessions
+work in its `.worktrees/postgresql-poc` checkout (`origin=jameinel/juju`).
+Keep PoC work in one tree. Dedicated worktrees are allowed for
+upstream-only review branches (N11) and for Stage 6 test-repair workers
+(N18), not extra PoC trees. Plans live in `.worktrees/planning`
 (`origin=jameinel/juju-4-postgresql-plan`, branch `main`); grant session
 access if needed. Never commit plan documents to the code repository.
 
 ## Starting a session
 
-Prompt: "Read ../juju-4-postgresql-plan/PLAN.md and run task <id> in
-Stage <N>. Use <controller> to host PostgreSQL if needed. Stop after that
-task."
+Prompt: "Read .worktrees/planning/PLAN.md, work in
+.worktrees/postgresql-poc, and run task <id> in Stage <N>. Use <controller>
+to host PostgreSQL if needed. Stop after that task."
 
 A dispatchable task needs a branch, prerequisites, code entry points,
 approved behaviour, bounded changes, checks and stop conditions. Clarify
