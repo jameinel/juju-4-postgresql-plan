@@ -54,7 +54,7 @@ At `09=3883b6ce94`, focused logging, provisioner, machine-reprovision and
 storage-status checks passed with `-race` on SQLite, PostgreSQL and real
 dqlite, including the formerly failing nil Loki case. This is not a full
 sweep. See [Stage 6 evidence](06-compatibility.md#nullable-boolean-integration-2026-11-11)
-for the dqlite-only sentinel and remaining catalog race.
+for the dqlite-only sentinel and the later catalog-query fix.
 
 ### 05-U24 / 05-U25: SSH conflicts and agent streams (done locally)
 

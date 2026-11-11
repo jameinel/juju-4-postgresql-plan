@@ -143,8 +143,41 @@ explicitly skipped on PostgreSQL. Logs:
 `09=27fd2efa4f` differs from `09=3883b6ce94` only by that guard.
 
 The 142-package sweeps have not been repeated at this tip. The PostgreSQL
-cross-schema catalog/DDL race remains unresolved, and the failed bootstrap
-remains blocked on Charmhub availability; neither is covered by this fix.
+catalog-query fix below was integrated afterwards. The failed bootstrap
+remains blocked on Charmhub availability.
+
+### Catalog teardown dependency check (2026-11-11)
+
+The XX000 failure was reproduced with three application and three cloud
+test processes; the cloud failure and the earlier sweep failures occurred
+inside `outsideDependents`, before the harness's test-schema drop. On
+PostgreSQL 16, `EXPLAIN (VERBOSE)` showed the optimizer pushing the
+`dep IS NOT NULL` filter into the `pg_depend` sequential scan, invoking
+`pg_describe_object` before the joins restrict the rows to the test schema.
+Concurrent DDL in unrelated schemas can therefore affect the check.
+PostgreSQL's exact server-side call path for the observed error was not
+captured.
+
+Stage 6 `0b4dbfbcae` materializes the filtered dependency addresses before
+describing them. It does not suppress errors or change the existing handling
+of real cross-schema dependents. A regression instruments the description
+function to reject an unrelated object while requiring a real outside view
+to be reported: the original query failed that test and the new query
+passed. The complete PostgreSQL harness suite passed with `-race`; the
+previously failing application and cloud cases each completed 150
+race-enabled stress iterations, with up to six processes concurrently,
+without failures. Logs:
+`/tmp/pg-poc-catalog-regression-before.log`,
+`/tmp/pg-poc-catalog-final-harness.log` and
+`/tmp/pg-poc-catalog-final-{application,cloud}-stress.log`.
+
+Five alternating `EXPLAIN ANALYZE` samples on a small temporary schema
+measured the original at 6.5–22.7 ms and the final query at 4.6–7.6 ms.
+This limited microbenchmark does not establish full-sweep performance.
+An actual outside dependent disappearing while it is being described
+remains a separate potential race; this fix does not claim to resolve it.
+The restacked `09=f3340c6710` differs from `09=27fd2efa4f` only by this
+test-harness fix. The full 142-package sweeps remain outstanding.
 
 ## Parallel repair run (2026-11-10, in progress)
 
@@ -806,7 +839,9 @@ differ between runs. `domain/model/state/controller`
 objects outside the test schema that depend on it raised `cache lookup
 failed for attribute ... (XX000)` while other processes ran DDL in the
 same database. That race needs a shared database; the pool avoids it.
-If it recurs, retry or tolerate XX000 in that harness query.
+This historical suggestion to retry or tolerate XX000 is superseded by the
+[catalog-query fix](#catalog-teardown-dependency-check-2026-11-11); do not
+silently tolerate an incomplete dependency check.
 
 Findings: the pool does not pay. Separate catalogs cut summed package
 time by about 6% and wall time by 0–4%, within noise. At `-p 8` the

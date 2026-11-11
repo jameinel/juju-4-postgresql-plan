@@ -195,7 +195,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 historically met; earlier sweeps failed on catalog teardown and nullable BOOLEAN. The BOOLEAN workaround is integrated and focused checks pass; catalog race and new sweep remain |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 historically met; earlier sweeps failed on catalog teardown and nullable BOOLEAN. Both fixes have focused validation; a new sweep remains |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); four review checkpoint commits remain at 09 pending redistribution to their owning layers; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
@@ -209,8 +209,8 @@ Next:
    and the focused suite passes on all three backends; see
    [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
    The earlier final-tip sweeps completed with failures. The nullable-BOOLEAN
-   workaround is integrated with focused validation, but the catalog race
-   and a new sweep remain; do not treat the new base as verified yet.
+   workaround and the catalog-query fix have focused validation, but a new
+   sweep remains; do not treat the new base as verified yet.
    The stack is local and has not been republished.
 2. Complete follow-up from the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
    (N18): Step 0 and all six repair batches are integrated at
@@ -260,8 +260,8 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 
 Current local tips (2026-11-11, base `bd970f693c`, verification incomplete):
 `00=b5e5c7f644`, `01=cc4e33a336`, `02=11c1c182dd`, `03=6ef34e58cd`,
-`04=c0f57b0134`, `05=6630d3b862`, `06=a4d73c395f`, `07=aadaabd66d`,
-`08=c1a228d2fa`, `09=27fd2efa4f`. The original stage tips are tagged
+`04=c0f57b0134`, `05=6630d3b862`, `06=0b4dbfbcae`, `07=c26d84b91a`,
+`08=06d2a16bdb`, `09=f3340c6710`. The original stage tips are tagged
 `pg-poc-before-upstream-bd970f693c/00` through `/09`.
 See [reconciliation evidence](UPSTREAM-FIXES.md#poc-reconciliation-onto-bd970f693c-2026-11-11).
 The prior 05–09 tips are also preserved under
