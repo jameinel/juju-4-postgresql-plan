@@ -9,8 +9,8 @@ cherry-picked from the open upstream PR). Bootstrap runs 2 and 3 and
 PostgreSQL sweep 2 (2026-11-05) found more production defects; the runtime
 failures are addressed (05-BOOT-FIXES,
 05-SECRET-X16, 05-X16-rest, 05-unitstate-relation-key). The lease-clock
-regression is fixed at the current tip `05=76aac853dd`. No known
-production query blocker remains open here.
+regression is fixed at `05=76aac853dd`. U24 and U25 are fixed in the
+following two commits; see below.
 U21 is a boundary workaround, not a completed shared schema correction;
 the integer-schema upstream task and later PoC reconciliation remain open.
 The D55 review also holds upstream storage #23766 for attachment-invariant
@@ -39,6 +39,37 @@ for upstream design and acceptance; do not treat these source implementations
 as required upstream approaches. Ask before changing an assigned scope.
 
 ## Remaining tasks
+
+### 05-U24 / 05-U25: SSH conflicts and agent streams (done locally)
+
+- `2f55c00439` (U24, latent/X18) uses targeted conflict-safe inserts and
+  reads the persisted machine or unit host key. It preserves the winning key
+  and algorithm and propagates other insert errors. Upstream extraction:
+  `4.1-ssh-host-key-conflict`.
+- `274e1a2e02` (U25, portability/X9) reads only stored binary fields and
+  sets the result stream from the caller, preserving the model stream check
+  and the controller store's existing behavior. Upstream extraction:
+  `4.1-controllerupgrader-stream-result`.
+
+At restacked `09=85e4e6b122`, 13 SSH host-key and seven controllerupgrader
+stream methods passed on each of PostgreSQL and real dqlite with `-race`,
+without failures or skips. Coverage includes creation, existing and
+concurrent keys, retained algorithms, missing entities, invalid algorithm,
+two streams, empty and mismatched stores, and invalid versions. A
+connection-refused probe confirmed PostgreSQL selection for both packages.
+Bounded race stress of the two concurrent host-key cases completed 16
+real-dqlite and 10 PostgreSQL runs without failures; one active run was
+stopped at each 31-second bound. Logs and compile output:
+`~/pg-poc-work/integrator/u24-u25/`. `make pre-check` passed with its
+default static-analysis skip, not a full lint run.
+
+After these checks, the user approved correcting the commit trailer blocks.
+The commits and later branches were rewritten; the resulting `09=ff21df57ed`
+has the same source tree as tested `09=85e4e6b122`.
+
+The upstream breakouts remain separate and unclaimed. The 142-package
+final sweep and redistribution of the four Stage 9 checkpoints remain
+outstanding; these focused checks do not replace them.
 
 ### 05-X37: equality syntax (done)
 

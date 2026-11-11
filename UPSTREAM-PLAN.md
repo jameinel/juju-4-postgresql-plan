@@ -268,9 +268,9 @@ decision with the user before changing direction.
 
 ### `4.1-controllerupgrader-stream-result` — U25, remove SQL pass-through
 
-**Status:** approach and independent upstream breakout approved 2026-11-10;
-not implemented or claimed. Refresh the upstream base and check both current
-implementations before starting.
+**Status:** PoC Stage 5 `274e1a2e02` implements the approved approach;
+the independent upstream breakout is not implemented or claimed. Refresh
+the upstream base and check both current implementations before starting.
 
 `GetAllAgentStoreBinariesForStream` in
 `domain/controllerupgrader/state/controller.go` and `model.go` currently
@@ -295,9 +295,10 @@ source commits, validation and eventual PoC reconciliation separately.
 
 ### `4.1-ssh-host-key-conflict` — U24, conflict-safe host-key creation
 
-**Status:** approach and independent upstream breakout approved 2026-11-10;
-not implemented or claimed. Refresh the upstream base and confirm the current
-machine and unit virtual-host-key paths before starting.
+**Status:** PoC Stage 5 `2f55c00439` implements the approved approach;
+the independent upstream breakout is not implemented or claimed. Refresh
+the upstream base and confirm the current machine and unit virtual-host-key
+paths before starting.
 
 `domain/ssh/state/model/state.go` implements
 `EnsureMachineVirtualHostKeyByMachineName` and
