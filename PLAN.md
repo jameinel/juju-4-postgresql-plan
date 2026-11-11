@@ -195,7 +195,7 @@ missing inputs; do not ask an executor to design and implement a backlog.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15/U16 cherry-picked (D43) |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; six repair batches and resource ordering repair integrated; final 142-package sweep remains pending; thermal limit for targeted runs is two jobs total, each GOMAXPROCS=2 / -p 2 |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 runtime-entry gate met; six repair batches integrated; pre-redistribution 142-package sweeps failed on both backends; final sweep remains pending |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); four review checkpoint commits remain at 09 pending redistribution to their owning layers; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
@@ -221,7 +221,10 @@ Next:
    changed-layer validation rather than repeating earlier passing suites.
    The user approved `-p 6` for the larger sweep when no other load runs
    concurrently; run the full agreed selection once per backend at the
-   final restacked tip.
+   final restacked tip. Pre-redistribution sweeps at `09=ff21df57ed`
+   found the known activated-model order assertion, the PostgreSQL
+   schema-teardown catalog race, and the known dqlite nullable-BOOLEAN
+   logging failure; see [sweep results](stages/06-compatibility.md#pre-redistribution-sweeps-2026-11-10).
    The UTC database-time fixture helper is implemented on Stage 6.
    Workers report production defects
    rather than fixing them; route approved ones to Stage 5. Then rerun

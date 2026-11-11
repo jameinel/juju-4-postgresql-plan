@@ -584,7 +584,7 @@ integrates a worker. 06-X17 is not in the re-sweep failures; 06-test-levels,
 | 06-DDL | Removal model `application_test.go` (`TestDeleteCharmReturnConstraintError`) and `unit_test.go` (`TestDeleteUnitWithDanglingCharmReference`): ad hoc tables with `DATETIME` (42704). Corrected 2026-11-10; earlier text placed these in application state. | Use supported test DDL (`TIMESTAMP` proposed); verify time decoding. W2. |
 | 06-trigger-drop | Removal model `model_test.go`, `TestIsControllerModelControllerModel`: PG requires `DROP TRIGGER ... ON model`. Corrected 2026-11-10; earlier text placed this in application state. | Use `schematesting.DropTriggerSQL` (Step 0 of the parallel repairs handoff); verify both paths. W2. |
 | 06-errors | Removal model FK assertion (`TestDeleteMachineWithForceDoesNotCheckChildMachines`), application unique-index assertions, resource FK assertion, model/model immutable-row assertions. | Test-only (N20): use the `internal/database` constraint helpers where the error is a constraint violation, otherwise match the specific message unanchored (X20/X26). W2, W3, W5, W6. |
-| 06-X17 | `domain/model/state/controller/state_test.go`, `TestGetActivatedModelUUIDs`: assert the returned UUIDs with `tc.SameContents`, not by index. The query has no `ORDER BY`, and its only caller (`getWatchActivatedModelsMapper`) uses the result as a set. | Defined; test-only. Passed in the 2026-11-10 re-sweep; not assigned. |
+| 06-X17 | `domain/model/state/controller/state_test.go`, `TestGetActivatedModelUUIDs`: assert the returned UUIDs with `tc.SameContents`, not by index. The query has no `ORDER BY`, and its only caller (`getWatchActivatedModelsMapper`) uses the result as a set. | Defined; test-only. Failed in the pre-redistribution sweep at `09=ff21df57ed` and six of ten isolated repetitions; not assigned. |
 | 06-failure-injection | Removal `relation_test.go`, `relationwithremoteofferer_test.go`; machine `reprovision_test.go`; application `application_refresh_test.go` and `exposed_test.go`; network `space_remove_test.go`: use `schematesting.FailingTriggerSQL`. | Preserve failing operation, condition and rollback checks. Loops drop the trigger with `DropFailingTriggerSQL` on each pass. The machine side-effect trigger gets a test-local backend switch (N18 handoff). W2, W3, W6. |
 | 06-X29 | Access `permission_test.go`, `ensurePermission`: predicate-free `LEFT JOIN`. | Determine intended fixture cardinality before selecting the replacement join. |
 | 06-U5 | `domain/upgrade/state/state_test.go`: bind node IDs as text. | Defined substitution; preserve IDs and assertions. |
@@ -723,6 +723,48 @@ minutes serial, one package at a time) `-p 8` on one database is about
 6× faster. To go faster, cut per-test cost (schema setup and drop,
 about 0.5 s per test) or split the longest packages; more databases
 will not. The pool is not pursued (N17).
+
+## Pre-redistribution sweeps (2026-11-10)
+
+At `09=ff21df57ed`, the user approved running the prepared 142-package
+selection before the four Stage 9 checkpoints are redistributed. Each
+backend ran separately with `GOMAXPROCS=2`, `-race -count=1 -p 6`,
+`-timeout 45m`, and an outer 50-minute bound. Tests were precompiled with
+`go test -exec /usr/bin/true` before each run; those compile-only outputs
+are not test passes. PostgreSQL used untagged binaries with the test URL;
+real dqlite used `dqlite,libsqlite3` and the bundled musl/CGO libraries.
+Both sweeps completed and exited 1, without race detector reports.
+
+| Backend | Packages pass / fail / no tests | Leaf tests pass / fail / skip |
+|---|---|---|
+| PostgreSQL | 138 / 2 / 2 | 5326 / 2 / 184 |
+| Real dqlite | 139 / 1 / 2 | 5450 / 1 / 81 |
+
+The no-test packages are `internal/changestream/testing` and
+`internal/database/testing`. PostgreSQL ran 20:22:49–20:41:09 local
+time; dqlite ran 20:45:17–20:52:22. PostgreSQL model import, model import
+state, internal migration and recovery state were excluded as previously
+deferred. Skips are coverage gaps, not passes.
+
+- PostgreSQL `domain/model/state/controller`,
+  `TestGetActivatedModelUUIDs`: the two UUIDs appeared in reverse order
+  (06-X17). An isolated `-count=10` rerun produced four passes and six
+  failures with the same ordering mismatch.
+- PostgreSQL `domain/application/state`,
+  `TestGetIAASUnitContextPrivateAddressPrefersIPv4OverIPv6InPublicUnknownBucket`:
+  teardown's cross-schema dependency query failed with catalog error
+  `cache lookup failed for attribute ...` (XX000), the previously observed
+  concurrent-DDL race. The isolated test passed; this does not repair or
+  rule out the race.
+- Real dqlite `domain/logging/state`,
+  `TestSetLokiConfigInsecureSkipVerifyNil`: expected a nil Boolean pointer
+  but received a non-nil pointer, including on isolated rerun. This matches
+  the known nullable-BOOLEAN issue and pending workaround in
+  [UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md#nullable-boolean-results-in-real-dqlite-domain-tests).
+
+Structured logs, compile output and isolated reruns are in
+`~/pg-poc-work/integrator/sweep-ff21df57ed/`. These are failed,
+pre-redistribution runs, not final-tip acceptance evidence.
 
 ## PostgreSQL re-sweep
 
