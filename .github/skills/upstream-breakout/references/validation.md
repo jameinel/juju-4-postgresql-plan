@@ -3,6 +3,9 @@
 Supply the upstream base, one named branch/worktree, allowed paths,
 expected behavior, prerequisites and required regression cases. Task
 selection does not authorize work on other branches.
+Read planning AGENTS.md and keep that contract, revision-specific evidence
+and next actions in `upstream/<branch>/status.md`. Shared summaries are
+coordinator-owned; do not update them for every validation run.
 
 For SQL/schema work, apply the plan's **Purpose and SQL/schema acceptance**
 contract before implementation and again at review:

@@ -2,6 +2,7 @@
 
 Status: **active PoC; milestone contracts being refined**.
 
+Read [AGENTS.md](AGENTS.md) for shared direction and document ownership.
 For PoC sessions, read this file and the named stage/task's references.
 For upstream-only 4.1 work, start at [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md)
 and use the target repository's guidance instead; this file's session,
@@ -58,56 +59,10 @@ or a new acceptance requirement for each individual upstream breakout.
 
 #### Infrastructure workflow discussion (2026-11-11)
 
-Local branch `4.1-postgresql-tests` was created at upstream 4.1
-`bd970f693c`. Its worktree is
-`../4.1-postgresql-tests`, alongside the PoC and planning repositories
-under the primary checkout's locally Git-ignored `.worktrees/`. It links
-`_deps` to the primary checkout's `../../_deps`; the PoC retains its own
-local copy. Future worktrees for this effort also belong under
-`.worktrees/`. No implementation commits or pending upstream patches have
-been added. The PoC's tracked files remain unchanged.
-
-The user confirmed the infrastructure-only scope above. The following
-design is proposed, not approved; settle it before implementation:
-
-- Use an explicit test-backend selector, provisionally
-  `JUJU_TEST_DATABASE=sqlite|dqlite|postgresql`. Keep
-  `JUJU_POSTGRESQL_TEST_URL` for connection configuration, rather than
-  making the URL implicitly select the backend. Preserve existing
-  build-tag-selected defaults when no test backend is requested; reject
-  unsupported or inconsistent selections instead of falling back.
-- Retain the existing SQLite/dqlite build-tag distinction. Run backend
-  permutations as separate test processes or CI jobs, not three copies
-  of every suite in one binary. A shared runner can choose the necessary
-  build tags; direct `go test` must verify that the requested backend is
-  available. Expose actual backend identity separately from SQL dialect:
-  SQLite and dqlite share SQL but are not the same backend.
-- Select the driver and generated schema together in the test harness.
-  Keep environment handling out of production schema constructors.
-  Generate PostgreSQL DDL from this branch's 4.1 schema, not copied PoC
-  output; do not require moving the existing SQLite schema directories.
-- Reuse the PoC's useful driver, error, schema and harness components
-  selectively. Retain per-test namespace isolation, bounded connections
-  and deterministic cleanup. Do not carry controller configuration,
-  bootstrap or PostgreSQL runtime worker support into this branch.
-- Keep CI provisioning and PR wiring separately reviewable, potentially
-  on a second branch. CI owns a disposable PostgreSQL instance/database,
-  supplies its connection configuration and destroys it after the job.
-  Evaluate a pinned PostgreSQL service/container and explicit disposable
-  server settings before importing the charm-based PoC provisioning.
-- Build any demonstration branch separately from 4.1 plus infrastructure
-  plus the selected pending upstream branches. Rebuild that branch as
-  patches merge; its green result must not become a dependency of the
-  independently reviewable infrastructure branch.
-
-Historical timing is promising but does not establish CI readiness: the
-PoC's 138-package, warm-cache, untagged runs at `-p 8` took 566-612 s
-and still had failures. The unit-test server disabled durability and used
-`max_locks_per_transaction=512`. The longest package, rather than the
-number of databases, bounded wall time; the database-pool experiment
-showed no useful gain. See [Stage 6 measurements](stages/06-compatibility.md#database-pool-poc).
-Measure the final coverage, race configuration, skips and cold/warm build
-costs before choosing the PR gate.
+The infrastructure branch is reserved locally at `bd970f693c`; implementation
+has not started in the recorded state. Its backend design remains proposed,
+not approved. The [branch record](upstream/4.1-postgresql-tests/status.md#infrastructure-workflow-discussion-2026-11-11)
+owns the discussion, measurements, worktree details and next decisions.
 
 ### Shared SQL/schema fixes versus PostgreSQL support
 
@@ -162,7 +117,7 @@ before their corresponding execution tasks begin.
 | [DIALECT.md](DIALECT.md) | Relevant X* entries when changing SQL or diagnosing backend differences. |
 | [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) | Evolving findings, provenance, upstream and PoC reconciliation status. |
 | [UPSTREAM-INTEGRATION.md](UPSTREAM-INTEGRATION.md) | Integration agent: reusable procedure for bringing landed fixes into the PoC. |
-| [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) | Standalone stock-4.1 tasks; upstream agents do not need this PoC plan. |
+| [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) + linked branch record | Upstream dashboard/reservations and branch-owned tasks; upstream agents do not need this PoC plan. |
 | [OPERATIONS.md](OPERATIONS.md) | Building, testing, regenerating or operating the PoC. |
 | [Stage 6 task/results detail](stages/06-compatibility.md) | Selected compatibility task or validation run. |
 | [BENCHMARKS.md](BENCHMARKS.md) | Designing or executing the three-way comparison. |
@@ -231,13 +186,32 @@ missing inputs; do not ask an executor to design and implement a backlog.
    PostgreSQL difference behind a change, or found and not yet handled,
    in DIALECT.md, including driver workarounds.
 7. Before ending an implementation session:
-   - Update current task status, blockers and revision-specific evidence,
-     and this status table. Fold actionable handoff items into current
-     documents; history must not be the only place the next task is defined.
+   - Update current PoC task status, blockers and revision-specific evidence
+     in its assigned stage. The coordinator updates this summary table.
+     Upstream workers update their branch record instead. Fold handoffs into
+     current documents; history must not be the only place the next task is
+     defined.
    - Keep useful exploration history in a linked reference, not the next
      task's mandatory context. Avoid duplicating commit inventories.
-   - Commit and push the plan repository and code branches under the stack
-     workflow. Documentation/design sessions do not restack code.
+   - Commit only assigned planning files under AGENTS.md's shared Git rules.
+     Push approved planning/code commits under the publication and stack
+     workflows. Documentation/design sessions do not restack code.
+
+## Synchronizing upstream and PoC work
+
+UPSTREAM-PLAN.md summarizes upstream work; each linked `status.md` owns its
+execution details. Stock-upstream workers record discoveries, source/merge
+revisions and reconciliation obligations there, without updating this plan
+for every review, test or commit.
+
+At handoff, landing or a requested daily sweep, the coordinator updates this
+plan only when upstream work changes PoC priorities, dependencies, milestone
+gates or integration obligations. Preserve the existing PoC operating
+contracts and distinguish upstream landing from verified PoC integration.
+The integration owner follows UPSTREAM-INTEGRATION.md, updates the affected
+stage and finding/register evidence, then reports what the coordinator must
+reflect here. No upstream or PoC owner edits another owner's active record
+without coordination.
 
 ## Status
 
@@ -301,7 +275,7 @@ Next:
    database recreation. Then run the D54 scenario and the dqlite
    comparison from the same revision.
 4. Dispatch the Stage 5 upstream break-outs scoped in
-   [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#further-break-outs-from-poc-stage-5-2026-11-05),
+   [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#branch-summaries),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
    rework, not an instruction to merge the deterministic-row version.

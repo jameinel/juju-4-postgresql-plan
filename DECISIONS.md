@@ -4,6 +4,25 @@ All confirmed with the user. Rationale and alternatives are in
 [ANALYSIS.md](ANALYSIS.md). Add an entry only after the user confirms it.
 To change one, amend it in place and say what it replaced and why.
 
+## Shared planning ownership (2026-11-11)
+
+Confirmed with the user: retain one planning project and shared Git history.
+Keep common direction and ownership/publication rules in [AGENTS.md](AGENTS.md).
+The coordinator maintains concise upstream and PoC summaries; branch workers
+maintain `upstream/<branch>/status.md`, `pr.md` and sibling `reply-<topic>.md`
+files, not shared progress tables after each change. Reservations and ownership
+transfers still update the shared upstream index under coordination.
+
+This replaces branch execution details spread across UPSTREAM-PLAN.md,
+UPSTREAM-DONE.md and UPSTREAM-FIXES.md. Those documents remain linked summaries
+and finding/provenance mappings. PLAN.md retains PoC priorities and operating
+contracts, synchronized only for upstream effects relevant to the PoC.
+Stock-upstream QA does not inherit PoC setup, runtime or validation gates.
+
+Serialize shared-checkout Git writes and commit only named, owned files;
+unrelated dirty files are expected. Keep branch records at stable paths after
+landing, and retain historical evidence without implying current acceptance.
+
 ## D55: shared SQL/schema root-cause fixes (2026-11-06)
 
 Confirmed with the user: upstream 4.1 breakouts correct the SQL/schema root
@@ -65,7 +84,7 @@ upstream 4.1 fixes. D55 does not remove PostgreSQL support from the PoC.
 | D23 | One PostgreSQL database per controller. Bootstrap fails fast if the controller or controller model schema already exists; restore is future work. A script to drop `juju_*` schemas supports repeated PoC bootstraps. |
 | N9 | PostgreSQL test schemas are named `juju-test-<pid>-<n>[-<suffix>]`, carry a `COMMENT ON SCHEMA` with the PID, start time and test name, and are quoted with `pgx.Identifier`. Once per process the harness drops test schemas whose PID is gone. |
 | N10 | Backend-only test skips use `SkipOnPostgreSQL` with a "dqlite only: <reason>" message, called before `SetUpTest`. |
-| N11 | Dedicated worktrees are allowed for concurrent upstream-only 4.1 review branches. Give each branch/worktree one owner. UPSTREAM-PLAN.md is a standalone stock-4.1 implementation/QA guide; it requires no PoC checkout, setup or validation. UPSTREAM-FIXES.md owns evolving findings/provenance/status; UPSTREAM-INTEGRATION.md owns the reusable reintegration procedure. PoC implementation/restacking stays in its single tree. |
+| N11 | Dedicated worktrees are allowed for concurrent upstream-only 4.1 review branches. Give each branch/worktree one owner. Amended 2026-11-11: UPSTREAM-PLAN.md is the dashboard/reservation index; linked branch records own scope, execution and QA evidence. They require no PoC checkout, setup or validation. UPSTREAM-FIXES.md owns finding/provenance mappings and PoC reconciliation; UPSTREAM-INTEGRATION.md owns the reusable procedure. PoC implementation/restacking stays in its single tree. |
 | N12 | Add the relation-status integer fix U12 as a separate commit to the existing `4.1-sqlite-integers` branch, which already contains U1/U2 and the legacy-ID parsing helpers. Do not create a duplicate U1 branch or a separate U12 review branch. |
 | D24 | The change stream (DIALECT.md X16) selects the latest change per namespace and changed value with a `MAX(id)` CTE joined back to `change_log`, not bare columns. |
 | D25 | `TestTxnLogging` is skipped on PostgreSQL (N10) rather than emitting tracer spans from the pgx wrapper; tracing is future work. |

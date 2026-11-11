@@ -6,7 +6,8 @@ description: Evaluate pull request review feedback with the user, prioritizing h
 # Prepare a PR review response
 
 The planning repository is three directories above this skill's directory.
-The session may start in its parent, alongside multiple Juju worktrees. Work
+Read its AGENTS.md and the selected `upstream/<branch>/status.md`. The
+session may start in its parent, alongside multiple Juju worktrees. Work
 on the existing PR branch in its authorized worktree; do not create a
 replacement branch or disturb another owner's checkout. Read the target
 repository's applicable instructions and PR template.
@@ -92,6 +93,10 @@ disagrees with an assessment, update the inventory and follow their decision.
 
 Prepare both artifacts locally, even when only one needs publication. Clearly
 identify when the existing description needs no change.
+Use `upstream/<branch>/pr.md` for the description and a sibling
+`reply-<reviewer-or-topic>.md` for each response. Add a date/suffix when
+needed, not a replies subdirectory. Existing saved drafts may be historical;
+compare them with the current published text before editing.
 
 **PR description:** Present the final proposed change as a prospective merge
 commit message. Explain what it does, why, important behavior and tradeoffs,
@@ -143,3 +148,10 @@ where practical without harming readability.
   approved publication, verify the resulting GitHub content and link.
 - Summarize the branch and commit, validation and limitations, prepared or
   published artifacts, and any remaining decisions or review actions.
+- Update only the branch's `status.md` and assigned artifacts with the
+  dated head, review disposition, evidence and next actions. Notify the
+  coordinator of changed scope, new findings or cross-branch effects; shared
+  dashboards and PoC stage progress are not routine review-worker edits.
+  Retain ownership while blocked. Follow AGENTS.md's shared Git rules:
+  coordinate index/commit operations and stage only explicitly named files,
+  preserving other sessions' dirty or staged work.

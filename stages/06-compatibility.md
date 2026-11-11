@@ -919,7 +919,7 @@ deferred. Skips are coverage gaps, not passes.
   `TestSetLokiConfigInsecureSkipVerifyNil`: expected a nil Boolean pointer
   but received a non-nil pointer, including on isolated rerun. This matches
   the known nullable-BOOLEAN issue and pending workaround in
-  [UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md#nullable-boolean-results-in-real-dqlite-domain-tests).
+  [UPSTREAM-PLAN.md](../upstream/4.1-dqlite-nullable-boolean/status.md#nullable-boolean-results-in-real-dqlite-domain-tests).
 
 Structured logs, compile output and isolated reruns are in
 `~/pg-poc-work/integrator/sweep-ff21df57ed/`. These are failed,

@@ -6,9 +6,10 @@ the relevant entries in [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md).
 That register owns all per-fix provenance, status and results; do not add
 a second fix inventory here.
 
-Upstream implementation agents use UPSTREAM-PLAN.md and their target
-repository's guidance instead. This procedure is not part of their QA or
-review acceptance.
+Upstream implementation agents use UPSTREAM-PLAN.md, their branch's
+`upstream/<branch>/status.md` and the target repository's guidance instead.
+Read AGENTS.md for shared ownership and Git rules. This PoC procedure is
+not part of stock-upstream QA or review acceptance.
 
 ## Inputs and timing
 
@@ -56,11 +57,15 @@ work.
    milestone gate from PLAN.md, using OPERATIONS.md. Retain new upstream
    regressions. A clean rebase or upstream test pass alone does not prove
    the PostgreSQL path still works.
-7. **Record and publish.** Update each selected register entry with the
+7. **Record and publish.** As the assigned integration owner, update each
+   selected register entry and affected PoC stage with the
    upstream revision, residual changes, reconciled PoC revision and test
-   evidence. Update the plan's base and verification status; an unverified
-   new base must be labelled as such. Push the coherent stack under the
-   normal publication protocol, then release the coordination hold.
+   evidence. Coordinate the plan's base and verification summary update with
+   the coordinator; an unverified new base must be labelled as such.
+   Push the coherent stack under the
+   normal publication protocol and shared Git rules, then release the
+   coordination hold. Link the evidence from branch records by agreement
+   with their owners; do not silently rewrite upstream execution histories.
 
 ## Stop conditions
 

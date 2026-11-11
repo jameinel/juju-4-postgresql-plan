@@ -8,10 +8,17 @@ description: Summarize the Juju PostgreSQL upstream plan daily, check open PR re
 The planning repository is three directories above this skill's directory.
 Resolve its files relative to that repository, not the current working
 directory; the session may run from a parent containing multiple worktrees.
-Use its `UPSTREAM-PLAN.md` as the queue, not a fixed list of PRs.
-`UPSTREAM-DONE.md` records implementation and merge history;
-`UPSTREAM-FIXES.md` records finding status and PoC reconciliation. Consult
-those files as needed to interpret or update the queue.
+Read its AGENTS.md. Use `UPSTREAM-PLAN.md` as the dashboard and reservation
+index, not a fixed list of PRs. Follow every branch/task link to its
+`upstream/<branch>/status.md`, which owns execution history and next actions.
+`UPSTREAM-DONE.md` is the completed-work summary; `UPSTREAM-FIXES.md` maps
+findings/provenance and PoC reconciliation. PLAN.md owns PoC priorities and
+milestones, not a duplicate upstream review queue.
+
+This skill performs coordination on the user's behalf. It may refresh the
+shared summaries without making branch workers maintain them. Do not overwrite
+an active owner's record, particularly a dirty file; coordinate or record a
+dated dashboard observation and report the discrepancy instead.
 
 Preserve the plan's SQL/schema root-cause acceptance contract when updating
 tasks. A boundary-only PoC workaround is not a completed upstream schema
@@ -20,9 +27,11 @@ execution a new requirement for stock 4.1 work.
 
 ## Gather current state
 
-1. Read the plan and inventory every proposed branch, open PR, unstarted task,
-   dependency and reconciliation obligation, including items outside its
-   main open-reviews table. Deduplicate entries.
+1. Read the dashboard and linked branch records; inventory every proposed
+   branch, open PR, unstarted task,
+   dependency and reconciliation obligation, including candidates outside
+   the branch-summary table. Use current-state sections; historical open-PR
+   snapshots do not reopen landed tasks. Deduplicate entries.
    Classify linked PRs as user-owned work, external dependencies, or
    contextual references. Use the plan's assignments/claims and GitHub author
    to establish ownership; a link alone does not make a PR part of the user's
@@ -82,10 +91,9 @@ documents as part of this workflow. Confirm its merge date, merge commit, and
 final head from GitHub first. Re-read the affected files before updating them
 and preserve other local changes.
 
-- Move its implementation and review history out of the open-review queue and
-  into the landed section of `UPSTREAM-DONE.md`. Preserve useful rationale and
-  historical validation, with dates and heads; do not imply old checks cover a
-  later head.
+- Keep detailed implementation, review and validation history in the branch
+  record at its stable path. Add/update a concise landed summary and link in
+  `UPSTREAM-DONE.md`; do not move execution logs between shared documents.
 - Keep a concise reference to the branch in `UPSTREAM-PLAN.md` when follow-up
   remains, particularly PoC reconciliation. Record the actual merged state,
   acceptance contract, and next action there; do not leave it as an open PR.
@@ -93,10 +101,35 @@ and preserve other local changes.
   contradict the merge. Preserve historical snapshots as historical, and do
   not mark PoC integration, QA, or PostgreSQL validation complete without
   evidence.
+- Coordinate any branch-record update with its owner; do not take over a
+  record merely because a PR merged. Keep the reservation until explicitly
+  released or transferred.
 - Respect existing local changes and worktree ownership. Do not reset, rebase,
   commit, publish, modify GitHub content, or resolve review threads as part of
   this workflow. If a local change conflicts or merge details cannot be
   verified, report the blocker instead of guessing.
+
+## Synchronize the shared plans
+
+Refresh dated summaries in UPSTREAM-PLAN.md and finding/completion mappings
+as needed, not every branch execution record. Keep merge holds and
+cross-branch prerequisites visible; a snapshot is not permission to proceed.
+
+Read PLAN.md's current PoC priorities and upstream dependencies. Update its
+summary only when a verified upstream event changes those priorities,
+dependencies, milestone gates or reconciliation obligations. Preserve the
+PoC's separate operating contracts. Never mark integration complete from a
+merge or change PoC stage execution evidence during a status sweep; actual
+integration follows UPSTREAM-INTEGRATION.md with its assigned owner.
+
+When identifying new work, distinguish a new candidate from a scoped task.
+Capture the problem and dependencies, but ask about unresolved behavior or
+design before making it dispatchable. Reserve only with coordinated ownership;
+link a self-contained task record instead of growing the shared dashboard
+into an implementation specification again.
+
+This skill does not stage, commit or push. Leave shared-document changes
+for review, preserving other owners' work under AGENTS.md's Git rules.
 
 ## Report
 
