@@ -69,7 +69,7 @@ functional-QA acceptance. Existing validation remains revision-specific.
 
 | Branch | Disposition / required next action |
 |---|---|
-| `4.1-storage-filesystem-attachment-row`, #23766 | **Hold merge; plan rework.** Lowest attachment UUID makes the result deterministic, but does not establish the correct mount point. The user confirmed that the filesystem/node attachment invariant is uncertain. Investigate creation, sharing, detach/reattach, life transitions and import/recovery before choosing a design. If duplicates are invalid, scope schema enforcement and explicit handling of legacy duplicates; if valid, establish the domain-based row-selection contract. Do not silently add uniqueness, discard rows or accept UUID ordering as the final semantic fix. |
+| `4.1-storage-filesystem-attachment-row`, #23766 | **Hold merge; decision and QA required.** Head `2bfbdc7d60` replaces lowest-UUID selection with filesystem/node uniqueness and rejects legacy duplicates with diagnostics. Decide whether the migration and source-repair tradeoff is acceptable; no general safe repair is verified. Complete storage and migration QA before lifting the hold. Do not silently discard rows. |
 | `4.1-unitstate-relation-key`, #23769 | The original text-binding implementation required rework; **the schema-first rework is implemented** at `2f680f1302`. Review the net patch, integer export/import/recovery and relation deletion paths. Do not revive the superseded normal-path conversions or classify the old PoC workaround as the completed fix. |
 | `4.1-x16-grouped-columns` | The original portability-only scope required rework because the row converters still discarded CA certificates. **Rework is published** in [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff`: corrected SQL retains the rows and both consumers collect all certificates, including clouds without certificate rows. Preserve the multi-certificate/attribute/auth-type contract; do not revert to a syntax-only patch. |
 
@@ -94,9 +94,10 @@ The [merged implementation assessment](UPSTREAM-DONE.md#d55-merged-implementatio
 records why the landed schema, query and representation fixes align.
 Do not reopen them merely because they contain Go conversions.
 
-- U13/#23684 needs the already-open #23756 follow-up for dqlite's
-  `RETURNING` error-reporting defect. Preserve the unknown-algorithm guard
-  and correct inserted-ID behavior; never restore `LastInsertId`.
+- U13/#23684's targeted follow-up [#23756](https://github.com/juju/juju/pull/23756)
+  merged on 2026-11-11. Preserve the unknown-algorithm guard and correct
+  inserted-ID behavior; never restore `LastInsertId`. Dependency-level
+  `RETURNING` fixes and validation remain below.
 - U4/#23686 fixed setup error checking but still seeds through SQLite
   `datetime('now', ?)` expressions. An independent, low-priority fixture
   portability follow-up is [queued below](#todo-lease-migration-fixture-timestamps-low-priority):
@@ -170,7 +171,7 @@ available. Use `reserved` until the worktree and base are confirmed, then
 
 | Task | Owner/session | Branch | Worktree | Base | Status | Next action |
 |---|---|---|---|---|---|---|
-| U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9c3f117948ef667c43d195ad8a38b09`; user-requested local merge hold under D55. Investigate the attachment invariant and plan semantic rework before merge; retain ownership. Earlier SQLite/dqlite race, lint and txncheck passes do not settle the correct-mount contract. Live QA remains pending. |
+| U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `2bfbdc7d6077364266c0756ad9898dd8a830d8ee`; merge hold remains pending acceptance of duplicate rejection and its source-repair tradeoff. Retain ownership; storage and migration QA remain pending. |
 | U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887952914d1457d10084bacfa78bd0c6d`; bot feedback answered, human review required and CI running. Forward-port to main after landing and check migration/export compatibility; reconcile the PoC workaround. The user reports performing functional QA while editing the PR; individual outcomes were not independently verified. At `2f680f1302`, SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed. The comment-only follow-up passed transformer package tests, scoped lint, txncheck and gci; default pre-check skipped static analysis. PostgreSQL not tested. |
 | X16 secret backend grouped columns | `48eb9888-f082-47eb-a43f-75ac280c4a3e` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. Review follow-up `c3161fb4ff` retains clouds with no CA certificate rows, distinguishes absent and stored empty certificates, and updates the duplication comment. Van Cleef's feedback was [answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624); shared-row refactoring and PostgreSQL test infrastructure are deferred. Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user previously reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. New no-CA functional QA and PostgreSQL execution were not run. The published PR description contains the updated QA; `PR-4.1-x16-grouped-columns.md` predates the follow-up. Follow up on multi-certificate integration CI. Do not rebase implicitly. |
 
@@ -199,8 +200,7 @@ remain unvalidated; review approval, QA and stack prerequisites are separate.
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Head `fcec930751`: investigate failed revision and charms smoke, upgrade pre-check and aggregate; obtain human review. Complete migration QA and reconcile with the PoC after landing. Preserve the equivalent null-check flags in the connection query and controller views. |
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Head `67daa565a6`: gfouillet approved; his follow-ups were implemented and answered, awaiting confirmation. Investigate revision smoke and aggregate failures; validate the follow-up on real dqlite and complete manual QA. Preserve explicit single-column membership and scoped cleanup, lifecycle and departure semantics. |
 | `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Head `b78a42c7c9`: await Simon's response to the November 9 reply about moving guidance into `AGENTS.md`. Seven checks passed and 12 were skipped. Keep reviewer context, prospective merge-message guidance and reproducible reviewer QA distinct from review history. |
-| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Integration-test diagnostics and dqlite CI | Head `63a93201b5` includes the keymanager fix, dqlite RETURNING sentinel and SQLite WAL-mode assertion. Human approval predates this head; await the remaining review gate. Preserve SSH-key diagnostics and failure status under `set -e`. |
-| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; await review and rebase onto `4.1` after the parent lands. Current Unit Tests, upgrade pre-check and aggregate passed. Preserve NULL/false/true and the upstream-fix sentinel. |
+| `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`, now merged. Rebase onto refreshed `4.1`, revalidate and obtain human review. Preserve NULL/false/true and the upstream-fix sentinel. |
 | `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent head `2e12c3150a`. Evaluate Van Cleef's three suggestions; investigate failed localhost smoke and aggregate, obtain human review and complete disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
 | `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `9a3083a887`, based on `148e09f015`. Van Cleef's suggestions were [answered](https://github.com/juju/juju/pull/23769#issuecomment-6756558330): the transform comment explains the conversion without claiming canonical-only inputs; mainline propagation is deferred until after landing. Obtain human review and monitor CI. The user reports performing QA, but individual results were not independently verified. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key; check migration/export compatibility when forward-porting and reconcile the different PoC workaround after landing. |
 | `4.1-x16-grouped-columns`, [#23784](https://github.com/juju/juju/pull/23784) | X16 | Head `c3161fb4ff`: bot feedback answered; obtain human review and monitor CI. Preserve clouds with no CA rows, all stored CA certificates in both backend consumers and distinct secret counts. Complete no-CA functional QA; follow up on end-to-end multi-certificate CI coverage. |
@@ -347,7 +347,7 @@ PostgreSQL runtime/harness dependency.
 
 ### TODO: dqlite error reporting for `RETURNING`
 
-Follow up independently of the targeted keymanager fix in
+Follow up independently of the targeted keymanager fix merged in
 [juju/juju#23756](https://github.com/juju/juju/pull/23756). Other Juju queries,
 including the shared sequence allocator, need portable `RETURNING` support;
 do not treat this defect as a general prohibition on `RETURNING`.
@@ -451,10 +451,10 @@ Validation:
   underlying cause is not confirmed. #23765 CI was still running without
   reported failures; its upgrade smoke was skipped.
 
-- [ ] Complete #23756 review, then rebase #23759 onto `4.1` and finish its
-  review. The later 2026-11-09 snapshot reports successful upgrade pre-check
-  and aggregate jobs; continue monitoring the real-dqlite domain step's
-  runtime on subsequent heads.
+- [ ] Rebase #23759 onto refreshed `4.1` now that #23756 has landed,
+  revalidate and finish review. The 2026-11-09 snapshot reports successful
+  upgrade pre-check and aggregate jobs; continue monitoring the real-dqlite
+  domain step's runtime on subsequent heads.
 - [ ] Finish #23765 review, CI and functional backup QA independently of
   #23759. Retain the distinct NULL, false, true and timestamp cases.
 - [ ] Manual QA (user): run #23765's disposable-controller backup procedure
@@ -515,26 +515,24 @@ claims above before dispatch.
 #### `4.1-storage-filesystem-attachment-row` — U22, latent bug (priority)
 
 Published as [#23766](https://github.com/juju/juju/pull/23766); continue
-on the existing branch, but **hold merge and plan rework**. The user
-confirmed that the attachment invariant is uncertain; investigate before
-choosing schema enforcement or a domain-based selection rule. Live QA
-remains pending, and a passing deterministic-row regression is insufficient.
+on the existing branch, but **hold merge pending a decision and QA**.
+Head `2bfbdc7d60` enforces filesystem/node uniqueness and rejects legacy
+duplicates; the tradeoff and safe source repair remain unaccepted and
+unverified. Storage and migration QA remain pending.
 
 `domain/storage/state/instance.go` `GetStorageInstanceInfo` joins every
 filesystem attachment on the unit's net node and collapses the fan-out
 with `GROUP BY sa.uuid`. The schema does not forbid two filesystem
 attachments for the same filesystem and net node, so dqlite returns an
-arbitrary mount point. The published implementation picks the lowest
-attachment UUID via a correlated subquery, drops the `GROUP BY`, and moves
+arbitrary mount point. The earlier implementation picked the lowest
+attachment UUID via a correlated subquery, dropped the `GROUP BY`, and moved
 the `ORDER BY` out of the `FROM` subquery in both the attachment and the
-block-device link queries. Regression: two filesystem attachments on the
+block-device link queries. The regression used two filesystem attachments on the
 same node; the PoC test failed 7 of 10 runs against the old query.
-This is not yet a justified correct-mount contract. Investigate whether
-the schema should forbid duplicates (a unique index on
-`(storage_filesystem_uuid, net_node_uuid)`) or legitimate lifecycle states
-need another selection rule. Any constraint needs writer, import/export
-and recovery review, including existing duplicate handling. Do not choose
-the invariant or silently deduplicate data without approval. PoC: `640d3bcabf`.
+The current head uses a uniqueness index instead and prechecks duplicate
+imports. It may reject a second attachment to colocated units and block
+migration of affected 4.0 models; no general repair is verified. Do not
+silently deduplicate data or lift the hold without approval. PoC: `640d3bcabf`.
 
 #### `4.1-unitstate-relation-key` — U21, type mismatch
 
@@ -841,9 +839,10 @@ and update the register. Explicit outstanding obligations: U17 guard
 integration, independent reconciliation of #23688 after it lands, and
 reconciliation of the D43 cherry-picks of #23710 and #23723 (U15) when
 they land. For `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728)
-has merged; reconcile its final shared registration-state implementation
-with the earlier U16 PoC cherry-picks. Preserve `AlreadyExists` /
-`AgentBinaryImmutable`, idempotency and transaction usability. Historical
+has merged; its final shared registration-state implementation replaced the
+earlier U16 PoC cherry-picks in the 2026-11-11 rebase, whose validation
+remains incomplete. Preserve `AlreadyExists` / `AgentBinaryImmutable`,
+idempotency and transaction usability. Historical
 implementation and merge details are in [UPSTREAM-DONE.md](UPSTREAM-DONE.md).
 Reconciled 2026-11-05 onto `5259edff43`:
 #23720, #23726 and #23694's UUID-conflict sentinel; U15/U16 cherry-picked

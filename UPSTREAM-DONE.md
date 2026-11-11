@@ -67,6 +67,7 @@ separately demonstrated defect.
 | `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
 | `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
 | `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare retained registration in both databases, preserving idempotency, immutability and transaction usability. Merged 2026-11-06. |
+| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | U13 follow-up, test diagnostics and dqlite CI | Preserve SSH-key setup diagnostics and failure status; avoid corrupted retryable dqlite `RETURNING` errors in keymanager, with a sentinel and broader real-dqlite CI. Merged 2026-11-11. |
 | `4.1-into-4.2`, [#23775](https://github.com/juju/juju/pull/23775) | Mainline integration | Merge the recorded 4.1 source into main; merged 2026-11-10. Later 4.1 commits and mainline `IIF` cleanup remain separate follow-ups. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
@@ -101,8 +102,9 @@ PostgreSQL validation remains outstanding; see
 PR [#23728](https://github.com/juju/juju/pull/23728) merged on 2026-11-06
 as `32be283d029d39e83027487899add9b94c426f86`, at head `2618d146da`.
 Its final follow-up shares registration state between the model and
-controller implementations. The PoC cherry-picks predate that refactor;
-reconciliation remains outstanding.
+controller implementations. The earlier PoC cherry-picks were replaced by
+the merged implementation in the 2026-11-11 rebase; validation remains
+incomplete, as recorded in UPSTREAM-FIXES.md.
 
 The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
@@ -132,6 +134,30 @@ passed. The first pre-check attempt with `GOPROXY=off` lacked a cached
 license-analysis dependency; the normal-proxy retry passed. Live controller
 and migration QA were not recorded. Subsequent 4.1 changes and mainline
 SQL `IIF` cleanup are not included; their follow-up is in the plan.
+
+## LXD diagnostics and keymanager retryability
+
+[#23756](https://github.com/juju/juju/pull/23756) merged on 2026-11-11
+at 00:01:51 UTC as `bd970f693c8e5060973016fe9059108570fa5bd3`,
+with final head `63a93201b565ab68f2167aef8736697ccacaa839`. SSH-key
+setup now reports captured errors and preserves failure status under
+`set -e`; integration-test changes trigger smoke jobs. The keymanager
+uses an insert and same-transaction unique-key lookup to preserve retryable
+errors while retaining unknown-algorithm rejection. A real-dqlite sentinel
+tracks the upstream `RETURNING` fix; the SQLite stale-snapshot regression
+checks WAL mode. Real-dqlite CI covers domain suites except the two packages
+addressed by follow-up #23759.
+
+Pedramktb and SimonRichardson approved; Van Cleef's warning and three
+suggestions were addressed. The author reported that all five shell QA
+harness cases, Bash syntax and ShellCheck passed on the November 5
+follow-up; that evidence predates later keymanager and CI commits.
+At the final head GitHub reported successful default-bases smoke, unit
+tests and aggregate, with five checks skipped. Repeated live LXD deploy QA
+was not recorded. The PoC rebase includes the merged keymanager fix, but
+its residual test work and validation are incomplete; see the
+[reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-bd970f693c-2026-11-11).
+Dependency-level driver fixes remain separate follow-up work.
 
 ## Dbrepl output refactor
 
@@ -184,7 +210,6 @@ dependency remain in UPSTREAM-PLAN.md.
 | `4.1-cte-membership-subqueries`, [#23750](https://github.com/juju/juju/pull/23750) | X24 | Replace eleven SQLite membership shorthands with explicit single-column subqueries; preserve filtering, scoped cleanup, lifecycle and departure semantics. Rebased head `02e9f73e49` retains the same patch. |
 | `4.1-drop-iif`, [#23751](https://github.com/juju/juju/pull/23751) | X7 | Replace redundant IIF wrappers with equivalent null-check predicates in the connection query and three controller views at `adf9f317a6`. |
 | `4.1-pr-description-guidance`, [#23755](https://github.com/juju/juju/pull/23755) | Agent guidance | Distinguish reviewer context, prospective merge-message content and reproducible reviewer QA from validation history at `15119bb898`. |
-| `4.1-lxd-default-bases`, [#23756](https://github.com/juju/juju/pull/23756) | Test diagnostics | Expose SSH-key registration failure output and preserve its exit status under `set -e`. Head `931a025a25` also adds `tests/**` to the workflow smoke-path filter; no retries or underlying intermittent-failure fix. |
 
 Remaining review actions belong in the plan, not this history. GitHub is the
 source of truth for live review, CI and merge status.
