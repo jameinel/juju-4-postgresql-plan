@@ -313,6 +313,13 @@ upstream breakout remain separate actions.
   that distinction when preparing the upstream fix: ask maintainers
   whether sorted output was strictly intended or merely incidental
   SQLite order, record their response and report back to the user.
+  Upstream [#23805](https://github.com/juju/juju/pull/23805), head
+  `1f2411ad8c013246780abcc0e1077db179d51197`, asks that question and
+  implements explicit lexical ordering independently on 4.1. Affected
+  SQLite and real-dqlite race suites, scoped lint and txncheck passed;
+  live controller QA and upstream PostgreSQL execution were not run.
+  Review and CI remain pending; several CI jobs failed without a confirmed
+  cause. Reconcile the PoC after landing.
   At `09=3a590b446f` plus these local edits, all ten ingress getter
   state cases passed with race detection on PostgreSQL and real dqlite;
   all nine mocked service getter cases also passed. Logs are retained
