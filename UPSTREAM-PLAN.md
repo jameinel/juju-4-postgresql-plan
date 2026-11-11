@@ -71,7 +71,7 @@ functional-QA acceptance. Existing validation remains revision-specific.
 |---|---|
 | `4.1-storage-filesystem-attachment-row`, #23766 | **Hold merge; plan rework.** Lowest attachment UUID makes the result deterministic, but does not establish the correct mount point. The user confirmed that the filesystem/node attachment invariant is uncertain. Investigate creation, sharing, detach/reattach, life transitions and import/recovery before choosing a design. If duplicates are invalid, scope schema enforcement and explicit handling of legacy duplicates; if valid, establish the domain-based row-selection contract. Do not silently add uniqueness, discard rows or accept UUID ordering as the final semantic fix. |
 | `4.1-unitstate-relation-key`, #23769 | The original text-binding implementation required rework; **the schema-first rework is implemented** at `2f680f1302`. Review the net patch, integer export/import/recovery and relation deletion paths. Do not revive the superseded normal-path conversions or classify the old PoC workaround as the completed fix. |
-| `4.1-x16-grouped-columns` | The original portability-only scope required rework because the row converters still discarded CA certificates. **Rework is published** in [#23784](https://github.com/juju/juju/pull/23784), head `0973ebb4af`: corrected SQL retains the rows and both consumers collect all certificates. Preserve the multi-certificate/attribute/auth-type contract; do not revert to a syntax-only patch. |
+| `4.1-x16-grouped-columns` | The original portability-only scope required rework because the row converters still discarded CA certificates. **Rework is published** in [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff`: corrected SQL retains the rows and both consumers collect all certificates, including clouds without certificate rows. Preserve the multi-certificate/attribute/auth-type contract; do not revert to a syntax-only patch. |
 
 These are not instructions to rewrite every open branch. Model-config
 #23683, remote-secret #23688, operation-expression #23693, charm #23710,
@@ -142,54 +142,23 @@ when starting or reviewing implementation work.
 
 ## Mainline integration requests
 
-1. Request a merge of upstream `4.1` into `main` and check that the
-   integration is clean, including conflicts and appropriate validation.
-   Check current branch heads and obtain approval before publishing or
-   merging anything.
-2. Afterward, audit `main` for SQL `IIF` and ensure it is cleaned up.
-   [juju/juju#23751](https://github.com/juju/juju/pull/23751) targets `4.1`
-   and is still in review; verify whether its changes reached `main`
-   rather than assuming the merge included them. If `IIF` remains,
-   prepare a separately scoped mainline change preserving its behavior.
+The `4.1-into-4.2` integration [#23775](https://github.com/juju/juju/pull/23775)
+merged into `main` on 2026-11-10; implementation, review and validation
+history are in [UPSTREAM-DONE.md](UPSTREAM-DONE.md#41-to-main-integration).
+It included `4.1` through `bd36cef535`, not subsequent commits. At the
+2026-11-10 snapshot `4.1` was at `79e9dbc31e`; assess remaining
+merge-forward work against refreshed branch heads, not the landed proposal.
+Live controller and migration QA for the integration were not recorded.
 
-### Local mainline merge preparation (2026-11-09)
-
-Worktree `4.1-into-4.2`, branch `4.1-into-4.2`: local merge commit
-`496c7d78187be3d0425fb66b386e17638872ce4a` merges upstream `4.1`
-`bd36cef53587f60bbdb4d910eb6338b9d95fba4a` into upstream `main`
-`419d02804e5df3a1facb80c7eb749be7176bfc84`. Git reported no conflicts;
-the merge tree matches the independent `git merge-tree` result. It brings
-14 commits, including three PR merges. The branch is pushed to
-`jameinel/juju:4.1-into-4.2` and proposed as
-[#23775](https://github.com/juju/juju/pull/23775), targeting `main`; the
-integration has not landed. The PR body is saved at
-[PR-4.1-into-4.2.md](PR-4.1-into-4.2.md).
-
-- Affected backups, CLI commands, modelcmd, agent-binary controller/model
-  state and resource state suites passed with `-p 2 -race -count=1` on
-  SQLite and with `make run-go-tests` using real dqlite and the shared
-  `_deps` headers and static libraries.
-- `make go-build`, `STATIC_ANALYSIS=1 make pre-check` and
-  `git diff --check` passed. Live controller and migration QA were not run.
-  The first pre-check attempt with `GOPROXY=off` failed on an uncached
-  license-analysis dependency; the normal-proxy retry passed.
-- The merge still contains four SQL `IIF` expressions. #23751 remains open
-  against `4.1`, so its cleanup is not part of this merge. Audit `main`
-  again after integration rather than treating this inventory as final.
-- Existing `.github/workflows/merge.yml` checks `4.1` -> `main` for
-  conflicts but does not publish or merge PRs. Automated merge-forward PRs
-  are proposed in [#23709](https://github.com/juju/juju/pull/23709), which
-  is still open. No upstream `4.2` branch existed when checked.
-
-At 2026-11-09 18:56 UTC, upstream `main` remained at `419d02804e`, but
-`4.1` had advanced to `775513d9df` with merged #23757, two commits beyond
-the source in this proposal. No human review had been submitted; GitHub
-required review. The [localhost LXD smoke](https://github.com/juju/juju/actions/runs/42647771546/job/129265668097)
-and aggregate failed after cleanup, with no established cause.
-
-Next: investigate CI, refresh the merge against current upstream heads,
-complete live controller/migration QA, and obtain explicit approval before
-merging. Prior validation applies to `496c7d7818`, not a refreshed merge.
+At `main` head `0483b81440`, four SQL `IIF` expressions remain in
+`domain/model/state/controller/state.go` and
+`domain/schema/controller/sql/0007-model.sql`. The cleanup in
+[#23751](https://github.com/juju/juju/pull/23751) still targets `4.1` and
+was not part of #23775. Prepare a separately scoped mainline cleanup
+preserving behavior, or verify its inclusion in a later merge-forward.
+Check current heads and obtain approval before publishing or merging.
+The separate automated merge-forward proposal [#23709](https://github.com/juju/juju/pull/23709)
+is contextual, not a user-owned review task.
 
 ## Breakout claims
 
@@ -203,7 +172,7 @@ available. Use `reserved` until the worktree and base are confirmed, then
 |---|---|---|---|---|---|---|
 | U22 filesystem attachment row | `fc0b395c-35d9-4277-ba1d-3bc4779db286` | `4.1-storage-filesystem-attachment-row` | `juju-4.1-storage-filesystem-attachment-row` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | blocked | [#23766](https://github.com/juju/juju/pull/23766), head `65dbcae6a9c3f117948ef667c43d195ad8a38b09`; user-requested local merge hold under D55. Investigate the attachment invariant and plan semantic rework before merge; retain ownership. Earlier SQLite/dqlite race, lint and txncheck passes do not settle the correct-mount contract. Live QA remains pending. |
 | U21 unitstate relation key | `750b409e-35d5-4196-9b64-56ee36a49f56` | `4.1-unitstate-relation-key` | `juju-4.1-unitstate-relation-key` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23769](https://github.com/juju/juju/pull/23769), head `9a3083a887952914d1457d10084bacfa78bd0c6d`; bot feedback answered, human review required and CI running. Forward-port to main after landing and check migration/export compatibility; reconcile the PoC workaround. The user reports performing functional QA while editing the PR; individual outcomes were not independently verified. At `2f680f1302`, SQLite affected race suites passed; dqlite suites passed except two known #23759 nullable-Boolean machine failures, with changed machine tests passing separately. Scoped lint, txncheck and export regeneration passed. The comment-only follow-up passed transformer package tests, scoped lint, txncheck and gci; default pre-check skipped static analysis. PostgreSQL not tested. |
-| X16 secret backend grouped columns | `48eb9888-f082-47eb-a43f-75ac280c4a3e` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23784](https://github.com/juju/juju/pull/23784), head `0973ebb4af7346d7a793af003460db5b3e9f146c`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. PostgreSQL execution not run. QA draft: `PR-4.1-x16-grouped-columns.md`. Follow up on multi-certificate integration CI. Do not rebase implicitly. |
+| X16 secret backend grouped columns | `48eb9888-f082-47eb-a43f-75ac280c4a3e` | `4.1-x16-grouped-columns` | `juju-4.1-x16-grouped-columns` | `148e09f015fe59237f382b9df1a468c15ee7fa42` | published | [#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. Review follow-up `c3161fb4ff` retains clouds with no CA certificate rows, distinguishes absent and stored empty certificates, and updates the duplication comment. Van Cleef's feedback was [answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624); shared-row refactoring and PostgreSQL test infrastructure are deferred. Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user previously reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. New no-CA functional QA and PostgreSQL execution were not run. The published PR description contains the updated QA; `PR-4.1-x16-grouped-columns.md` predates the follow-up. Follow up on multi-certificate integration CI. Do not rebase implicitly. |
 
 ## Open reviews: finish on existing branches
 
@@ -234,7 +203,7 @@ remain unvalidated; review approval, QA and stack prerequisites are separate.
 | `4.1-dqlite-nullable-boolean`, [#23759](https://github.com/juju/juju/pull/23759) | Real-dqlite domain CI | Head `a848d4426e` is based on #23756 at `63a93201b5`; await review and rebase onto `4.1` after the parent lands. Current Unit Tests, upgrade pre-check and aggregate passed. Preserve NULL/false/true and the upstream-fix sentinel. |
 | `4.1-controller-export-null`, [#23765](https://github.com/juju/juju/pull/23765) | Controller backup NULL fidelity | Independent head `2e12c3150a`. Evaluate Van Cleef's three suggestions; investigate failed localhost smoke and aggregate, obtain human review and complete disposable-controller backup QA. Preserve nullable Boolean and timestamp values without changing the export format. |
 | `4.1-unitstate-relation-key`, [#23769](https://github.com/juju/juju/pull/23769) | U21/X23 | Head `9a3083a887`, based on `148e09f015`. Van Cleef's suggestions were [answered](https://github.com/juju/juju/pull/23769#issuecomment-6756558330): the transform comment explains the conversion without claiming canonical-only inputs; mainline propagation is deferred until after landing. Obtain human review and monitor CI. The user reports performing QA, but individual results were not independently verified. Preserve integer keys, legacy conversion and orphan checkpoints without a new foreign key; check migration/export compatibility when forward-porting and reconcile the different PoC workaround after landing. |
-| `4.1-x16-grouped-columns`, [#23784](https://github.com/juju/juju/pull/23784) | X16 | Head `0973ebb4af`: obtain human review and monitor CI. Preserve all cloud CA certificates in both backend consumers and distinct secret counts; follow up on end-to-end multi-certificate CI coverage. |
+| `4.1-x16-grouped-columns`, [#23784](https://github.com/juju/juju/pull/23784) | X16 | Head `c3161fb4ff`: bot feedback answered; obtain human review and monitor CI. Preserve clouds with no CA rows, all stored CA certificates in both backend consumers and distinct secret counts. Complete no-CA functional QA; follow up on end-to-end multi-certificate CI coverage. |
 
 Review and CI evidence at that snapshot:
 

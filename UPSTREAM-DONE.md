@@ -67,6 +67,7 @@ separately demonstrated defect.
 | `4.1-local-secret-revisions`, [#23720](https://github.com/juju/juju/pull/23720) | U11 follow-up | Independently select latest local consumed-secret revisions in two query methods, with empty/multiple-secret/query-round-trip regressions and redundant deduplication removed. Merged 2026-11-04; the five-query latest-revision task remains separate. |
 | `4.1-dbaccessor-pool-cleanup`, [#23726](https://github.com/juju/juju/pull/23726) | U14 | Close unretained pools on setup and reopen failures while preserving caller/worker ownership of retained pools. Merged 2026-11-04. |
 | `4.1-agentbinary-conflict`, [#23728](https://github.com/juju/juju/pull/23728) | U16/X18 | Use `ON CONFLICT (version, architecture_id) DO NOTHING` and compare retained registration in both databases, preserving idempotency, immutability and transaction usability. Merged 2026-11-06. |
+| `4.1-into-4.2`, [#23775](https://github.com/juju/juju/pull/23775) | Mainline integration | Merge the recorded 4.1 source into main; merged 2026-11-10. Later 4.1 commits and mainline `IIF` cleanup remain separate follow-ups. |
 | `4.1-blockcommand-order`, #23692 | U10/X31 | Replace implicit rowid order with explicit block-type order. This is an agreed observable ordering change, not a syntax-only rewrite. |
 | `4.1-objectstore-conflicts`, #23694 | X36 | Use one conflict clause and distinguish UUID reuse from content already stored; details below. |
 | `4.1-sql-standard-syntax`, #23695 | X37/X38 | Standard equality and an explicit CROSS JOIN to the one-row fulfilment aggregate. Cover unused/shared-key deletion and zero-fulfilment detach info. A third commit changes storage lifecycle trigger equality. |
@@ -107,6 +108,30 @@ The equality change to the storage lifecycle triggers changes the schema
 patch hash: model databases created by an earlier 4.1 beta fail that hash
 check. Released 4.0.15 DDL is unchanged. Do not describe this as preserving
 all earlier-beta database compatibility.
+
+## 4.1 to main integration
+
+[#23775](https://github.com/juju/juju/pull/23775) merged on 2026-11-10
+at 08:58:40 UTC as `fa398c45ecbc00145b5906284ebae74789cb6846`, with
+final head `496c7d78187be3d0425fb66b386e17638872ce4a`. That head merged
+4.1 `bd36cef53587f60bbdb4d910eb6338b9d95fba4a` into main
+`419d02804e5df3a1facb80c7eb749be7176bfc84`, including agent-binary
+registration, backup recovery preflight and resource lookup fixes.
+The local merge had no conflicts and matched `git merge-tree`.
+
+Gvantsats and gfouillet approved that head; Van Cleef commented with no
+issues and three optional suggestions concerning duplicated test helpers,
+the recovery command's terminal error, and trailing YAML diagnostics.
+The final-head localhost smoke and aggregate checks passed after an earlier
+localhost failure; skipped checks are not passes.
+
+On `496c7d7818`, affected backups, CLI, modelcmd, agent-binary and resource
+state suites passed on SQLite and real dqlite with race detection.
+`make go-build`, `STATIC_ANALYSIS=1 make pre-check` and `git diff --check`
+passed. The first pre-check attempt with `GOPROXY=off` lacked a cached
+license-analysis dependency; the normal-proxy retry passed. Live controller
+and migration QA were not recorded. Subsequent 4.1 changes and mainline
+SQL `IIF` cleanup are not included; their follow-up is in the plan.
 
 ## Dbrepl output refactor
 
