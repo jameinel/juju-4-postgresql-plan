@@ -177,7 +177,9 @@ This limited microbenchmark does not establish full-sweep performance.
 An actual outside dependent disappearing while it is being described
 remains a separate potential race; this fix does not claim to resolve it.
 The restacked `09=f3340c6710` differs from `09=27fd2efa4f` only by this
-test-harness fix. The full 142-package sweeps remain outstanding.
+test-harness fix. At that tip `GOMAXPROCS=2 go build -p 2 ./...` passed;
+this build did not regenerate schemas. The full 142-package sweeps remain
+outstanding.
 
 ## Parallel repair run (2026-11-10, in progress)
 
