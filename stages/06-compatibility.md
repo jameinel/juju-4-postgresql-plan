@@ -89,8 +89,8 @@ PostgreSQL and real dqlite. Logs are
 `/tmp/pg-poc-charm-time-postgresql.log`,
 `/tmp/pg-poc-charm-time-dqlite.log` and
 `/tmp/pg-poc-bd970-final-keymanager-postgresql.log`.
-The broader rebase checks and any remaining real-dqlite affected-package
-runs remain outstanding. The final-tip sweeps below did not pass.
+The earlier final-tip sweeps below did not pass; the later sweeps at
+`09=f3340c6710` are recorded under the catalog teardown fix.
 
 ### Final-tip sweeps (2026-11-11)
 
@@ -142,8 +142,8 @@ explicitly skipped on PostgreSQL. Logs:
 `/tmp/pg-poc-nullbool-guard-{dqlite,postgresql}.log`. The restacked
 `09=27fd2efa4f` differs from `09=3883b6ce94` only by that guard.
 
-The 142-package sweeps have not been repeated at this tip. The PostgreSQL
-catalog-query fix below was integrated afterwards. The failed bootstrap
+The PostgreSQL catalog-query fix below was integrated afterwards, and the
+142-package sweeps were repeated at the restacked tip. The failed bootstrap
 remains blocked on Charmhub availability.
 
 ### Catalog teardown dependency check (2026-11-11)
@@ -178,8 +178,36 @@ An actual outside dependent disappearing while it is being described
 remains a separate potential race; this fix does not claim to resolve it.
 The restacked `09=f3340c6710` differs from `09=27fd2efa4f` only by this
 test-harness fix. At that tip `GOMAXPROCS=2 go build -p 2 ./...` passed;
-this build did not regenerate schemas. The full 142-package sweeps remain
-outstanding.
+this build did not regenerate schemas. The PostgreSQL generator freshness
+test passed, so schema regeneration was not needed for this change.
+
+At `09=f3340c6710`, the prepared 142-package selection ran separately on
+PostgreSQL and real dqlite with `GOMAXPROCS=2`, `-race -count=1 -p 4
+-parallel 1`, `-timeout 55m` and a 60-minute outer timeout. Each selection
+was precompiled. PostgreSQL used untagged binaries and the test URL; real
+dqlite used `dqlite,libsqlite3` and the bundled musl/CGO libraries. The
+four deferred import and recovery packages remained excluded.
+
+| Backend | Packages pass / fail / no tests | Test-level skip events |
+|---|---|---|
+| PostgreSQL | 140 / 0 / 2 | 189 |
+| Real dqlite | 140 / 0 / 2 | 82 |
+
+Both sweeps exited zero without race or timeout reports. Skip event counts
+include skipped parent suites; skips and deferred packages are not passes.
+The approved PostgreSQL key-manager concurrency skip remains. The
+dqlite-only nullable-BOOLEAN sentinel is not built in the untagged
+PostgreSQL sweep. The previously failing cloud, application and Loki tests,
+and the charm-removal fixture test, passed on both backends. The two
+packages without tests were `internal/changestream/testing` and
+`internal/database/testing`.
+
+The PostgreSQL test events spanned 25m08s; the real-dqlite test events
+spanned 10m07s. Logs are `/tmp/pg-poc-f334-{postgresql,dqlite}-sweep.jsonl`
+and `/tmp/pg-poc-f334-{pg,dqlite}-precompile.log`. After both sweeps the
+database inventory showed no controller, model or test schemas, and no
+other sessions. Bootstrap remains incomplete because of the reported
+Charmhub outage.
 
 ## Parallel repair run (2026-11-10, in progress)
 

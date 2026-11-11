@@ -208,10 +208,11 @@ Next:
    timestamp fixture failure introduced by the upstream rebase is repaired
    and the focused suite passes on all three backends; see
    [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
-   The earlier final-tip sweeps completed with failures. The nullable-BOOLEAN
-   workaround and the catalog-query fix have focused validation, but a new
-   sweep remains; do not treat the new base as verified yet.
-   The stack is local and has not been republished.
+   The earlier final-tip sweeps completed with failures. At `09=f3340c6710`,
+   the 142-package PostgreSQL and real-dqlite sweeps completed without
+   failures after the nullable-BOOLEAN and catalog-query fixes; skips and
+   deferred packages remain as recorded in Stage 6. The stack is local and
+   has not been republished.
 2. Complete follow-up from the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
    (N18): Step 0 and all six repair batches are integrated at
    `09=3a590b446f`. All GPT-6.1 Terra workers have delivered reports
@@ -233,9 +234,8 @@ Next:
    logging failure; see [sweep results](stages/06-compatibility.md#pre-redistribution-sweeps-2026-11-10).
    The UTC database-time fixture helper is implemented on Stage 6.
    Workers report production defects rather than fixing them; route
-   approved ones to Stage 5. The 142-package sweep at `09=75223c9543` had
-   the failures listed in Stage 6 and has not been repeated at the current
-   tip. Its prepared manifest excludes
+   approved ones to Stage 5. The 142-package sweep at `09=f3340c6710`
+   passed as recorded in Stage 6. Its prepared manifest excludes
    the three deferred import
    packages (D40), `domain/recovery/state` and 06-schema-skip; see the
    handoff.
