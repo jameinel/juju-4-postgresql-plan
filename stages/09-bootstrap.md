@@ -13,8 +13,12 @@ remains running. D54's PostgreSQL workload, multi-unit secrets and restart
 checks passed. The same-revision dqlite secret/restart checks and mixed CMR
 checks in both directions also passed, but the original dqlite consumer's
 `dummy-sink/1` remains idle with "Waiting for token". The complete dqlite
-workload is therefore not verified healthy. All resources are preserved
+workload is therefore not verified healthy. Direct database inspection
+found the token present and both sinks recording the current settings
+version, despite unit 1's last hook reading an empty token. The underlying
+delivery/read inconsistency remains unresolved. All resources are preserved
 at the user's request; no teardown or schema-removal isolation check ran.
+The next evaluation is [09-token-resume](#09-token-resume-evaluate-the-hooksettings-version-mismatch).
 See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
@@ -52,6 +56,71 @@ Record failures, skips, revisions and redacted logs. Do not assume an empty
 error log or successful `status` proves all operations above completed.
 New production failures return to the owning stage; no opportunistic
 scope expansion in the smoke-test task.
+
+## 09-token-resume: evaluate the hook/settings-version mismatch
+
+Status: investigation open; next steps recorded, not a chosen fix or
+authorization to change the preserved deployments. Controller debugging
+is deferred at the user's request. The observations below apply to
+`pg-poc/09-bootstrap` at `f3340c67107829347ee750f7e40e806e563411e9`.
+No production code was changed during the evaluation or investigation.
+
+The acceptance signal is the token visible to every expected consumer,
+not only an active remote endpoint, an idle agent or an acknowledged
+settings version. Current database snapshots cannot reconstruct the
+settings or cache contents at the time of the empty hook read.
+
+Next steps, in order:
+
+1. Preserve the original models and their evidence. Continue with static
+   inspection and read-only database/log queries; do not repair unit 1 by
+   setting another token, rerunning its hook, restarting an agent or
+   cycling its relation. Use the database queries below to compare the
+   source databag, its settings hash and both sinks' persisted versions.
+   Record snapshots with UTC timestamps and distinguish current state from
+   the 00:38:10 UTC hook-time observations.
+2. Trace the version and settings paths independently, then identify where
+   they can diverge during resume. Start at
+   `domain/relation/state/{relation.go,related_unit_watcher.go}` and
+   `apiserver/facades/agent/uniter/watcherrelationunit.go` for watcher
+   selection and conversion of settings hashes into versions. Follow
+   `internal/worker/uniter/remotestate/watcher.go`,
+   `relation/{resolver.go,state.go}` and
+   `runner/context/{contextfactory.go,cache.go}` under that uniter directory
+   for hook selection, version persistence and remote-settings cache
+   invalidation. Evaluate coalesced resume/settings events, version changes
+   between hook selection and execution, and interleaved action contexts.
+   These are hypotheses, not established causes.
+3. Before any live reproduction, obtain approval for separate disposable
+   offer/consume models on each controller. Pin the same source revision
+   and charms as D54, with two consumers. Begin with one suspend/resume
+   cycle per backend and no concurrent `juju exec` calls; observe through
+   status, logs and read-only database queries. If both pass, run a separate
+   case with the original D54 action/secret-read interleaving. Bound each
+   convergence wait at 600 seconds. Stop at the first mismatch and preserve
+   the new models too; cleanup needs separate approval.
+4. For a failing case, correlate the version selected for the hook, whether
+   its settings read used a cache, the value returned, the version persisted
+   after completion, and the next watcher notification. Use existing scoped
+   logging first. Any additional instrumentation is a separately reviewed
+   change, not permission to attach a debugger or modify the live agents.
+   Build a deterministic regression in the owning watcher/resolver/cache
+   package once this distinguishes a missed event from stale read data or
+   incorrect version acknowledgment. Cover the relevant event ordering
+   and action interleaving; do not infer a dqlite-only defect from one run.
+5. Before another D54 acceptance run, correct the evaluator's readiness
+   check: require every expected sink unit to be present, active/idle and
+   reporting `Token is foobar`. Demonstrate that one waiting sink, a wrong
+   token or a missing unit fails the check. After a separately approved fix,
+   repeat the affected scenarios on both backends and both mixed-CMR
+   directions, including the secret/restart checks. Use targeted `-race`
+   tests and bounded stress for changed concurrent code; validate real
+   dqlite and PostgreSQL if the persistence layer changes.
+
+Stop conditions: no speculative production fix or new controller debugging.
+Full D54 acceptance remains open until both consumers converge correctly
+and separately authorized teardown/schema-isolation checks are completed.
+Publishing the research or code stack does not authorize these operations.
 
 ## 09-compare: three cases
 
@@ -512,3 +581,120 @@ backend. Full D54 acceptance still requires investigating the original
 dqlite token-status finding and separately authorised teardown/schema
 isolation checks. Both mixed-backend CMR directions passed the checks above;
 this is not evidence for HA, model migration or performance claims.
+
+#### Follow-up: original dqlite sink token investigation
+
+Observed through 2026-11-12 02:49 UTC, continuing the local 2026-11-11
+evaluation. No agents were restarted, hooks retriggered, relations changed
+or resources removed during this investigation.
+
+The initial dqlite readiness snapshot and unit logs show both sink units
+active with `Token is foobar` at 00:36:55 UTC. During suspension they
+processed relation-departed/broken at 00:38:09. On resume, both processed
+relation-created/joined and their first relation-changed at 00:38:10.
+Both first changed hooks read an empty token and set waiting status.
+Unit 0 then processed another changed hook, read `foobar` and became active.
+Unit 1 did not process that recovery hook.
+
+The installed revision-7 hook runs `relation-get token`, writes the result
+to `/var/run/dummy-sink/token` and sets its status from that result. A later
+read-only `juju exec` comparison found an empty last-hook token file on
+unit 1, but an explicit `relation-get -r source:0 - dummy-source/0` returned
+`token=foobar` on both units. This is not merely an incorrect status message.
+
+At the user's request, direct database reads compared the original
+`model-secrets-consume` models, without attaching a debugger. PostgreSQL was
+queried inside a read-only transaction using the existing credential-safe
+psql helper. Dqlite was queried through the agent's read-only database REPL,
+opening model `fc34b97f-64f9-416f-8888-27b436a94f2c`; no live SQLite files
+were opened directly.
+
+Both databases contain an alive, unsuspended relation 0, relation-unit rows
+for both sinks and the source, and `token=foobar` in the source unit's
+`relation_unit_setting` rows. The sinks' own settings contain their network
+addresses, not the token; the token belongs to the remote source databag
+and is shared by both consumers.
+
+| Backend | Source settings-hash prefix | Current settings version | Sink 0 recorded version | Sink 1 recorded version |
+|---|---|---|---|---|
+| dqlite | `e3d84ef9` | `4136104582745174885` | same | same |
+| PostgreSQL | `d48149de` | `7306027391828636772` | same | same |
+
+Full source settings hashes:
+
+- dqlite: `e3d84ef9aeb09a45a22e7cb16154a3176fcf83c8dcda8d347a638186dffb3e7c`
+- PostgreSQL:
+  `d48149de593a0240be30e5405efbdabe2e7bd9c61444e37e67e2150b9b5452d9`
+
+The versions above use `domain/relation/state/relation.go`'s `hashToInt`:
+the first eight bytes of the hash string interpreted little-endian. Both
+`unit_state_relation` records already acknowledge the current source
+settings version, including the waiting dqlite unit. Neither has a
+changed-pending entry. Both uniter states are at `op: continue`,
+`opstep: pending`, rather than a pending or failed hook.
+
+The database therefore says unit 1 should have access to the token and
+already records its current version as delivered. The relation resolver
+compares remote and recorded versions, so equal versions do not generate
+another changed hook. This narrows the unresolved failure to consistency
+between hook delivery, its recorded version and the settings it read;
+the token is not missing from the current database. These snapshots do not
+establish which watcher/context transition caused that inconsistency, or
+prove that it is backend-specific.
+
+Final status still showed dqlite unit 0 active/idle, dqlite unit 1
+waiting/idle, and both PostgreSQL sinks active/idle. Both controller agent
+services remained active with their earlier start times.
+
+Additional evidence:
+
+- `/tmp/pg-poc-sink-investigation-unit{0,1}-log-20261111.log`
+- `/tmp/pg-poc-sink-investigation-relation-get-{0,1}-20261111.json`
+- `/tmp/pg-poc-sink-investigation-pg-db-20261111.log`
+- `/tmp/pg-poc-sink-investigation-dqlite-db-20261111.log`
+- `/tmp/pg-poc-sink-investigation-db-version-comparison-20261111.log`
+
+The local log paths are supporting artifacts, not files included in this
+repository. The timeline, selected database values and unresolved conclusion
+above are retained here so the finding does not depend on those artifacts
+remaining available.
+
+#### Read-only database comparison queries
+
+For PostgreSQL, use the existing credential-safe psql helper with a
+`BEGIN READ ONLY` transaction, bounded statement timeout and
+`SET LOCAL search_path TO "juju_b2ae6c01-80e4-44da-811d-ef838db48cd5"`.
+Do not print the database URL or run test suites against this live database.
+For dqlite, use `jujuagentd db-repl --machine-id 0` on `juju-1c1412-0`
+and `.open fc34b97f-64f9-416f-8888-27b436a94f2c`. Query through the
+read-only cluster connection, not a copy of the live SQLite files.
+
+These queries work in either selected model database:
+
+```sql
+SELECT
+    r.relation_id, r.suspended, u.name, s.key, s.value, h.sha256
+FROM relation AS r
+JOIN relation_endpoint AS re ON re.relation_uuid = r.uuid
+JOIN relation_unit AS ru ON ru.relation_endpoint_uuid = re.uuid
+JOIN unit AS u ON u.uuid = ru.unit_uuid
+JOIN relation_unit_setting AS s ON s.relation_unit_uuid = ru.uuid
+LEFT JOIN relation_unit_settings_hash AS h
+    ON h.relation_unit_uuid = ru.uuid
+WHERE r.relation_id = 0
+    AND u.name = 'dummy-source/0'
+    AND s.key = 'token';
+
+SELECT
+    u.name, s.key, s.value
+FROM unit_state_relation AS s
+JOIN unit AS u ON u.uuid = s.unit_uuid
+WHERE u.name IN ('dummy-sink/0', 'dummy-sink/1')
+    AND s.key = '0'
+ORDER BY u.name;
+```
+
+The first query must return `foobar` and the corresponding source hash.
+The second returns each sink's YAML state; compare `members.dummy-source/0`
+with the hash-derived version above. Equal versions alone are not workload
+acceptance: check each unit's actual token status independently.
