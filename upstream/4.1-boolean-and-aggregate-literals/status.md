@@ -11,10 +11,12 @@ with coordinator's exclusive reservation window.
   `.worktrees/4.1-boolean-and-aggregate-literals`, with shared `_deps`.
 - Verified upstream 4.1 base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
 - Head: `5f8af01651bd23706c22b9e1aa326b94206cb423` (2026-11-11).
-  PR: not published; [prospective description](pr.md) prepared.
-- Blockers: none. Next: obtain approval for push, then separately for PR
-  creation; complete review, CI and functional QA. Kubernetes functional QA
-  was omitted from the PR steps at the coordinator's direction.
+  Pushed to `jameinel/juju` and verified at that SHA.
+- PR: [juju/juju#23809](https://github.com/juju/juju/pull/23809), open;
+  published head and [description](pr.md) verified 2026-11-11.
+- Blockers: none. Next: obtain review, monitor CI and complete functional QA.
+  Kubernetes functional QA was omitted from the PR steps at the coordinator's
+  direction.
 
 2026-11-11: The existing subordinate-exclusion test attached its second unit
 to the principal application and charm, so it did not exercise a subordinate.
