@@ -48,10 +48,6 @@ The new unit should become active with an idle agent. The controller and
 model logs should not report password/nonce authentication or container
 network binding query errors. The controller should remain reachable.
 
-Kubernetes controller-address behavior also needs functional QA with a
-controller image built from this branch; `--build-agent` is not supported
-for Kubernetes bootstrap.
-
 ## Documentation changes
 
 ~No user-facing workflow changes.~
