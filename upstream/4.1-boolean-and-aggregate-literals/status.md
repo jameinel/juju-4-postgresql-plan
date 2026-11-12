@@ -4,13 +4,65 @@
 
 ## Current state and next actions
 
-Migrated from existing planning records on 2026-11-11; no new GitHub
-or validation check was performed for this migration. Evidence below
-retains its original dates and revisions; it does not validate later heads.
+Claimed 2026-11-11 by session `24713b22-6d3f-4622-9c56-7756485516d1`
+with coordinator's exclusive reservation window.
 
-Ownership/worktree: not assigned by this migration; confirm before acting.
+- Branch: `4.1-boolean-and-aggregate-literals`; worktree:
+  `.worktrees/4.1-boolean-and-aggregate-literals`, with shared `_deps`.
+- Verified upstream 4.1 base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
+- Head: `5f8af01651bd23706c22b9e1aa326b94206cb423` (2026-11-11).
+  PR: not published; [prospective description](pr.md) prepared.
+- Blockers: none. Next: obtain approval for push, then separately for PR
+  creation; complete review, CI and functional QA.
 
-PoC implementation on Stage 5 (`30e2bca25a`, `ada2a852ee`) and Stage 6 test SQL (`fa75871904`); scoped in UPSTREAM-PLAN.md
+2026-11-11: The existing subordinate-exclusion test attached its second unit
+to the principal application and charm, so it did not exercise a subordinate.
+Correcting that fixture is part of validating the changed predicate.
+
+2026-11-11: Coordinator directed that the separate `IFNULL` cleanup remain
+outside this branch. X7's published juju/juju#23751 covers `IIF`, not this
+`IFNULL`; the latter remains a candidate. PoC commit `8930466847` changes
+the join two lines above U20's predicate. Applying its patch to this worktree
+with `git apply --check` fails because the modified predicate is patch context.
+Whichever change lands second must resolve the overlap and retain both edits.
+
+The coordinator subsequently chose to split `IFNULL` cleanup into a separate
+breakout. A case-insensitive repository-wide search found five production
+calls (two network, one access, one relation watcher, one change stream)
+and nine test calls (two migration, one resource, six removal). This inventory
+supersedes the incomplete seven-call inventory previously presented. The
+separate breakout is a coordinator handoff, not assigned here.
+
+2026-11-11: At `5f8af01651`, SQLite package suites passed with
+`go test -race -p 2 -count=1 -timeout 300s` for `./domain/network/state`
+and with the same options and a 180s timeout for
+`./domain/agentpassword/state`. Real dqlite package suites passed with
+`make run-go-tests`, `TEST_ARGS='-race -p 2 -count=1 -timeout 720s'` and
+`TEST_FILTER=.` for both packages. Scoped `golangci-lint` and repository-wide
+`txncheck` passed. `gci` and `git diff --check` passed. `make pre-check` ran
+but skipped full static analysis because `STATIC_ANALYSIS` was unset.
+PostgreSQL and functional QA were not run. The first combined dqlite selector
+was rejected by the Makefile's shell quoting, and the first SQLite password
+suite failed when a new missing-instance fixture deleted a row with a
+dependent status; the fixture was fixed and both complete suites subsequently
+passed.
+
+## Scope and acceptance
+
+- Correct boolean comparisons in `domain/network/state` machine bindings and
+  controller API address queries (the latter was renamed from
+  `GetUnitAPIAddresses`); retain existing machine, Kubernetes, address-scope
+  and subordinate-selection behavior.
+- Correct the nonaggregated instance ID in the
+  `domain/agentpassword/state` machine-password query. The schema limits each
+  machine to one cloud instance row. Preserve matching, missing, invalid and
+  unprovisioned cases, including NULL and empty instance IDs.
+- Leave `IFNULL` cleanup to a separate breakout; the network join remains
+  SQLite-specific until then. Preserve both changes when the branches meet.
+- No schema changes or PostgreSQL runtime dependency. Explain why the SQL
+  changes remove the portability defects; validate affected behavior on
+  SQLite and real dqlite, with focused regressions and affected package suites.
+- Prerequisites: current upstream 4.1; no stack or dependency identified.
 
 ## Recorded scope and evidence
 
