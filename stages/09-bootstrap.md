@@ -8,16 +8,21 @@ Stage 5). Run 4 at `09=75223c9543` created the PostgreSQL schemas but
 was blocked by the Charmhub outage. Its instance and schemas have been
 cleaned up with user approval. Run 5 at `09=f3340c6710` successfully
 bootstrapped `pgpoc-pg`, verified PostgreSQL persistence and reopened the
-same namespaces after restarting the controller agent. The controller
-remains running. D54's PostgreSQL workload, multi-unit secrets and restart
-checks passed. The same-revision dqlite secret/restart checks and mixed CMR
-checks in both directions also passed, but the original dqlite consumer's
-`dummy-sink/1` remains idle with "Waiting for token". The complete dqlite
-workload is therefore not verified healthy. Direct database inspection
-found the token present and both sinks recording the current settings
-version, despite unit 1's last hook reading an empty token. The underlying
-delivery/read inconsistency remains unresolved. All resources are preserved
-at the user's request; no teardown or schema-removal isolation check ran.
+same namespaces after restarting the controller agent. D54's PostgreSQL
+workload, multi-unit secrets and restart checks passed. The same-revision
+dqlite secret/restart checks and mixed CMR checks in both directions also
+passed, but the original dqlite consumer's
+`dummy-sink/1` remained idle with "Waiting for token" at the final snapshot.
+The complete dqlite workload was therefore not verified healthy. Direct
+database inspection found the token present and both sinks recording the
+current settings version, despite unit 1's last hook reading an empty token.
+Source inspection
+identified a hash-reuse (ABA) timing window consistent with that mismatch;
+the exact historical event ordering remains unconfirmed. The user subsequently
+destroyed both PoC controllers. Read-only PostgreSQL validation on
+2026-11-12 found all four workload schemas removed, but the controller and
+controller-model schemas still present. No manual cleanup was performed.
+See [post-destroy validation](#post-destroy-postgresql-validation-2026-11-12-utc).
 The next evaluation is [09-token-resume](#09-token-resume-evaluate-the-hooksettings-version-mismatch).
 See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
@@ -59,9 +64,10 @@ scope expansion in the smoke-test task.
 
 ## 09-token-resume: evaluate the hook/settings-version mismatch
 
-Status: investigation open; next steps recorded, not a chosen fix or
-authorization to change the preserved deployments. Controller debugging
-is deferred at the user's request. The observations below apply to
+Status: investigation open; next steps recorded, not a chosen fix. The user
+has since destroyed the original controllers; continue from retained
+evidence. Any new live experiments require separate approval. Controller
+debugging is deferred at the user's request. The observations below apply to
 `pg-poc/09-bootstrap` at `f3340c67107829347ee750f7e40e806e563411e9`.
 No production code was changed during the evaluation or investigation.
 
@@ -72,13 +78,13 @@ settings or cache contents at the time of the empty hook read.
 
 Next steps, in order:
 
-1. Preserve the original models and their evidence. Continue with static
-   inspection and read-only database/log queries; do not repair unit 1 by
-   setting another token, rerunning its hook, restarting an agent or
-   cycling its relation. Use the database queries below to compare the
-   source databag, its settings hash and both sinks' persisted versions.
-   Record snapshots with UTC timestamps and distinguish current state from
-   the 00:38:10 UTC hook-time observations.
+1. Preserve the retained logs, database snapshots and hook output. Continue
+   with static inspection and artifact analysis; the original models can
+   no longer be queried or repaired. Correlate the recorded source databag,
+   its settings hash and both sinks' persisted versions. Use the database
+   queries below for comparable future inspections. Record snapshots with
+   UTC timestamps and distinguish inspection-time state from the 00:38:10
+   UTC hook-time observations.
 2. Trace the version and settings paths independently, then identify where
    they can diverge during resume. Start at
    `domain/relation/state/{relation.go,related_unit_watcher.go}` and
@@ -90,9 +96,11 @@ Next steps, in order:
    for hook selection, version persistence and remote-settings cache
    invalidation. Evaluate coalesced resume/settings events, version changes
    between hook selection and execution, and interleaved action contexts.
-   These are hypotheses, not established causes.
-3. Before any live reproduction, obtain approval for separate disposable
-   offer/consume models on each controller. Pin the same source revision
+   The source/log follow-up below narrows this to a concrete ABA/read-skew
+   window without establishing that it caused the original incident.
+3. Reproduction is optional, not a prerequisite for source-based diagnosis.
+   Before any live reproduction, obtain approval for disposable controllers
+   with separate offer/consume models. Pin the same source revision
    and charms as D54, with two consumers. Begin with one suspend/resume
    cycle per backend and no concurrent `juju exec` calls; observe through
    status, logs and read-only database queries. If both pass, run a separate
@@ -177,6 +185,41 @@ Gaps to check and decide:
 
 Stop conditions: do not add a lock or a second ownership table before the
 live check shows the existing guard is insufficient.
+
+## Post-destroy PostgreSQL validation (2026-11-12 UTC)
+
+The user reported running `destroy-controller` for both `pgpoc-dqlite` and
+`pgpoc-pg`. At 03:41 UTC, read-only catalog and ownership queries against
+database `juju` at `10.158.110.204:5432` found **incomplete PostgreSQL
+cleanup**:
+
+| Schema | Result |
+|---|---|
+| `juju_controller` | Still present: 95 tables, 20 views, 187 indexes and 4 sequences |
+| `juju_7d1c9ee0-8da6-4f5a-81df-a92067c5f98c` | Still present: 253 tables, 59 views, 443 indexes and 5 sequences |
+| Four workload-model schemas listed in the evaluation below | All absent |
+
+Both surviving Juju schemas are owned by `charmed_juju_owner`. The controller
+row still identifies `f28bf008-6149-44c9-84a2-680c26b01c06`; its controller
+model remains registered as activated with life `dying`, and its UUID remains
+in the namespace registry. There were no other client sessions in `juju`
+and no prepared transactions. The hosting PostgreSQL database and extension
+objects remain; the `public` schema has no relations.
+
+Neither PoC controller remains in the local client registry, and no known
+PoC controller/workload instance was found across LXD projects. No schema,
+database or other resource was removed during validation. This establishes
+workload-schema removal, not complete controller cleanup or model-by-model
+schema-removal isolation.
+
+Read-only evidence:
+`/tmp/pg-poc-post-destroy-postgresql-validation-20261112.json` and
+`/tmp/pg-poc-post-destroy-postgresql-ownership-20261112.json`.
+
+Automatic controller-wide namespace cleanup is
+[desired future work](11-future-work.md#11-controller-teardown), not a PoC
+acceptance gate. The D52 script, `scripts/postgresql-poc/drop-juju-schemas.py`,
+remains the explicit PoC cleanup workaround.
 
 ## 09-functional run log
 
@@ -658,6 +701,126 @@ The local log paths are supporting artifacts, not files included in this
 repository. The timeline, selected database values and unresolved conclusion
 above are retained here so the finding does not depend on those artifacts
 remaining available.
+
+#### Source/log follow-up: fixed hook versions and an ABA timing window
+
+Inspected on 2026-11-12 through 03:12 UTC at the same PoC revision,
+`f3340c67107829347ee750f7e40e806e563411e9`. This used source inspection,
+existing unit/controller logs and local hash calculations, not a new
+reproduction, debugger session or production change.
+
+The fuller existing logs establish an initialization overlap:
+
+| UTC on 2026-11-12 | Existing log observation |
+|---|---|
+| 00:37:50 | Source and both sink unit workers stopped during the planned controller restart. |
+| 00:38:01 | Source and sink 1 workers restarted; sink 1's uniter started in this second. |
+| 00:38:02 | Source uniter started. |
+| 00:38:06 | Sink 0 workers and uniter restarted. |
+| 00:38:09 | Source and sinks processed the suspension departure/broken hooks. |
+| 00:38:10 | Source ran joined hooks issuing `relation-set token=foobar`; both sinks' first resumed changed hooks read empty. |
+| 00:38:10-11 | Sink 0's additional changed hook read `foobar`; sink 1 had no corresponding recovery hook. |
+| 00:41:16-28 | A later planned controller restart restarted both sink workers without a recovery changed hook on sink 1. |
+
+These are second-resolution timestamps, not a total ordering across machines.
+The source's installed revision-6 charm writes the token in
+`sink-relation-joined`; there is no installed `sink-relation-changed` hook.
+It issued the same token for both resumed joins. The relevant automatic
+consumer hook is relation-changed after relation-joined, not config-changed.
+
+The inspected code establishes the following, with paths relative to the
+PoC checkout:
+
+- `internal/worker/uniter/relation/resolver.go:188-205` selects the guaranteed
+  post-joined changed hook with the current watcher snapshot's member
+  version. The version is selected before execution.
+- `internal/worker/uniter/operation/runhook.go:287-291` commits that same
+  `hook.Info`; its `RemoteStateChanged` method at lines 350-353 is empty.
+  `internal/worker/uniter/relation/state.go:103-135` records
+  `hi.ChangeVersion`. This path does not replace a running hook's version
+  with the latest version at completion.
+- `internal/worker/uniter/runner/context/contextfactory.go:238-260`
+  invalidates the remote unit cache before a relation hook.
+  `internal/worker/uniter/runner/context/cache.go:72-95` then fetches and
+  caches settings lazily.
+  `api/agent/uniter/relationunit.go:144-173` sends no selected version with
+  `ReadRemoteSettings`. The read can therefore observe a different
+  databag state from the earlier version-selection snapshot.
+- `domain/relation/state/relation.go:2475-2490` hashes sorted settings;
+  `hashToInt` at lines 2125-2134 derives the watcher version from that hash.
+  Restoring identical settings restores an identical version, including
+  after deleting and recreating relation-unit membership.
+- `domain/removal/state/model/relation.go:490-555,652-683` archives settings
+  and deletes membership, settings and their hash in one transaction.
+  `domain/relation/state/relation.go:1773-1883` creates membership and its
+  initial settings on reentry. Remote replacements in
+  `domain/relation/state/remoterelation.go:404-443` also update settings
+  and their hash in the same transaction. No split settings/hash write
+  was found in these paths; the read-skew window is between watcher
+  selection and hook reads.
+- `internal/worker/uniter/relation/resolver.go:340-362` compares versions
+  with `!=`, so a repeated version cannot distinguish restored content
+  from the earlier occurrence of that content.
+
+Using the observed source addresses and the repository's exact
+`key + " " + value + " "` hashing format, a local `sha256sum` calculation
+reproduced the full current token-bearing hash `e3d84ef9...` recorded above.
+Omitting only `token` produced
+`2e5381471a5cafcdf66736bf2725f3c337cde40e8026d75492c1174f99a26c1e`.
+The token-bearing and address-only versions are distinct; this candidate
+does not depend on a hash collision. The address-only calculation is not
+a historical database observation.
+
+A concrete interleaving permitted by these paths is:
+
+1. A resumed hook selects version A while the consumer watcher still
+   reports the token-bearing settings.
+2. Scope reentry/CMR propagation replaces them with address-only settings B
+   before the hook's first `relation-get`. Cache invalidation works, but
+   the fresh read obtains no token and caches that result.
+3. The source's joined hook restores the same token and addresses, yielding
+   A again. Watcher snapshots can return to A while the hook is executing;
+   the running hook does not consume those snapshots.
+4. The hook completes and persists its originally selected A. The resolver
+   compares it with current A and schedules no recovery changed hook.
+
+This explains how a hook can read empty yet acknowledge the current
+token-bearing version without completion-time version advancement or a
+lost watcher notification. Sink 0 could select B and then see A, producing
+its observed additional hook. These are candidate orderings, not measured
+hook-version values: the retained INFO logs do not record the selected
+versions, cache reads or CMR databag/hash transitions at subsecond
+resolution. The existing controller log window supplied no such evidence.
+Consequently, the exact cause of the original incident remains open, and
+the finding is not established as dqlite-specific.
+
+The user clarified the required transactional contract on 2026-11-12 UTC:
+record the immutable context X actually made available at hook start,
+not the latest context Y at completion. Charms may skip intermediate
+content, but must be notified when current content differs from their
+last delivered context. This is a serious correctness concern, not merely
+an incorrect status display.
+
+The next evaluation must establish coherent snapshot delivery and
+acknowledgment, not just choose a change token that cannot repeat.
+An increasing revision alone does not prevent a trigger from being paired
+with newer content fetched during execution. A hook given A must keep
+reading A; it may skip an intermediate B if current content returns to A.
+A hook given B must receive a later A update when current content returns
+to A, even if an earlier hook had already seen A.
+
+The unclaimed upstream breakout
+[relation-hook-context-snapshot](../upstream/relation-hook-context-snapshot/status.md)
+records this contract, deterministic acceptance cases and diagnostic
+guidance for confused units in the wild. No implementation design has
+been selected and no fix or new live experiment is authorized by this
+record.
+
+Additional retained local evidence:
+
+- `/tmp/pg-poc-sink-investigation-unit{0,1}-full-window-20261111.log`
+- `/tmp/pg-poc-sink-investigation-source-window-20261111.log`
+- `/tmp/pg-poc-sink-investigation-controller-window-20261111.log`
 
 #### Read-only database comparison queries
 

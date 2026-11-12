@@ -107,6 +107,22 @@ stack. Their earlier PoC implementations are not retained as competing
 paths. See the [reconciliation record](#poc-reconciliation-onto-bd970f693c-2026-11-11)
 for residual test work and the incomplete validation.
 
+### Unassigned behavior findings (2026-11-12)
+
+- **High-priority transactional correctness concern:** relation-hook
+  context/snapshot acknowledgment can diverge under the candidate ABA
+  ordering identified during D54. Charms may skip intermediate states,
+  but must receive another update when current content differs from the
+  last delivered context. The user confirmed that the context available
+  at hook start must be immutable and match the acknowledged delivery.
+  This is not established as the original incident's cause or as
+  dqlite-specific. Relevant stock 4.1 paths were verified at `bd970f693c`;
+  deterministic reproduction and implementation design remain pending.
+  This is an independent Juju 4.1 correctness issue, not a SQL/schema
+  extraction or a dependency of the other breakouts. No fix is implemented.
+  Unclaimed record and standalone team discussion draft:
+  [relation-hook-context-snapshot](upstream/relation-hook-context-snapshot/status.md).
+
 ### Unassigned test findings (2026-11-10)
 
 - **Latent (test), X17:** `domain/model/state/controller/state_test.go`

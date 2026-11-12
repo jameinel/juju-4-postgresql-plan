@@ -12,6 +12,9 @@ and acceptance criteria first.
 - Controller-charm relation, secret-backed credentials and rotation.
   The current connection-source seam (N2) is required, not deferred.
 - Restore onto existing PostgreSQL schemas (D23).
+- Automatic controller teardown cleanup: remove the controller's persistent
+  namespaces so a fresh bootstrap can reuse the database without a collision.
+  See [11-controller-teardown](#11-controller-teardown).
 - PostgreSQL-primary failover and endpoint/reconnection experiments.
   Stage 10 tests Juju controller loss, not database failover. Read-replica
   routing is outside this PoC.
@@ -56,3 +59,31 @@ and acceptance criteria first.
 
 U11 cross-model secrets is not deferred: its dedicated task gates the
 functional milestone. Upstream 4.1 fix extraction is ongoing, not Stage 11.
+
+## 11-controller-teardown
+
+Status: desired future work, recorded 2026-11-12 UTC. Not required for the
+PoC while the explicit cleanup script remains available.
+
+Controller teardown, for example `destroy-controller`, should remove all
+collections/namespaces belonging to that controller, including its
+controller schema, controller-model schema, other model schemas and
+namespace registry state. A fresh bootstrap against the same PostgreSQL
+database should then succeed without a schema collision or manual cleanup.
+Preserve the hosting database, extension objects and unrelated data.
+
+The [post-destroy validation](09-bootstrap.md#post-destroy-postgresql-validation-2026-11-12-utc)
+found the four workload schemas gone but both controller-owned schemas
+still present. This is the motivating observation, not an implemented fix.
+
+Future acceptance: bootstrap with multiple models, complete controller
+teardown, verify no controller-owned namespaces or objects remain, and
+bootstrap a fresh controller against the same database without invoking
+the cleanup script. Check unrelated objects survive and interrupted cleanup
+can be retried safely, with incomplete cleanup reported explicitly.
+
+PoC workaround: retain `scripts/postgresql-poc/drop-juju-schemas.py` (D52).
+With no options it inventories the database; `--controller UUID` selects
+that controller's schemas for cleanup after ownership and stopped-instance
+checks, with explicit confirmation. Run it separately against approved
+targets when necessary. Do not make bootstrap silently drop existing state.
