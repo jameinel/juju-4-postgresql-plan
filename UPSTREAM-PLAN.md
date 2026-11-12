@@ -96,8 +96,10 @@ next actions belong in the branch record, not this table.
 
 | Task record | Owner/session |
 |---|---|
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `24713b22-6d3f-4622-9c56-7756485516d1` |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b` |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `ddb7e2df-6760-4f1f-94e5-8bcfa0df4332` |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | `d36531ca-29ec-454e-af43-9c0f627b8c93` |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
