@@ -10,17 +10,8 @@ another owner's worktree.
 
 Summary baseline: existing records migrated on 2026-11-11, including
 the 2026-11-09 review snapshot and subsequent recorded updates. This
-reorganization did not refresh GitHub, CI, QA or branch ownership.
-
-GitHub snapshot 2026-11-12 03:58 UTC: 20 queued open PRs; none is
-merge-ready. juju/juju#23750 has current-head human approval but a failed
-Jenkins merge status. juju/juju#23766 retains its explicit merge hold. CI
-failures also affect juju/juju#23759, juju/juju#23769, juju/juju#23805 and
-juju/juju#23807. juju/juju#23809 was published during the sweep; review and
-CI are pending. CI and review states are snapshots, not acceptance or
-permission to merge. Jenkins logs were not inspected. The branch records
-for juju/juju#23759 and juju/juju#23765 predate their current heads;
-coordinate with their owners rather than overwriting them.
+reorganization did not refresh GitHub, CI, QA or branch ownership. See the
+dated snapshot below for the subsequent GitHub check.
 
 [PoC plan](PLAN.md) | [Finding register](UPSTREAM-FIXES.md) |
 [Completed summary](UPSTREAM-DONE.md) |
@@ -109,15 +100,15 @@ next actions belong in the branch record, not this table.
 
 | Task record | Owner/session |
 |---|---|
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `24713b22-6d3f-4622-9c56-7756485516d1` |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `9c43947c-a0e6-40c2-a3dc-af93e0bbe9a8` (authorized takeover, 2026-11-12) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` |
-| [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b` |
+| [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `ddb7e2df-6760-4f1f-94e5-8bcfa0df4332` |
 | [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
 | [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no combined fixes) |
-| [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | `d36531ca-29ec-454e-af43-9c0f627b8c93` |
+| [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | `dbd7747e-8c2d-4b78-8994-1cd20589b8ab` (authorized takeover, 2026-11-12) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
@@ -132,26 +123,124 @@ sweep. Workers update their branch record, not this dashboard on each
 commit or review. GitHub is authoritative for live PR state. A merged PR
 does not establish functional QA or PoC integration.
 
+### Transfer reconciliation and targeted GitHub check (2026-11-13 20:51 UTC)
+
+Reconciled the pending local records with the transferred infrastructure
+and installer updates. This is not a new sweep of all queued PRs. GitHub
+confirmed the heads and states of juju/juju#23750, #23806, #23807, #23809
+and #23838; validation and functional QA below remain attributed to their
+original runs or author reports.
+
+- X24 / #23750 is merged as `20a76d44fe97e2f9b5a1c5bcf01d9b2cf19d60d1`,
+  final head `67daa565a6`. Its branch record now includes the merge and
+  reported real-dqlite follow-up/manual QA. PoC reconciliation is pending;
+  no code-branch ownership was assigned or changed.
+- #23807 (`b2c4c91989`) and #23809 (`039998905e`) have Simon approvals,
+  but GitHub still reports `REVIEW_REQUIRED` and aggregate checks `FAILURE`.
+  Published responses are recorded; CI triage, the remaining review gate
+  and functional QA are not complete.
+- #23806 (`23034abf0e`) remains `REVIEW_REQUIRED` with aggregate checks
+  `FAILURE`. The follow-up makes the controller lookup stream-free while
+  retaining the model's target-stream check. True per-binary stream
+  membership remains an unassigned design question, not implemented work.
+- #23838 (`d8625d3f04`) remains `REVIEW_REQUIRED`; its aggregate checks
+  report `SUCCESS`. Clean/repeated-install evidence and its limits are in
+  the transferred record; the PR's functional QA remains to be performed.
+  An aggregate status alone does not establish that every check ran.
+- Schema layout and central test configuration are published fork
+  checkpoints, not upstream landings or PostgreSQL execution. The reserved
+  CI/integration branches still have no implementation beyond those
+  checkpoints; follow their existing integration plan.
+
+### Historical GitHub snapshot (2026-11-13 19:58 UTC)
+
+Of 20 queued open PRs, #23765 is merge-ready subject to explicit user
+authorization. Eleven have actionable QA, CI or design work; eight await
+review or a prerequisite. GitHub heads were rechecked. Skipped checks are
+not passes.
+
+- #23838 was published during the sweep from the claimed developer-tooling
+  branch. The transferred branch record now includes clean/repeated-install
+  evidence and publication details. Review, CI and the PR's functional QA
+  remain; the branch remains owner-held.
+- #23750 merged on 2026-11-13 at head `67daa565a6`, merge commit
+  `20a76d44fe97e2f9b5a1c5bcf01d9b2cf19d60d1`. The author reported
+  real-dqlite follow-up validation and manual QA. Compare the earlier PoC
+  X24 implementation with the landed result; reconciliation is not verified.
+  Its branch record still says open and its owner is not established; it
+  was not modified during this sweep.
+- Simon's #23806 concern and Van Cleef's feedback were answered; await
+  reviewer confirmation. #23807 and #23809 have fresh Simon approvals and
+  answered bot feedback. All three still have failed CI and live QA pending.
+- #23759, #23769 and #23805 retain failed CI. #23805's unit test logged a
+  data race and static analysis reported GO-2026-6859; several other
+  jobs failed during setup. Do not assume one cause for all failures.
+- #23766 remains on hold pending the duplicate-attachment and source-repair
+  decision; Jenkins failed. #23784 retains no-CA QA and multi-certificate
+  integration coverage; #23731 and #23751 retain functional QA.
+- #23723 remains behind #23710; regenerate after the parent lands. #23724
+  and exposure still need their combined guard reconciled when they meet.
+
+### Historical GitHub snapshot (2026-11-12 22:33 UTC)
+
+All 20 queued PRs remain open. No merge is ready: review gates, CI,
+functional QA or explicit holds remain. Heads were rechecked after the
+review and CI inspection; branch records have not been taken over.
+
+- Human review action: #23806 asks about the stream contract; #23807 asks
+  to simplify an error path; #23809 asks to clarify or change the COUNT
+  query. All three also have unanswered optional Van Cleef suggestions.
+- #23766 remains on hold pending the duplicate-attachment and source-repair
+  decision; its Jenkins check failed. #23750 has a failed merge Jenkins
+  status and needs follow-up dqlite validation and QA.
+- #23759, #23805 and #23807 have multiple failed CI jobs; #23769 has a
+  failed default-bases smoke and aggregate; #23809 has failed static
+  analysis. #23806's GitHub Actions workflows were queued and unavailable
+  in the rollup. Failures are not evidence of a shared root cause.
+- #23765, #23784, #23731 and #23751 retain recorded functional QA or
+  coverage obligations. #23723 remains behind #23710; regenerate after
+  the parent lands. #23724 and exposure still need the combined guard
+  reconciled when they meet.
+- Simon approved #23729 and explicitly deferred his broader error-helper
+  suggestion to future work. #23755's guidance-location discussion was
+  answered and awaits reviewer follow-up.
+
+### Historical GitHub snapshot (2026-11-12 03:58 UTC)
+
+20 queued open PRs; none is merge-ready. juju/juju#23750 has current-head
+human approval but a failed Jenkins merge status. juju/juju#23766 retains
+its explicit merge hold. CI failures also affect juju/juju#23759,
+juju/juju#23769, juju/juju#23805 and juju/juju#23807. juju/juju#23809 was
+published during the sweep; review and CI are pending. CI and review states
+are snapshots, not acceptance or permission to merge. Jenkins logs were
+not inspected. The branch records for juju/juju#23759 and juju/juju#23765
+predate their current heads; coordinate with their owners rather than
+overwriting them.
+
+### Branch record summaries (reconciled 2026-11-13)
+
+Rows outside the targeted check above retain their earlier recorded state.
+
 | Branch/task record | Recorded summary |
 |---|---|
 | [`4.1-agentbinary-conflict`](upstream/4.1-agentbinary-conflict/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-application-exposure-scope`](upstream/4.1-application-exposure-scope/status.md) | Depends on charm; rebase/regenerate after charm lands. |
 | [`4.1-binary-key-columns`](upstream/4.1-binary-key-columns/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-blockcommand-order`](upstream/4.1-blockcommand-order/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | Published as juju/juju#23809; review, CI and functional QA pending. |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | [#23809](https://github.com/juju/juju/pull/23809): direct instance-ID query and adjacent COALESCE follow-up published; Simon approved, but GitHub review gate, failed CI and functional QA remain. |
 | [`4.1-changestream-latest-row`](upstream/4.1-changestream-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | Confirm upstream ordering contract; review, CI triage and functional QA. |
-| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Independent backup NULL-fidelity review, CI and functional QA. |
+| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | [#23765](https://github.com/juju/juju/pull/23765): approvals, CI and reported QA satisfy the merge gate; obtain explicit authorization. |
 | [`4.1-controller-node-id-text`](upstream/4.1-controller-node-id-text/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | Review, CI and live QA; reconcile after landing. |
+| [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | [#23806](https://github.com/juju/juju/pull/23806): stream-free controller lookup and review responses published; review, failed CI and live QA remain. Per-binary stream membership is separate design work. |
 | [`4.1-crossmodel-secret-revisions`](upstream/4.1-crossmodel-secret-revisions/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
+| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | [#23750](https://github.com/juju/juju/pull/23750) landed; merge and reported QA recorded. Compare final SQL and scoped behavior with the PoC before reconciliation; coordinate any branch work because ownership is not established. |
 | [`4.1-dbaccessor-pool-cleanup`](upstream/4.1-dbaccessor-pool-cleanup/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
-| [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Head `39b1dc3cd8` is based on current 4.1 after merged keymanager fix; CI and review pending. Temporary casts have a dependency-fix removal condition. |
+| [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | [#23759](https://github.com/juju/juju/pull/23759) is at `39b1dc3cd8`, based on refreshed 4.1 after the merged keymanager fix; investigate failed CI and await review. Temporary casts have a dependency-fix removal condition. |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | Claimed; revise verification-only implementation to install dependencies, then validate clean and repeated installation. |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | [#23838](https://github.com/juju/juju/pull/23838): clean/repeated-install evidence recorded, aggregate checks SUCCESS; review and PR functional QA remain. |
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-keymanager-insert-id`](upstream/4.1-keymanager-insert-id/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lease-migration-tests`](upstream/4.1-lease-migration-tests/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -174,13 +263,13 @@ does not establish functional QA or PoC integration.
 | [`4.1-sql-standard-syntax`](upstream/4.1-sql-standard-syntax/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sql-test-literals`](upstream/4.1-sql-test-literals/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sqlite-integers`](upstream/4.1-sqlite-integers/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | Review, CI and live QA, including the Kubernetes unit path. |
+| [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | [#23807](https://github.com/juju/juju/pull/23807): follow-up and responses published; Simon approved, but GitHub review gate, failed CI and live QA, including Kubernetes, remain. |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | Merge hold: attachment invariant, duplicate rejection and migration QA need a decision. |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | Review/CI and mainline propagation; reconcile the different PoC workaround after landing. |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | Review/CI, no-CA QA and multi-certificate integration coverage. |
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
-| [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | Unclaimed high-priority correctness concern; reproduce and agree design before implementation. Incident cause remains unproven. |
+| [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; agree design and deterministic reproduction before dispatch. Incident cause remains unproven. |
 
 ## D55 implementation review (2026-11-06)
 
@@ -230,7 +319,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | Finding | Candidate scope / next action |
 |---|---|
 | X7 | Published as #23751; follow the linked branch record. |
-| X24 | Published as #23750; follow the linked branch record. Do not duplicate. |
+| X24 | #23750 landed; compare its final result with the PoC during reconciliation. Do not duplicate. |
 | X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |

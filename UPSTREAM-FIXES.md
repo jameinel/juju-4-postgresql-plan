@@ -92,7 +92,7 @@ and U13's already-open driver follow-up. Neither is fresh runtime validation.
 | U15 | latent | Model schema tables with a nullable primary key column: `application_exposed_endpoint_cidr` and `_space` (`application_endpoint_uuid`, NULL is the wildcard endpoint), `charm_container_mount.charm_container_key`, `charm_manifest_base` (`os_id`, `track`, `branch`, `architecture_id`). | SQLite allows NULL in a non-integer primary key and treats NULLs as distinct, so wildcard rows insert, but the key does not stop duplicates of them. PostgreSQL makes every primary key column NOT NULL (DIALECT.md X44). **Found in Stage 9 (2026-10-28):** the first PostgreSQL bootstrap failed in `upsertExposedCIDRs` (`domain/application/state/exposed.go`) exposing the controller application with 23502. Only the exposure tables store NULL. | Charm/exposure cherry-picked under D43 on 2026-11-05; compare against eventual landed results. Branch records: [4.1-nullable-primary-keys](upstream/4.1-nullable-primary-keys/status.md); [4.1-application-exposure-scope](upstream/4.1-application-exposure-scope/status.md). See the dated reconciliation records below for validation. |
 | U16 | latent | `domain/agentbinary/state/{controller,model}/state.go` `RegisterAgentBinary` | On a primary key conflict it runs a follow-up `SELECT` in the same transaction. SQLite keeps the transaction usable after the failed statement; PostgreSQL does not (DIALECT.md X18, 25P02 "current transaction is aborted"). The caller's `AlreadyExists` / `AgentBinaryImmutable` handling is never reached. **Found in Stage 9 (2026-10-28):** retries after the U15 failure re-register the binary and fail with 25P02. | D43 cherry-picks replaced by merged shared registration state in the 2026-11-11 rebase. Branch records: [4.1-agentbinary-conflict](upstream/4.1-agentbinary-conflict/status.md). See the dated reconciliation records below for validation. |
 | U17 | latent | 48 model and 17 controller single-column `id INT PRIMARY KEY` tables at `8369e6e2a9` | SQLite permits NULL keys; exported `*int64` IDs allow malformed payload rows to reach persistence. | Independent upstream implementation; no PoC integration is recorded. Branch records: [4.1-lookup-key-not-null](upstream/4.1-lookup-key-not-null/status.md). See the dated reconciliation records below for validation. |
-| U18 | tooling | `Makefile` `install-dependencies`; static-analysis prerequisites | `install-dependencies` covers Go snap and `libsqlite3-dev`, but not `shellcheck`, `gci`, `golangci-lint` or `stress`. Without `shellcheck`, `STATIC_ANALYSIS=1 make pre-check` stops at dependency checks; without SQLite headers it fails schema generation with `sqlite3.h` missing. The run also reports skipped `go-licenses`, `shfmt` and `govulncheck` checks when those tools are absent. | Claimed developer-tooling task; verification-only implementation needs revision to install missing tools. Branch record: [4.1-install-dependencies](upstream/4.1-install-dependencies/status.md). |
+| U18 | tooling | `Makefile` `install-dependencies`; static-analysis prerequisites | `install-dependencies` covers Go snap and `libsqlite3-dev`, but not `shellcheck`, `gci`, `golangci-lint` or `stress`. Without `shellcheck`, `STATIC_ANALYSIS=1 make pre-check` stops at dependency checks; without SQLite headers it fails schema generation with `sqlite3.h` missing. The run also reports skipped `go-licenses`, `shfmt` and `govulncheck` checks when those tools are absent. | Developer-tooling fix published in [#23838](https://github.com/juju/juju/pull/23838) on 2026-11-13. Clean/repeated-install evidence is recorded; review, CI and the PR's functional QA remain. Branch record: [4.1-install-dependencies](upstream/4.1-install-dependencies/status.md). |
 | U19 | latent | `domain/secret/state/state.go` (`updateSecret`, `GetRotationExpiryInfo`, `fetchSecrets`, `listCharmSecrets`, `getSecretsRevisionExpiryChanges`); `domain/unitstate/state/commithook.go` `updateCharmSecret` | Bare columns beside `MAX(revision)` (DIALECT.md X16). They rely on SQLite's single-`MAX` rule to read the latest revision's row; with other aggregates or several join rows, the bare columns (policy, expiry, owner) may come from any row. The revision listing also had no `ORDER BY` (X17). **Found in Stage 9 run 3 (2026-11-05):** the controller unit's uniter failed with 42803. | Stage 5 `5e70fcbc84`, `0ed13ff885`, `3a8f0090c2`. Branch records: [4.1-secret-latest-revision](upstream/4.1-secret-latest-revision/status.md). See the dated reconciliation records below for validation. |
 | U20 | portability | `domain/network/state` `GetMachineAppBindings` (`subordinate = 0`), `GetUnitAPIAddresses` (`is_caas = 1`); `domain/agentpassword/state/modelstate.go` `MatchesMachinePasswordHashWithNonce` (bare `mci.instance_id` beside `COUNT`) | Correct on dqlite: booleans are integers, and a machine has at most one cloud instance row. PostgreSQL rejects both (X12/42883, X16/42803). **Found 2026-11-05:** network by package validation before bootstrap run 2 (controller API address path); agentpassword by run 2, where every machine agent login failed. | Stage 5 `30e2bca25a`, `ada2a852ee`; Stage 6 test SQL `fa75871904`. Branch records: [4.1-boolean-and-aggregate-literals](upstream/4.1-boolean-and-aggregate-literals/status.md). See the dated reconciliation records below for validation. |
 | U21 | latent | `domain/unitstate/state/state.go` `setUnitStateRelation`; `types.go` `unitRelationStateKeyVal` | Binds Go `int` relation IDs into `unit_state_relation.key`, declared `TEXT`. SQLite stores them by affinity, so the schema and Go type disagree unnoticed (DIALECT.md X23). pgx refuses to encode `int` as text, so every uniter relation-state commit fails on PostgreSQL. **Found 2026-11-05** in the `domain/unitstate/state` re-run once U19 no longer masked it. | Stage 5 `1afd3b9434` is a text-binding workaround, not the upstream integer-schema correction. Branch records: [4.1-unitstate-relation-key](upstream/4.1-unitstate-relation-key/status.md). See the dated reconciliation records below for validation. |
@@ -485,17 +485,17 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | X16 | [#23730](https://github.com/juju/juju/pull/23730) |
 | [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | X7 | [#23751](https://github.com/juju/juju/pull/23751) |
-| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | X24 | [#23750](https://github.com/juju/juju/pull/23750) |
+| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | X24 | [#23750](https://github.com/juju/juju/pull/23750), merged 2026-11-13; PoC reconciliation pending |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | U13 follow-up, test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) |
 | [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765) |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | U18 | not proposed |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | U18 | [#23838](https://github.com/juju/juju/pull/23838), open 2026-11-13 |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | U19/X16 | not proposed |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | U22/X16 | [juju/juju#23784](https://github.com/juju/juju/pull/23784) |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809) |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809), open 2026-11-12 |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | U25 | [juju/juju#23806](https://github.com/juju/juju/pull/23806) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | U24 | [juju/juju#23807](https://github.com/juju/juju/pull/23807) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | X17 | [juju/juju#23805](https://github.com/juju/juju/pull/23805) |
@@ -526,16 +526,26 @@ Notes:
 - juju/juju#23685 also fixes the upgrade test half of U5.
 - juju/juju#23696 also fixes double-quoted string literals in production
   SQL, not only in tests.
-- X7 is in #23751; X24 is in #23750.
-  Continue those implementations through the tracking links in UPSTREAM-PLAN.md.
+- X7 remains in review in #23751. X24 landed in #23750 on 2026-11-13
+  at head `67daa565a6`, merge commit `20a76d44fe97e2f9b5a1c5bcf01d9b2cf19d60d1`.
+  Compare the PoC's earlier equivalent SQL with the landed result under
+  the integration procedure; no reconciliation is recorded.
   X18 is represented by the
   merged U16 agent-binary fix and the separate `PinLease` review above.
+- U20's published review follow-up selects the instance ID directly rather
+  than retaining the PoC's aggregate formulation, and changes the adjacent
+  network `IFNULL` to `COALESCE`. Keep that occurrence out of a separate
+  cleanup breakout. U25's published follow-up removes the controller
+  lookup's stream parameter while preserving the model's same-transaction
+  target-stream check; true per-binary stream membership is not implemented.
+  Follow the linked branch records and compare the eventual landed results
+  with their PoC equivalents; neither follow-up is reconciled into the PoC.
 - U16's merged shared-state implementation replaced the earlier PoC
   cherry-picks in the 2026-11-11 rebase; validation remains incomplete.
   `PinLease` and
   sequence allocation already have independent review branches; continue
   those rather than starting new implementations.
-  Developer tooling is claimed and requires revision; the five-query
+  Developer tooling is published as juju/juju#23838; the five-query
   latest-secret rewrite remains a separate unclaimed task in
   UPSTREAM-PLAN.md.
 - U15 was written upstream first, with no PoC source commit. The published

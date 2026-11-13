@@ -4,17 +4,51 @@
 
 ## Current state and next actions
 
-Migrated from existing planning records on 2026-11-11; no new GitHub
-or validation check was performed for this migration. Evidence below
-retains its original dates and revisions; it does not validate later heads.
-
-- Owner/session: `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`.
+- Owner/session: `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; user authorized
+  review follow-up by session `17daff25-b14a-4ac3-a5f7-bcf4c44ab416`.
 - Branch: `4.1-controllerupgrader-stream-result`.
 - Worktree: `.worktrees/4.1-controllerupgrader-stream-result` under the primary checkout.
 - Base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
-- Recorded phase: published.
-
-[#23806](https://github.com/juju/juju/pull/23806), head `a380152f9beabb42bd64cfeb2dfff252439a6b9f`, based on PoC `274e1a2e0211a56dfdcef6591c42cc75ce52b0d5`; human review required and CI pending. SQLite and real-dqlite state package race suites, scoped lint, txncheck, gci and diff checks passed; pre-check skipped static analysis. PostgreSQL and live controller QA not run. Complete QA, review and CI; reconcile PoC after landing.
+- GitHub rechecked 2026-11-13 20:51 UTC: the PR remains open at
+  `23034abf0e303a197fd519e90327a1f66fc77d35`, with `REVIEW_REQUIRED`
+  and aggregate checks `FAILURE`. No approval was present in the latest
+  reviews. Triage current-head checks and complete review and functional
+  QA; this check does not establish a common cause for CI failures.
+- 2026-11-12: [#23806](https://github.com/juju/juju/pull/23806) is open at
+  published head `23034abf0e303a197fd519e90327a1f66fc77d35`; human review
+  required. New-head checks are still running, and the LXD charms smoke job
+  failed during setup because Snap Store returned HTTP 408 while installing
+  `core26`, before tests ran:
+  https://github.com/juju/juju/actions/runs/43349540295/job/131637036334.
+  Jenkins and Read the Docs passed on the preceding head
+  `a380152f9beabb42bd64cfeb2dfff252439a6b9f`.
+- With user approval, follow-up `23034abf0e303a197fd519e90327a1f66fc77d35`
+  was pushed to `jameinel/juju:4.1-controllerupgrader-stream-result`.
+  Simon's unresolved thread prompted removal of the controller lookup's
+  misleading stream parameter and a stream-free result type. Shared helpers
+  retain the model's same-transaction stream check. User approved preserving
+  existing selection behavior and the helper; true stream filtering is not
+  implemented.
+- Scope finding: controller storage has no per-binary stream provenance.
+  Stream-specific upgrade selection may use any controller-store binary;
+  the model store instead gates on its current target stream. A real
+  stream-membership design remains a separate decision and is not assigned
+  to another branch.
+- On the local head, `go test -race -p 2 -count=1 -timeout 120s
+  ./domain/controllerupgrader/state ./domain/controllerupgrader/service`
+  passed using SQLite; `make run-go-tests` for the state package passed
+  with `-race -p 2 -count=1 -timeout 120s` and real dqlite. Scoped
+  `golangci-lint`, compiled `txncheck`, `gci` and `git diff --check` passed.
+  `make pre-check` skipped static analysis; PostgreSQL and live controller
+  QA were not run.
+- The user-approved `pr.md` was published as the PR body and verified.
+  The approved Van Cleef response was published and verified at
+  https://github.com/juju/juju/pull/23806#issuecomment-6841701600.
+  The approved Simon reply was published and verified at
+  https://github.com/juju/juju/pull/23806#discussion_r4558889339.
+- Next: human review, current-head CI including the failed LXD setup, functional
+  QA and eventual PoC reconciliation remain outstanding; do not resolve
+  the thread without approval.
 
 ## Recorded scope and evidence
 

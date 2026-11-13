@@ -5,18 +5,46 @@
 ## Current state and next actions
 
 Claimed 2026-11-11 by session `24713b22-6d3f-4622-9c56-7756485516d1`
-with coordinator's exclusive reservation window.
+with coordinator's exclusive reservation window. The coordinator authorised
+takeover by session `9c43947c-a0e6-40c2-a3dc-af93e0bbe9a8` on 2026-11-12.
 
 - Branch: `4.1-boolean-and-aggregate-literals`; worktree:
   `.worktrees/4.1-boolean-and-aggregate-literals`, with shared `_deps`.
 - Verified upstream 4.1 base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
-- Head: `5f8af01651bd23706c22b9e1aa326b94206cb423` (2026-11-11).
-  Pushed to `jameinel/juju` and verified at that SHA.
+- Head: `039998905e18a9d414e2a36e13128eb0aaad7a02` (2026-11-12),
+  pushed to `jameinel/juju` and verified as the PR and remote branch head.
 - PR: [juju/juju#23809](https://github.com/juju/juju/pull/23809), open;
-  published head and [description](pr.md) verified 2026-11-11.
-- Blockers: none. Next: obtain review, monitor CI and complete functional QA.
-  Kubernetes functional QA was omitted from the PR steps at the coordinator's
-  direction.
+  published [description](pr.md) and replies verified 2026-11-12.
+- GitHub rechecked 2026-11-13 20:51 UTC: the PR remains open at that head.
+  Simon approved on 2026-11-13, but GitHub still reports `REVIEW_REQUIRED`
+  and aggregate checks `FAILURE`. The previous head's CI static analysis
+  failed on govulncheck `GO-2026-6859`; whether it predates this branch is
+  unverified. Next: triage current-head failures, complete the remaining
+  review gate and functional QA, and investigate the finding if it recurs.
+  Kubernetes functional QA was omitted at the coordinator's direction.
+
+2026-11-12 review disposition: Simon Richardson requested clarification or
+replacement of `COUNT`; with coordinator agreement the follow-up selects the
+nullable instance ID directly, treating no row as invalid credentials. Van
+Cleef suggested including the adjacent `IFNULL` cleanup and describing the
+subordinate fixture fix; the coordinator approved both. This branch changes
+that one occurrence to `COALESCE`, superseding the earlier split decision
+below; the remaining occurrences stay outside this branch. The separate
+breakout must omit this occurrence or reconcile overlap. Published replies:
+[Simon](https://github.com/juju/juju/pull/23809#discussion_r4558803973)
+and [Van Cleef](https://github.com/juju/juju/pull/23809#issuecomment-6841552781).
+Local copies: [Simon](reply-simonrichardson.md) and
+[Van Cleef](reply-lee-van-cleef.md). Simon's thread was not resolved.
+
+At `039998905e`, focused SQLite regressions and both complete affected
+package suites passed with `-race -p 2 -count=1`. Both complete packages
+passed real dqlite via `make run-go-tests` with
+`TEST_ARGS='-race -p 2 -count=1 -timeout 720s'` and `TEST_FILTER=.`.
+Scoped `golangci-lint`, repository-wide `txncheck`, `gci` and
+`git diff --check` passed. `STATIC_ANALYSIS=1 make pre-check` completed
+successfully but skipped `govulncheck`, `go-licenses` and `shfmt` because
+they were unavailable. CI's vulnerability failure is not resolved by this
+local result. PostgreSQL and functional QA were not run.
 
 2026-11-11: The existing subordinate-exclusion test attached its second unit
 to the principal application and charm, so it did not exercise a subordinate.
@@ -57,11 +85,12 @@ passed.
   `GetUnitAPIAddresses`); retain existing machine, Kubernetes, address-scope
   and subordinate-selection behavior.
 - Correct the nonaggregated instance ID in the
-  `domain/agentpassword/state` machine-password query. The schema limits each
-  machine to one cloud instance row. Preserve matching, missing, invalid and
-  unprovisioned cases, including NULL and empty instance IDs.
-- Leave `IFNULL` cleanup to a separate breakout; the network join remains
-  SQLite-specific until then. Preserve both changes when the branches meet.
+  `domain/agentpassword/state` machine-password query by selecting the
+  instance ID directly. The schema limits each machine to one cloud instance
+  row. Preserve matching, missing, invalid and unprovisioned cases, including
+  NULL and empty instance IDs.
+- Change `IFNULL` in the modified network query to `COALESCE`; other
+  occurrences remain for separate cleanup.
 - No schema changes or PostgreSQL runtime dependency. Explain why the SQL
   changes remove the portability defects; validate affected behavior on
   SQLite and real dqlite, with focused regressions and affected package suites.

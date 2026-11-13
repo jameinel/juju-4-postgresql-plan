@@ -233,56 +233,43 @@ without coordination.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | D42 historically met; earlier sweeps failed on catalog teardown and nullable BOOLEAN. Both fixes have focused validation; a new sweep remains |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Repairs integrated; the 142-package PostgreSQL and real-dqlite selections passed at `09=f3340c6710`, with recorded skips and deferred coverage. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | 09-functional scenario agreed (D54); four review checkpoint commits remain at 09 pending redistribution to their owning layers; run 4 deferred until the Stage 6 repairs and a new re-sweep (N22), then D56 database recreation |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Run 5 bootstrapped PostgreSQL at `f3340c6710`; full D54 acceptance remains open on the consumer token mismatch and teardown/isolation checks. Four review checkpoints await redistribution; comparison not started |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next:
 
-1. Complete the outstanding rebase checks; the PostgreSQL charm-removal
-   timestamp fixture failure introduced by the upstream rebase is repaired
-   and the focused suite passes on all three backends; see
+1. Continue [09-token-resume](stages/09-bootstrap.md#09-token-resume-evaluate-the-hooksettings-version-mismatch)
+   from retained evidence. Run 5 verified PostgreSQL bootstrap, persistence,
+   secrets and restart, but one original dqlite consumer remained waiting
+   for its token. The ABA/read-skew explanation is not a proven incident
+   cause. Controller debugging is deferred; new live experiments require
+   separate approval. Agree the independent
+   [hook-context snapshot design and deterministic regression](upstream/relation-hook-context-snapshot/status.md)
+   before implementation. Correct the evaluator to require every expected
+   consumer to be present, active/idle and reporting `Token is foobar`
+   before another D54 acceptance run.
+   Both PoC controllers were destroyed. Workload schemas are absent, but
+   PostgreSQL controller/controller-model schemas remain; cleanup requires
+   explicit target approval. Automatic controller-wide cleanup is future
+   work, not an acceptance gate. Obtain separate approval for teardown/
+   isolation checks and complete them before comparison.
+2. Finish the outstanding rebase checks and redistribute the four Stage 9
+   review checkpoints into their owning layers. The Stage 6 repair batches,
+   resource-list assertion repair, nullable-BOOLEAN fix and catalog-query
+   fix are integrated. The charm-removal timestamp fixture passes on all
+   three backends; see
    [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
-   The earlier final-tip sweeps completed with failures. At `09=f3340c6710`,
-   the 142-package PostgreSQL and real-dqlite sweeps completed without
-   failures after the nullable-BOOLEAN and catalog-query fixes; skips and
-   deferred packages remain as recorded in Stage 6. The stack is local and
-   has not been republished.
-2. Complete follow-up from the [Stage 6 parallel repairs](handoffs/2026-11-10-stage-6-parallel-repairs.md)
-   (N18): Step 0 and all six repair batches are integrated at
-   `09=3a590b446f`. All GPT-6.1 Terra workers have delivered reports
-   and their completed worktrees have been removed. W2/W3's exhaustive
-   checks passed; W4 passed 219 affected methods per backend, W5 passed
-   62 on dqlite and 61 with one known legacy-data failure on PostgreSQL,
-   and W6 passed 19 per backend. The final-stack build passed.
-   The legacy empty-timestamp skip and ordering-contract decisions were
-   reviewed; the resource-list assertion repair is integrated. The
-   approved SSH and controllerupgrader production fixes are on Stage 5.
-   Distribute the review checkpoints into their owning layers.
-   Use normal tool parallelism defaults, adjusting for current host load
-   and the PostgreSQL server budget (N19). Follow
-   changed-layer validation rather than repeating earlier passing suites.
-   Pre-redistribution sweeps at `09=ff21df57ed`
-   found the activated-model order assertion (fixed in Stage 6), the
-   PostgreSQL schema-teardown catalog race, and the known dqlite nullable-BOOLEAN
-   logging failure; see [sweep results](stages/06-compatibility.md#pre-redistribution-sweeps-2026-11-10).
-   The UTC database-time fixture helper is implemented on Stage 6.
-   Workers report production defects rather than fixing them; route
-   approved ones to Stage 5. The 142-package sweep at `09=f3340c6710`
-   passed as recorded in Stage 6. Its prepared manifest excludes
-   the three deferred import
-   packages (D40), `domain/recovery/state` and 06-schema-skip; see the
-   handoff.
-3. Reassess bootstrap run 4 after Charmhub is reachable. The failed
-   controller and its PostgreSQL schemas have been cleaned up; see
-   [run 4](stages/09-bootstrap.md#run-4-2026-11-11-0975223c9543).
-   Obtain explicit approval of cleanup targets before any teardown or
-   database recreation. Then run the D54 scenario and the dqlite
-   comparison from the same revision.
-4. Dispatch the Stage 5 upstream break-outs scoped in
+   At `09=f3340c6710`, the full build and both 142-package sweeps passed;
+   skips, the three import packages (D40), `domain/recovery/state` and
+   06-schema-skip remain explicit coverage gaps. Preserve the
+   [repair handoff](handoffs/2026-11-10-stage-6-parallel-repairs.md)
+   and revision-specific evidence. Follow changed-layer validation after
+   redistribution, then obtain approval before republishing the local stack.
+3. Continue the Stage 5 upstream breakouts scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#branch-summaries),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
@@ -291,6 +278,14 @@ Next:
    includes CA-certificate preservation. `4.1-boolean-and-aggregate-literals`
    remains separately scoped. Alongside these, audit the `0` / `1` seed
    rows written to `BOOLEAN` columns (UPSTREAM-PLAN.md D55 audit table).
+   X24 #23750 landed on 2026-11-13; the integration owner should compare
+   the PoC's earlier equivalent SQL with the final upstream result under
+   UPSTREAM-INTEGRATION.md. Reconciliation and its validation remain pending.
+4. Continue the approved
+   [PostgreSQL test-infrastructure checkpoints](upstream/4.1-postgresql-tests/integration-plan.md).
+   Schema layout and central backend configuration are published on the
+   fork; PostgreSQL execution, CI and combined-fix integration remain
+   unfinished. Keep these branches independent of PoC runtime acceptance.
 
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.

@@ -4,14 +4,32 @@
 
 ## Current state and next actions
 
-Migrated from existing planning records on 2026-11-11; no new GitHub
-or validation check was performed for this migration. Evidence below
-retains its original dates and revisions; it does not validate later heads.
+GitHub rechecked 2026-11-13 20:51 UTC:
+[juju/juju#23750](https://github.com/juju/juju/pull/23750) merged into `4.1`
+on 2026-11-13 at 07:00 UTC as
+`20a76d44fe97e2f9b5a1c5bcf01d9b2cf19d60d1`, final head
+`67daa565a60f9ab9d2f9b5ea43a3772ce8528fa3`.
 
-Ownership is not established by this historical review entry. Confirm
-the current owner before modifying an existing branch or worktree.
+The [published follow-up report](https://github.com/juju/juju/pull/23750#issuecomment-6745133488)
+records SQLite race-suite validation for application, removal and relation,
+and real-dqlite `-race -count=1` runs for all four affected state packages,
+including operation. It reports scoped lint, `txncheck`, `gci` and diff
+checks, repository-wide Go lint and author-run manual QA. Other static analysis,
+PostgreSQL execution and the full repository suite were not run for those
+follow-ups. These are retained reports, not validation rerun during this
+reconciliation; the earlier missing-header attempt below is superseded by
+the reported successful real-dqlite run.
 
-Head `67daa565a6`: gfouillet approved; his follow-ups were implemented and answered, awaiting confirmation. Investigate revision smoke and aggregate failures; validate the follow-up on real dqlite and complete manual QA. Preserve explicit single-column membership and scoped cleanup, lifecycle and departure semantics.
+Next: compare the final SQL and scoped behavior with the PoC's earlier
+equivalent implementation under
+[the integration procedure](../../UPSTREAM-INTEGRATION.md).
+PoC reconciliation and its validation remain pending. Preserve explicit
+single-column membership and scoped cleanup, lifecycle and departure
+semantics; do not dispatch another X24 implementation.
+
+Ownership is not established by this record. The coordinator authorized
+this documentation reconciliation, not takeover of an existing code branch
+or worktree. Confirm ownership before any follow-up branch work.
 
 ## Review artifacts
 
@@ -88,7 +106,9 @@ Validation with shared `_deps` and stock SQLite/Dqlite fixtures:
   `make juju` built a session-local client, and `juju version` ran successfully.
   The client binary was removed.
 
-PR [juju/juju#23750](https://github.com/juju/juju/pull/23750) remains open
+### Historical review snapshot (2026-11-09)
+
+PR [juju/juju#23750](https://github.com/juju/juju/pull/23750) remained open
 against `4.1`. On November 9, head `67daa565a6` included and answered
 gfouillet's November 6 review requests, though the threads remained open.
 SQLite race suites passed for the follow-ups; a real-dqlite run did not build

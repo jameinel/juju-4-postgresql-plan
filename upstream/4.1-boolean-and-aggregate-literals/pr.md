@@ -1,14 +1,17 @@
 Use boolean literals when filtering charm subordination and Kubernetes
 controller addresses. These values are booleans, even though SQLite also
-accepts comparisons with integers.
+accepts comparisons with integers. Use `COALESCE` for the network binding
+fallback in place of SQLite-specific `IFNULL`.
 
-Aggregate the machine instance ID alongside the password-match count. The
-cloud-instance primary key permits at most one row per machine, so `MAX`
-preserves the existing result, including NULL and empty instance IDs.
+Select the machine's instance ID directly when its password and nonce
+match, rather than combining a count with an unaggregated column. The
+machine and cloud-instance primary keys permit at most one joined row.
+No matching row means invalid credentials; a matching row with a missing,
+NULL or empty instance ID still means the machine is not provisioned.
+
+Correct the subordinate binding test fixture to attach the secondary unit to
+the subordinate application and charm, so the test exercises the exclusion.
 Compare the controller ID with a text literal in the corresponding test.
-
-The network binding query still contains `IFNULL`; its separate cleanup is
-needed before the entire query uses portable SQL.
 
 ## Checklist
 

@@ -9,6 +9,13 @@ import cycle. Remaining work is test repair, diagnosis and verification,
 not building another harness. PostgreSQL bootstrap is reported passing;
 this does not establish that all suites or the runtime worker work.
 
+The latest recorded selection at `09=f3340c6710` passed on PostgreSQL and
+real dqlite: 140 packages passed and two had no tests on each backend.
+Skips and deferred packages remain coverage gaps; see
+[the sweep evidence](06-compatibility.md#catalog-teardown-dependency-check-2026-11-11).
+Stage 9 run 5 subsequently bootstrapped PostgreSQL, but full functional
+acceptance remains open; see [Stage 9](09-bootstrap.md).
+
 Stage 6 discovers compatibility defects; fixes can belong on Stages 3–5.
 It supports bounded milestone gates rather than becoming a requirement to
 make every Juju package pass before any runtime work resumes.
@@ -60,14 +67,14 @@ setup reading.
 
 ## Next tasks and completion
 
-1. Repair the re-sweep failures. Route production-query work to Stage 5;
-   do not combine it silently with fixture changes. The current round is
-   the
+1. The six repair batches and subsequent catalog/nullable-BOOLEAN fixes
+   are integrated, and the latest sweeps passed. Retain the
    [parallel repairs handoff](../handoffs/2026-11-10-stage-6-parallel-repairs.md)
-   (N18): trigger drop helpers first, then six worker handoffs covering
-   307 failing leaf tests in 31 packages, split by package rather than
-   by [re-sweep](06-compatibility.md#postgresql-re-sweep) class and
-   integrated onto this branch. Then rerun the re-sweep.
+   (N18) and exact-revision results. Remaining coverage work includes
+   06-schema-skip and explicit backend identity; 06-schema-skip is a
+   separately scoped task, not a reason to repeat completed repair batches.
+   Route new production-query defects to Stage 5 rather than combining
+   them silently with fixture changes.
 2. Use D42's runtime-entry package list in the detail file. Keep deferred
    PostgreSQL import/export (D40) distinct from blockers. Later gates use
    N16's tiers and levels (smoke before commits, full post-commit,
@@ -76,9 +83,11 @@ setup reading.
 3. Run gates as one `go test` invocation with `-p` up to 8 on the
    unit-test server profile (N17, OPERATIONS.md), on both backends, at
    the restacked revision; record selectors, tags, skips and evidence. A
-   fixed issue remains "awaiting rerun" until tested. The PostgreSQL
-   re-sweep at `09=a3818782aa` completed with failures and skips; it is
-   not a passed readiness gate or a full run on both backends.
+   fixed issue remains "awaiting rerun" until tested. The failed sweep at
+   `09=a3818782aa` is historical; the passing selections at
+   `09=f3340c6710` supersede it without closing their recorded skip and
+   deferred-coverage gaps. Revalidate changed layers after redistribution;
+   do not describe the selected sweep as every Juju package passing.
 4. The functional milestone also requires Stage 9 runtime evidence;
    passing a Stage 6 gate alone is not "functional".
 

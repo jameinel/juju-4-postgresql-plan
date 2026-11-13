@@ -9,10 +9,12 @@
 - Branch: `4.1-ssh-host-key-conflict`.
 - Worktree: `.worktrees/4.1-ssh-host-key-conflict` under the primary checkout.
 - Base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
-- PR: [#23807](https://github.com/juju/juju/pull/23807); live head observed
- on 2026-11-12: `b2c4c9198919195e76a90d38f0882c0c300beefb`.
+- PR: [#23807](https://github.com/juju/juju/pull/23807); live head rechecked
+ on 2026-11-13 20:51 UTC: `b2c4c9198919195e76a90d38f0882c0c300beefb`.
 - Phase: follow-up pushed and approved PR description and review response
- published. Human review, CI and live QA remain outstanding.
+ published. Simon approved on 2026-11-13, but GitHub still reports
+ `REVIEW_REQUIRED` and aggregate checks `FAILURE`. The remaining review
+ gate, CI triage and live QA remain outstanding.
 
 Simon requested returning the ordinary query error instead of special-casing
 `ErrNoRows`; the follow-up does so for both paths. Van Cleef's rationale
@@ -39,7 +41,8 @@ files; CI uses 3.7.0. The repository wrapper appears to filter for temporary
 files instead of the intended source files. The user chose to leave
 `govulncheck` to CI. CI reported `GO-2026-6859`,
 Snap Store failures and a JAAS bootstrap API connection refusal at the earlier
-head `e00ed96510`; checks for `b2c4c91989` are queued or in progress.
+head `e00ed96510`; checks for `b2c4c91989` were queued or in progress at
+that snapshot. The current aggregate failure is recorded above.
 PostgreSQL and live functional QA were not run. Follow up CI and functional QA
 including Kubernetes, then reconcile PoC `2f55c00439` after landing.
 

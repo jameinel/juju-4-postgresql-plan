@@ -209,6 +209,11 @@ database inventory showed no controller, model or test schemas, and no
 other sessions. Bootstrap remains incomplete because of the reported
 Charmhub outage.
 
+That bootstrap status describes the sweep-time snapshot. Subsequent
+[Stage 9 run 5](09-bootstrap.md) bootstrapped PostgreSQL at the same tip;
+full functional acceptance remains open on the token/settings mismatch
+and teardown/isolation checks.
+
 ## Parallel repair run (2026-11-10, in progress)
 
 ### Database fixture time helper (2026-11-10)

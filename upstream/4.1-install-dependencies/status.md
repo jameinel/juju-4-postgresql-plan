@@ -17,8 +17,12 @@ upstream `4.1` on 2026-11-11.
 Head: `d8625d3f045c64f3ffcc667a0c22a14619a4d019`.
 PR: https://github.com/juju/juju/pull/23838, open against `juju/juju:4.1`;
 head and description verified on 2026-11-13.
-Blockers: none recorded.
-Next: monitor review and CI and perform the PR's functional QA. Obtain
+GitHub rechecked 2026-11-13 20:51 UTC: the PR remains open at that head,
+with `REVIEW_REQUIRED` and aggregate checks `SUCCESS`. This aggregate does
+not establish that every check ran or replace the recorded installation
+evidence and its limits.
+Blockers: remaining review gate and PR functional QA.
+Next: obtain review, monitor checks and perform the PR's functional QA. Obtain
 separate approval before publishing replies or making further PR changes.
 
 Coordinator clarification on 2026-11-11: the task must audit and install
