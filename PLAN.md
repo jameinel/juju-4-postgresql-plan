@@ -39,6 +39,11 @@ branch described below is also in scope.
 
 ### PostgreSQL SQL-regression branch
 
+The approved branch graph, schema-layout prerequisite, implementation stages
+and upstream landing gates are recorded in the
+[PostgreSQL integration plan](upstream/4.1-postgresql-tests/integration-plan.md).
+The following retains the scope contract and historical PoC evidence.
+
 Bootstrapping remains a higher priority than this outcome. As the breakouts
 in [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) and
 [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) progress, retain a path to a Juju
@@ -59,10 +64,14 @@ or a new acceptance requirement for each individual upstream breakout.
 
 #### Infrastructure workflow discussion (2026-11-11)
 
-The infrastructure branch is reserved locally at `bd970f693c`; implementation
-has not started in the recorded state. Its backend design remains proposed,
-not approved. The [branch record](upstream/4.1-postgresql-tests/status.md#infrastructure-workflow-discussion-2026-11-11)
-owns the discussion, measurements, worktree details and next decisions.
+The branch was originally reserved at `bd970f693c`. On 2026-11-12 the user
+approved central `JUJU_TEST_DATABASE` / `JUJU_TEST_POSTGRESQL_URL` selection
+and a separate first-class schema-layout prerequisite. Layout and central
+configuration commits are published on the fork; PostgreSQL execution and
+CI/integration implementation remain pending.
+The [integration plan](upstream/4.1-postgresql-tests/integration-plan.md) and
+[branch record](upstream/4.1-postgresql-tests/status.md) own current progress,
+measurements, worktree details and remaining driver/schema/CI decisions.
 
 ### Shared SQL/schema fixes versus PostgreSQL support
 

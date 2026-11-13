@@ -495,7 +495,7 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | U22/X16 | [juju/juju#23784](https://github.com/juju/juju/pull/23784) |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | not proposed |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809) |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | U25 | [juju/juju#23806](https://github.com/juju/juju/pull/23806) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | U24 | [juju/juju#23807](https://github.com/juju/juju/pull/23807) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | X17 | [juju/juju#23805](https://github.com/juju/juju/pull/23805) |

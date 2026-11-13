@@ -12,6 +12,16 @@ Summary baseline: existing records migrated on 2026-11-11, including
 the 2026-11-09 review snapshot and subsequent recorded updates. This
 reorganization did not refresh GitHub, CI, QA or branch ownership.
 
+GitHub snapshot 2026-11-12 03:58 UTC: 20 queued open PRs; none is
+merge-ready. juju/juju#23750 has current-head human approval but a failed
+Jenkins merge status. juju/juju#23766 retains its explicit merge hold. CI
+failures also affect juju/juju#23759, juju/juju#23769, juju/juju#23805 and
+juju/juju#23807. juju/juju#23809 was published during the sweep; review and
+CI are pending. CI and review states are snapshots, not acceptance or
+permission to merge. Jenkins logs were not inspected. The branch records
+for juju/juju#23759 and juju/juju#23765 predate their current heads;
+coordinate with their owners rather than overwriting them.
+
 [PoC plan](PLAN.md) | [Finding register](UPSTREAM-FIXES.md) |
 [Completed summary](UPSTREAM-DONE.md) |
 [Earlier dashboard snapshot](history/upstream-plan-before-branch-records-2026-11-11.md)
@@ -103,6 +113,10 @@ next actions belong in the branch record, not this table.
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b` |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `ddb7e2df-6760-4f1f-94e5-8bcfa0df4332` |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
+| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
+| [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
+| [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no combined fixes) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | `d36531ca-29ec-454e-af43-9c0f627b8c93` |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
@@ -124,7 +138,7 @@ does not establish functional QA or PoC integration.
 | [`4.1-application-exposure-scope`](upstream/4.1-application-exposure-scope/status.md) | Depends on charm; rebase/regenerate after charm lands. |
 | [`4.1-binary-key-columns`](upstream/4.1-binary-key-columns/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-blockcommand-order`](upstream/4.1-blockcommand-order/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | Pending independent SQL portability breakout. |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | Published as juju/juju#23809; review, CI and functional QA pending. |
 | [`4.1-changestream-latest-row`](upstream/4.1-changestream-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | Confirm upstream ordering contract; review, CI triage and functional QA. |
 | [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Independent backup NULL-fidelity review, CI and functional QA. |
@@ -135,7 +149,7 @@ does not establish functional QA or PoC integration.
 | [`4.1-dbaccessor-pool-cleanup`](upstream/4.1-dbaccessor-pool-cleanup/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
-| [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Refresh after merged keymanager fix; temporary casts have a dependency-fix removal condition. |
+| [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Head `39b1dc3cd8` is based on current 4.1 after merged keymanager fix; CI and review pending. Temporary casts have a dependency-fix removal condition. |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | Pending developer-tooling task; validate clean and repeated installation. |
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
@@ -149,9 +163,12 @@ does not establish functional QA or PoC integration.
 | [`4.1-nullable-primary-keys`](upstream/4.1-nullable-primary-keys/status.md) | Land charm before exposure; retain the explicit stack exception. |
 | [`4.1-objectstore-conflicts`](upstream/4.1-objectstore-conflicts/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-operation-query-portability`](upstream/4.1-operation-query-portability/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | Infrastructure-only; scope confirmed, backend design still proposed. |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | Central configuration pushed to the fork on the schema-layout prerequisite; [upstream integration plan](upstream/4.1-postgresql-tests/integration-plan.md) records remaining driver/schema/CI stages. PostgreSQL execution is not implemented yet. |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
 | [`4.1-removal-force-boolean`](upstream/4.1-removal-force-boolean/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
+| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | Move-only prerequisite at `9da8100e16`, on refreshed upstream `b36eefc4b3`; pushed to the fork with approval, local PR draft not published. |
+| [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | Reservation head pushed to the fork with approval; no CI implementation. |
+| [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | Reservation head pushed to the fork with approval; exact initial pending-PR inventory recorded, no combined-fix implementation. |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | Pending; coordinate with the remote-secret review before dispatch. |
 | [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
 | [`4.1-sql-standard-syntax`](upstream/4.1-sql-standard-syntax/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -163,6 +180,7 @@ does not establish functional QA or PoC integration.
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | Review/CI, no-CA QA and multi-certificate integration coverage. |
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
+| [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | Unclaimed high-priority correctness concern; reproduce and agree design before implementation. Incident cause remains unproven. |
 
 ## D55 implementation review (2026-11-06)
 
