@@ -31,13 +31,10 @@ change none of the failing test files. Of the files in scope, only
 the sweep ran and where PostgreSQL runs of several packages at once are
 safe (N17). Commits are then cherry-picked onto 06 (N18).
 
-### Execution update (2026-11-10)
+### Execution budget
 
-The user observed thermal throttling during extended aggregate `-p 8`
-runs. Use at most two validation jobs total across both backends, each
-with `GOMAXPROCS=2` and Go `-p 2`. This replaces the earlier execution
-budget for this handoff. Compile test binaries before running validation,
-and do not overlap standalone builds or test compilation with tests.
+Use normal tool parallelism defaults, adjusting for current host load.
+PostgreSQL runs also share the test-server budget (N19).
 Keep the bounded-run and progress checks; timeouts remain inconclusive.
 
 ### Validation update: changed layer first, full suite once
@@ -307,8 +304,9 @@ On PostgreSQL `FailingTriggerSQL` also creates a trigger function, which
 
 ### Running tests
 
-Each worker gets a `-p` budget, normally `-p 2`. The sum across all
-running workers is at most 8 (N19). Run tests in the worktree, bounded
+For PostgreSQL, assign explicit `-p` budgets whose sum across concurrent
+runs is at most 8 (N19); the example below uses 4. SQLite/dqlite runs use
+normal tool defaults. Run tests in the worktree, bounded
 as in OPERATIONS.md, with a check at least every two minutes (N13).
 Use `-race -count=1`. Write each log to `~/pg-poc-work/<N>/` with `tee`.
 
@@ -317,7 +315,7 @@ PostgreSQL:
 ```bash
 set -o pipefail
 export JUJU_POSTGRESQL_TEST_URL="$(cat ~/.config/juju-pg-poc/db-url)"
-timeout 150s go test -count=1 -race -p 2 -timeout 120s -v \
+timeout 150s go test -count=1 -race -p 4 -timeout 120s -v \
   ./domain/<x>/state/ -run '^TestFooSuite$/^Test(A|B)$' \
   2>&1 | tee ~/pg-poc-work/<N>/<x>-pg.log
 ```
@@ -328,7 +326,7 @@ Real dqlite (the untagged run is the SQLite fallback, not dqlite):
 set -o pipefail
 unset JUJU_POSTGRESQL_TEST_URL
 timeout 300s make run-go-tests TEST_PACKAGES=./domain/<x>/state/ \
-  TEST_ARGS='-v -race -p 2 -count=1 -timeout 120s' \
+  TEST_ARGS='-v -race -count=1 -timeout 120s' \
   TEST_FILTER='^TestFooSuite$/^Test(A|B)$' \
   2>&1 | tee ~/pg-poc-work/<N>/<x>-dqlite.log
 ```

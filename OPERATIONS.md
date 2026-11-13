@@ -72,7 +72,7 @@ For example, substituting the affected package and test selection:
 set -o pipefail
 unset JUJU_POSTGRESQL_TEST_URL
 timeout 150s make run-go-tests TEST_PACKAGES=./domain/lease/state \
-  TEST_ARGS='-v -race -p 2 -count=1 -timeout 120s' \
+  TEST_ARGS='-v -race -count=1 -timeout 120s' \
   TEST_FILTER='TestStateSuite/TestClaimLeaseSuccessAndLeaseQueries' \
   2>&1 | tee "$LOG_FILE"
 ```
@@ -104,12 +104,10 @@ confirm that the log is growing.
 
 ## Bounded runs and check-ins
 
-For the 2026-11-10 Stage 6 repair continuation, thermal throttling requires
-a stricter limit than the server's PostgreSQL connection budget: at most
-two validation jobs total, each with `GOMAXPROCS=2` and Go `-p 2`.
-Compile test binaries before executing them. Do not overlap compilation
-or standalone builds with validation. Apply this across both backends,
-not independently per worker or runner.
+Use normal tool parallelism defaults, adjusting for current host load.
+For PoC PostgreSQL runs, also respect the shared test-server budget in
+[PostgreSQL test runs](#postgresql-test-runs). That server budget does not
+apply to SQLite/dqlite runs.
 
 Nothing an agent starts may run for more than about two minutes without a
 progress check (N13). The go test timeout ends a hang; it is not how a

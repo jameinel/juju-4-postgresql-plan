@@ -253,11 +253,10 @@ Next:
    reviewed; the resource-list assertion repair is integrated. The
    approved SSH and controllerupgrader production fixes are on Stage 5.
    Distribute the review checkpoints into their owning layers.
-   For targeted checks, use precompiled binaries and at most two
-   validation jobs total, each `GOMAXPROCS=2` / Go `-p 2`. Follow
+   Use normal tool parallelism defaults, adjusting for current host load
+   and the PostgreSQL server budget (N19). Follow
    changed-layer validation rather than repeating earlier passing suites.
-   The user approved `-p 6` for the larger sweep when no other load runs
-   concurrently. Pre-redistribution sweeps at `09=ff21df57ed`
+   Pre-redistribution sweeps at `09=ff21df57ed`
    found the activated-model order assertion (fixed in Stage 6), the
    PostgreSQL schema-teardown catalog race, and the known dqlite nullable-BOOLEAN
    logging failure; see [sweep results](stages/06-compatibility.md#pre-redistribution-sweeps-2026-11-10).

@@ -3,7 +3,9 @@
 This repository holds the PostgreSQL proof-of-concept plan and independent
 upstream work in one project with shared Git history. Split document
 ownership, not repositories. Read the selected workflow below; PoC operating
-instructions are not prerequisites for stock-upstream work.
+instructions do not govern stock-upstream work. Upstream builders use the
+target checkout's commands, fixtures and environment, not PoC backend
+selection, credentials or test-server setup.
 
 ## Entry points and document ownership
 

@@ -1,9 +1,12 @@
 # Stock upstream Juju 4.1 remaining work
 
-Coordinator dashboard and reservation index. Read [AGENTS.md](AGENTS.md)
-and the selected `upstream/<branch>/status.md` before acting. Branch
-records own execution details; summaries here are dated snapshots, not
-live GitHub state or permission to take over another owner's worktree.
+Coordinator dashboard and reservation index for stock-upstream work. Read
+[AGENTS.md](AGENTS.md), the selected `upstream/<branch>/status.md` and the
+target checkout's guidance before acting. Use that checkout's build/test
+commands, fixtures and environment; PoC backend selection and operating
+instructions do not apply. Branch records own execution details; summaries
+here are dated snapshots, not live GitHub state or permission to take over
+another owner's worktree.
 
 Summary baseline: existing records migrated on 2026-11-11, including
 the 2026-11-09 review snapshot and subsequent recorded updates. This

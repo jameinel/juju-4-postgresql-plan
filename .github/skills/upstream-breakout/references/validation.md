@@ -31,7 +31,8 @@ Reproduce the upstream defect where applicable, then add a regression
 alongside the fix. For a behavior-preserving SQL improvement, assert the
 existing contract across relevant edge cases. Run focused tests first, then
 affected package suites for the assigned paths. Use the target checkout's
-standard commands, dependencies and database fixtures. Include actual
+standard commands, dependencies, environment and database fixtures, not PoC
+environment setup or backend-selection commands. Include actual
 dqlite checks where required, and its prescribed race/stress,
 watcher-readiness, formatting and lint checks.
 
@@ -46,9 +47,8 @@ For example, adjust the package and selection for the change:
 
 ```bash
 set -o pipefail
-unset JUJU_POSTGRESQL_TEST_URL
 timeout 150s make run-go-tests TEST_PACKAGES=./domain/lease/state \
-  TEST_ARGS='-v -race -p 2 -count=1 -timeout 120s' \
+  TEST_ARGS='-v -race -count=1 -timeout 120s' \
   TEST_FILTER='TestStateSuite/TestClaimLeaseSuccessAndLeaseQueries' \
   2>&1 | tee "$LOG_FILE"
 ```
@@ -97,5 +97,5 @@ be limited to intended changes.
 Record the base, final commit, exact commands/build tags and results. State
 tests not run and unresolved risks; do not claim broader coverage. Explain the
 upstream defect/benefit and any behavior change in the PR, following the
-target repository's template. Respect the host's test resource budget and
-other owners' state.
+target repository's template. Use normal tool parallelism defaults, adjusting
+for current host load, and respect other owners' state.
