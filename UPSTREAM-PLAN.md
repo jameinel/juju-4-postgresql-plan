@@ -151,7 +151,7 @@ does not establish functional QA or PoC integration.
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Head `39b1dc3cd8` is based on current 4.1 after merged keymanager fix; CI and review pending. Temporary casts have a dependency-fix removal condition. |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | Pending developer-tooling task; validate clean and repeated installation. |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | Claimed; revise verification-only implementation to install dependencies, then validate clean and repeated installation. |
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-keymanager-insert-id`](upstream/4.1-keymanager-insert-id/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lease-migration-tests`](upstream/4.1-lease-migration-tests/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
