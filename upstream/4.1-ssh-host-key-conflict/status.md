@@ -4,17 +4,44 @@
 
 ## Current state and next actions
 
-Migrated from existing planning records on 2026-11-11; no new GitHub
-or validation check was performed for this migration. Evidence below
-retains its original dates and revisions; it does not validate later heads.
-
-- Owner/session: `d36531ca-29ec-454e-af43-9c0f627b8c93`.
+- Owner/session: `dbd7747e-8c2d-4b78-8994-1cd20589b8ab` (takeover
+ authorised by the user on 2026-11-12).
 - Branch: `4.1-ssh-host-key-conflict`.
 - Worktree: `.worktrees/4.1-ssh-host-key-conflict` under the primary checkout.
 - Base: `bd970f693c8e5060973016fe9059108570fa5bd3`.
-- Recorded phase: published.
+- PR: [#23807](https://github.com/juju/juju/pull/23807); live head observed
+ on 2026-11-12: `b2c4c9198919195e76a90d38f0882c0c300beefb`.
+- Phase: follow-up pushed and approved PR description and review response
+ published. Human review, CI and live QA remain outstanding.
 
-[#23807](https://github.com/juju/juju/pull/23807), head `e00ed96510b49abd0a1d78efc1d99e20cf6495f7`; human review required and CI pending. SQLite and real-dqlite affected race suites and 10 concurrent stress runs per backend passed, as did scoped lint, txncheck and diff checks. Default pre-check skipped static analysis. Initial focused dqlite invocation failed on shell quoting; the complete suite passed. PostgreSQL and live QA not run. Complete review, CI and functional QA, including the Kubernetes unit path; reconcile PoC `2f55c00439` after landing.
+Simon requested returning the ordinary query error instead of special-casing
+`ErrNoRows`; the follow-up does so for both paths. Van Cleef's rationale
+comments were added; its shared-helper suggestion was considered and declined
+because it would require nine arguments and a record callback. Removal and
+recovery do have key-row deletion paths, contrary to its review claim.
+Drafts: [PR description](pr.md), [Simon reply](reply-simon.md),
+[Van Cleef reply](reply-van-cleef.md). The user has
+[replied to Simon](https://github.com/juju/juju/pull/23807#discussion_r4558701852);
+the thread remains unresolved. Do not post the draft reply as a duplicate.
+The [Van Cleef response](https://github.com/juju/juju/pull/23807#issuecomment-6841485809)
+and the prepared PR description were published and verified.
+
+At the local follow-up's tree on 2026-11-12, SQLite and real-dqlite SSH model
+state suites passed with `-race`; each backend passed 10 stress runs of both
+concurrent host-key tests. Scoped `golangci-lint`, compiled `txncheck`, `gci`,
+diff checks and `STATIC_ANALYSIS=1 make pre-check` completed successfully.
+The latter skipped licence analysis (`go-licenses` missing), `shfmt` and
+`govulncheck`; these are not passes. A subsequent direct run of the repository's
+`go-licenses check ./...` command passed after the user installed the tool;
+it warned that non-Go code could not be inspected for further dependencies.
+A direct `shfmt -l -s` check with version 3.12.0 reported 30 existing shell
+files; CI uses 3.7.0. The repository wrapper appears to filter for temporary
+files instead of the intended source files. The user chose to leave
+`govulncheck` to CI. CI reported `GO-2026-6859`,
+Snap Store failures and a JAAS bootstrap API connection refusal at the earlier
+head `e00ed96510`; checks for `b2c4c91989` are queued or in progress.
+PostgreSQL and live functional QA were not run. Follow up CI and functional QA
+including Kubernetes, then reconcile PoC `2f55c00439` after landing.
 
 ## Recorded scope and evidence
 
