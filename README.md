@@ -21,3 +21,5 @@ but retain separate acceptance and operating instructions.
 - Implemented upstream work, decisions and rationale: [UPSTREAM-DONE.md](UPSTREAM-DONE.md).
 - Evolving findings, provenance and landing status: [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md).
 - Bringing landed changes into the PoC: [UPSTREAM-INTEGRATION.md](UPSTREAM-INTEGRATION.md).
+- General Juju 4.1 follow-ups, outside the PoC and breakout plans:
+  [JUJU-4.1-FOLLOWUPS.md](JUJU-4.1-FOLLOWUPS.md).
