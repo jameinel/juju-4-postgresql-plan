@@ -31,7 +31,7 @@ A new `tests/postgresql` Go module runs SQLair against PostgreSQL through
 `github.com/jackc/pgx/v5/stdlib`. It is separate so that SQLair does not
 depend on pgx and the root module stays on Go 1.24; the test module requires
 Go 1.26. This is the oldest version that is considered actively maintained,
-both as as an LTS release and upstream. pgx itself only claims to require go
+both in Ubuntu LTS and upstream. pgx itself only claims to require Go
 1.25. Its tests skip unless `SQLAIR_POSTGRESQL_TEST_URL` is set, and each test
 runs in its own schema.  CI runs the module against a `postgres:16` service
 with both the module's minimum Go version and the latest Go release, and
