@@ -2,9 +2,21 @@
 
 Approved direction, 2026-11-12. Owner/session:
 `0ec926e6-3858-4f43-bc9c-658024127e88`.
+H2 implementation and subsequent H3 preparation transferred to
+`e23dc8fe-1c80-49f5-8bb0-059ea237919c` with user approval on 2026-11-14;
+layout, CI and integration reservations are unchanged. The
+[branch record](status.md) owns the current implementation and evidence.
 
 [Branch status](status.md) | [Dashboard](../../UPSTREAM-PLAN.md) |
 [SQL-regression contract](../../PLAN.md)
+
+Checkpoint status, 2026-11-14: H2 and H3's named-source foundation are
+committed/pushed through `6e6887c24e`; independent generator work is
+validated locally but uncommitted. H3 remains incomplete. The
+[branch record](status.md) owns current progress and evidence; the
+[H3 dispatch plan](h3-plan.md) defines acceptance.
+H2.1 below tracks adoption of the separately developed sqlair placeholder
+support; it can proceed in parallel with H3, but gates final H4 acceptance.
 
 ## Outcome and boundaries
 
@@ -114,10 +126,18 @@ Implemented in local commit `6e677c2850`, on the refreshed layout base:
 - Read configuration centrally, preserve it through environment isolation and
   consume it in the shared suite. New domain suites need no environment logic.
 
-The current PostgreSQL path deliberately reports "not implemented yet". This
-checkpoint is not a landable, complete PostgreSQL implementation.
+Existing shared domain suites still report "not implemented yet" for
+PostgreSQL, pending H3/H4. H2's focused driver/schema suites do execute on
+PostgreSQL. H1/H2 alone are not a landable, complete harness.
 
 ### H2. Driver, error classification and schema application
+
+Implemented locally in `57f02035c7`, on H1 `6e677c2850`: selective adaptation
+of the PoC's pgx-backed driver, PostgreSQL error classification and atomic
+fresh/idempotent version/hash application. Focused PostgreSQL 16.15 and
+SQLite/real-dqlite regression checks pass. Full pre-check passed, with its
+optional vulnerability scan disabled because `govulncheck` was absent.
+See the branch record for revision-specific evidence. H3/H4 remain separate.
 
 Port the minimum PostgreSQL test driver and schema-application plumbing. Reuse
 existing transaction/SQL abstractions, and classify PostgreSQL errors alongside
@@ -132,12 +152,71 @@ Record and verify the applied schema version/hash rather than merely returning
 success after executing statements.
 
 Define the PostgreSQL version/upgrade contract before completing this step.
-The first harness may target fresh regression databases, but it must account
-for every registered patch needed by the current schema. A translator that
-rejects `.PATCH.sql` cannot silently omit registered post-patches or claim
-PostgreSQL upgrade coverage. Dqlite's supported upgrade behavior stays intact.
+On 2026-11-14 the user approved fresh regression databases and idempotent
+reapplication of the identical schema for the initial harness. PostgreSQL
+patch-level upgrades are a desired later capability, not initial acceptance.
+Retain ordered patches and version/hash bookkeeping to leave that path open;
+reject incompatible existing schemas rather than silently treating them as
+fresh. SQLite/dqlite's supported upgrade behavior stays intact.
+
+The generated current PostgreSQL schema must account for every registered
+patch needed by the selected Juju version. Both post-patch registries are
+empty at H1's head, but this is not permission to omit future registrations.
+A translator that rejects `.PATCH.sql` cannot silently omit registered
+post-patches or claim PostgreSQL upgrade coverage.
+
+### H2.1. Adopt upstream sqlair placeholders
+
+This is a Juju adoption checkpoint, not permission to implement or choose
+the separate sqlair proposals. Their
+[shared comparison](../../investigations/sqlair-placeholders.md) owns the
+design: either always emit first-appearance-numbered `$N`, or expose a
+syntax-named per-DB placeholder style. Do not assume the earlier proposed
+database-dialect API. Both proposals include rejection of bypass `$<digits>`;
+neither promises dollar-quoted or `E''` literal parsing.
+
+H3 may proceed against H2 while these alternatives are reviewed. Before
+final H4 acceptance:
+
+1. Pin the chosen landed sqlair revision/release in `go.mod`/`go.sum`;
+   no committed local `replace` or private fork requirement. With the
+   always-`$N` choice, no selector is necessary. With configurable styles,
+   select `$N` centrally using the actual accepted API; transactions must
+   inherit it. Preserve SQLite/dqlite behavior for that choice.
+2. Remove Juju's `@sqlair_N` translation and named-argument rebinding.
+   Audit every `sqlair.NewDB` site that can receive PostgreSQL, including
+   the shared test runner. Do not add environment logic to domain suites.
+3. Resolve the legacy raw-SQL `?` boundary explicitly. H2 rewrites every
+   unquoted `?`, so it would corrupt a PostgreSQL JSON operator in native
+   sqlair output. Merely deleting the `@sqlair_N` case is insufficient.
+   Inventory raw callers and record the selected boundary design before
+   implementation; preserve their SQLite/dqlite behavior. Native sqlair
+   execution must not pass through blanket placeholder rewriting.
+4. Prove native binding through pgx without the compatibility bridge:
+   repeated inputs, mixed bulk/single-value inserts, first-appearance
+   argument ordering, prepared queries and transaction inheritance. Cover
+   JSON `?` in the actual Juju execution path so an omitted configuration
+   option or residual adapter cannot be masked by a successful rewrite.
+   Raw `database/sql` `$N` remains distinct from sqlair expressions:
+   sqlair's bypass rejection must not reject raw schema SQL.
+
+The independent [empty-slice proposal](../sqlair-empty-in/status.md) gates
+affected H4 cases. Verify `IN`/`NOT IN` for empty and nil slices, including
+NULL operands, on all three backends. Do not restore the PoC empty-`IN`
+driver workaround or add skips to make the harness green.
+
+The pgx connection setup, PostgreSQL error classification, isolated
+namespaces and Juju schema dialect remain after adoption. A dependency
+delay does not authorize landing a permanent sqlair bridge; obtain a
+separate decision before relaxing this gate.
 
 ### H3. Generation and first-class checked-in schemas
+
+Next implementation scope is specified in the
+[H3 dispatch plan](h3-plan.md): H3a audits inputs and blockers, H3b ports
+generation with provenance/freshness checks, and H3c validates complete
+controller/model assets. The audit can proceed immediately from H2;
+later acceptance is conditional on resolving any shared-schema blockers.
 
 The authoritative existing SQL and trigger definitions stay under dqlite and
 the schema assembly package. Add `generate/pgschemagen` and checked-in output:
@@ -154,6 +233,11 @@ unsupported SQL and unresolved references. Test genuine dialect changes:
 types, identifiers, identity/sequence behavior, triggers, deferred references
 and timestamps. Preserve change-log visibility/ordering guarantees; a sequence
 plus advisory-lock trigger is substantive behavior requiring concurrency tests.
+
+Preserve PostgreSQL's default `_pkey` primary-key constraint suffix and avoid
+it for unique constraints: H2 uses that convention to distinguish their shared
+`23505` SQLSTATE. If generated naming cannot satisfy it, replace that
+classification before claiming schema compatibility.
 
 Generate against the actual refreshed 4.1 source. It still has seven
 `STRFTIME` defaults, whereas the latest PoC generator removed that translation
@@ -189,6 +273,10 @@ Keep existing suite constructors/API behavior compatible. Carry the selected
 backend through model/controller setup, schema application, transactions and
 consumers; an unchanged domain suite must exercise PostgreSQL without bespoke
 configuration. No silent fallback, added skips or weakened assertions.
+Exploratory H4 work may use H2's temporary bridge, but final acceptance
+requires H3's generated schemas and H2.1's upstream sqlair adoption. Keep
+SQL/schema defects on their own branches and distinguish integration
+evidence from the independently landable infrastructure result.
 
 The previously deferred changestream shutdown cancellation fix
 (`7e513ceaa8`) belongs with or after this PostgreSQL suite work. Port that
@@ -293,7 +381,8 @@ Landing order:
 1. Land the independent layout PR after its own review and verification.
 2. Continue landing shared correctness fixes independently. Refresh the
    integration manifest as each merges; resolve held semantics separately.
-3. Finish H2-H4 and the CI branch. The disposable combined run establishes
+3. Finish H3, H2.1 adoption, H4 and the CI branch; H2 is locally complete.
+   The disposable combined run establishes
    readiness only for the exact recorded inputs, coverage and job budget.
 4. Once required fixes are in upstream 4.1, rebase infrastructure onto that
    stock head, regenerate from it, and repeat the same complete matrix. The
