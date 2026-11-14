@@ -13,8 +13,11 @@ comparison branch:
   a per-`DB` option with three styles: `@name` (default), `$N` and
   `:name`. The `?` style was dropped; see that record.
 
-Related, independent of both:
-[`sqlair-empty-in`](../upstream/sqlair-empty-in/status.md).
+Related, independent of both: [Juju empty-collection membership
+(X2)](../upstream/sqlair-empty-in/status.md). Retargeted on 2026-11-14 to
+Juju caller fixes, not sqlair slice rendering; scheduled as H3.1 before
+affected PostgreSQL H4 acceptance. It does not gate either placeholder
+proposal or require another sqlair release.
 
 Goal: sqlair works with pgx (and other non-SQLite drivers) without SQL
 rewriting, so the Juju PoC driver no longer rewrites sqlair output (D5;

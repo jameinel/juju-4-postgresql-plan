@@ -27,10 +27,12 @@ Branch `pg-poc/03-driver`, on `pg-poc/02-schema-move`.
   on PostgreSQL 16.15 with `-race`; later driver fixes are recorded in
   DIALECT.md (including X2 and X14). This is historical evidence, not a
   current-tip pass. Verify the owning branch in Git after restacks.
-- D55: the X2 empty-`IN` rewrite compensates for sqlair emitting the
-  non-standard `IN ()`; it is not a dialect difference. Keep it until the
-  X2 upstream candidate (UPSTREAM-PLAN.md) lands, then remove it. The
-  placeholder rewrite is a genuine driver difference.
+- X2: the empty-`IN` rewrite is a PoC workaround for empty collections.
+  The 2026-11-14 decision assigns the [upstream fix](../upstream/sqlair-empty-in/status.md)
+  to Juju callers, preserving each operation's contract, not to sqlair
+  rendering. Keep the rewrite until the caller fixes land and are
+  reconciled into the PoC, then remove it. A sqlair placeholder release
+  alone is insufficient; placeholder syntax is a separate driver concern.
 - Restart notes:
   - Code: `internal/database/postgresql` (`driver.go`, `rewrite.go`, tests),
     `internal/database/drivererrors/postgresql.go` and edits to

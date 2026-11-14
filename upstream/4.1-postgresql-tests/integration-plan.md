@@ -17,6 +17,9 @@ validated locally but uncommitted. H3 remains incomplete. The
 [H3 dispatch plan](h3-plan.md) defines acceptance.
 H2.1 below tracks adoption of the separately developed sqlair placeholder
 support; it can proceed in parallel with H3, but gates final H4 acceptance.
+H3.1 tracks Juju empty-collection membership changes (X2), also required
+before affected H4 acceptance. It is an enablement checkpoint, not a
+mandatory separate PR, a sqlair change or an H3 blocker.
 
 ## Outcome and boundaries
 
@@ -113,7 +116,9 @@ This PR can land independently, before the PostgreSQL design is finished.
 ## 2. Infrastructure branch: explicit implementation checkpoints
 
 Branch: [`4.1-postgresql-tests`](status.md). Stack on layout temporarily; after
-layout lands, rebase the infrastructure-only commits onto refreshed upstream.
+layout lands, rebase the harness commits onto refreshed upstream. H3.1
+permits bounded, behavior-preserving caller portability changes in their
+own commit; unrelated correctness fixes remain separate upstream work.
 
 ### H1. Central backend selection
 
@@ -200,10 +205,10 @@ final H4 acceptance:
    Raw `database/sql` `$N` remains distinct from sqlair expressions:
    sqlair's bypass rejection must not reject raw schema SQL.
 
-The independent [empty-slice proposal](../sqlair-empty-in/status.md) gates
-affected H4 cases. Verify `IN`/`NOT IN` for empty and nil slices, including
-NULL operands, on all three backends. Do not restore the PoC empty-`IN`
-driver workaround or add skips to make the harness green.
+Empty-collection membership is a separate Juju caller-level fix under
+H3.1, not part of sqlair adoption or a required sqlair rendering change.
+Do not restore the PoC empty-`IN` driver workaround or add skips to make
+the harness green.
 
 The pgx connection setup, PostgreSQL error classification, isolated
 namespaces and Juju schema dialect remain after adoption. A dependency
@@ -260,6 +265,34 @@ any genuinely unavoidable compatibility override narrow, documented, exactly
 matched and linked to its removal condition. Do not make infrastructure green
 by accumulating silent translations of incorrect shared SQL.
 
+### H3.1. Juju empty-collection membership
+
+The [X2 task record](../sqlair-empty-in/status.md) owns the caller inventory,
+behavior contracts and acceptance. This is a work checkpoint, not a mandatory
+PR boundary. Default to behavior-preserving Juju caller changes in a separate
+commit of the PostgreSQL test-enablement PR, not the schema-generator commit.
+Inventory and SQLite/dqlite fixes can start now, in parallel with H3 and H2.1.
+Neither is a prerequisite for implementing the caller changes.
+
+Juju must handle empty collections according to each operation's contract,
+rather than relying on SQLite accepting `IN ()` or teaching sqlair's generic
+slice expansion membership semantics. Audit `IN` and `NOT IN`, nil/empty
+inputs, mixed lists, composite predicates and required transaction work.
+Preserve results, validation and side effects; no blanket early return,
+`IN (NULL)` substitution, driver rewrite or PostgreSQL-specific SQL.
+
+SQLite supports empty membership lists deliberately; this is portability
+required by PostgreSQL coverage, not an established schema-robustness defect.
+Extract an independent correctness fix only if the audit finds wrong behavior
+on existing backends. Substantial portability changes may instead justify a
+separate PostgreSQL-enablement prerequisite PR for reviewability.
+
+Validate the caller changes on SQLite and real dqlite. Record the enablement
+commit and any separately extracted fix heads in the integration manifest.
+Final affected H4 acceptance additionally requires PostgreSQL execution
+through H2.1's native binding and H3's generated schemas without an X2
+workaround. This is not a new sqlair release prerequisite.
+
 ### H4. Shared suite lifecycle and end-to-end coverage
 
 Replace H1's explicit PostgreSQL rejection with real driver/schema setup in
@@ -274,9 +307,11 @@ backend through model/controller setup, schema application, transactions and
 consumers; an unchanged domain suite must exercise PostgreSQL without bespoke
 configuration. No silent fallback, added skips or weakened assertions.
 Exploratory H4 work may use H2's temporary bridge, but final acceptance
-requires H3's generated schemas and H2.1's upstream sqlair adoption. Keep
-SQL/schema defects on their own branches and distinguish integration
-evidence from the independently landable infrastructure result.
+requires H3's generated schemas, H2.1's upstream sqlair adoption and H3.1's
+Juju empty-collection changes for affected cases. Keep independent SQL/schema
+defects on their own branches; H3.1's bounded portability commit is the explicit
+exception to the infrastructure-only diff. Distinguish combined integration
+evidence from acceptance of the landable harness.
 
 The previously deferred changestream shutdown cancellation fix
 (`7e513ceaa8`) belongs with or after this PostgreSQL suite work. Port that
@@ -353,8 +388,9 @@ output. Review the resulting shared-schema diff and remove obsolete overrides.
 Classify every failure as baseline/shared SQL defect, infrastructure defect,
 translation defect, or genuinely backend-specific test contract. Reproduce
 ambiguous failures with the same package/test on both backends. Send shared
-fixes back to their own branches. Record blockers; do not skip them to obtain a
-green integration result.
+fixes back to their own branches, except the explicitly included H3.1
+behavior-preserving portability changes. Record blockers; do not skip them
+to obtain a green integration result.
 
 ## 5. Acceptance gates and landing sequence
 
@@ -381,12 +417,14 @@ Landing order:
 1. Land the independent layout PR after its own review and verification.
 2. Continue landing shared correctness fixes independently. Refresh the
    integration manifest as each merges; resolve held semantics separately.
-3. Finish H3, H2.1 adoption, H4 and the CI branch; H2 is locally complete.
+3. Finish H3, H2.1 adoption, the H3.1 Juju portability commit, H4 and the CI
+   branch; H2 is locally complete.
    The disposable combined run establishes
    readiness only for the exact recorded inputs, coverage and job budget.
 4. Once required fixes are in upstream 4.1, rebase infrastructure onto that
    stock head, regenerate from it, and repeat the same complete matrix. The
-   infrastructure review diff must contain no unmerged shared fixes.
+   harness review diff may include H3.1's bounded portability commit, but
+   no unmerged independent correctness fixes.
 5. Land infrastructure, then rebase and land CI after its actual job passes.
    Enable a required check only when its result is trustworthy.
 6. Retire/rebuild the demonstration branch as upstream advances. Never merge

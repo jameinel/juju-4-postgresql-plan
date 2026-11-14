@@ -43,6 +43,29 @@ Existing PoC runtime decisions and historical validation remain separate;
 reconcile the differing U21 implementation through UPSTREAM-INTEGRATION.md.
 See [the acceptance contract](UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance).
 
+## X2: Juju empty-collection membership (2026-11-14)
+
+Confirmed with the user: handle empty-collection membership in Juju callers,
+not by changing sqlair's generic slice expansion. This replaces the proposed
+sqlair empty-subquery rendering fix. Preserve each operation's empty-input
+semantics; do not hide invalid `IN ()` / `NOT IN ()` in the driver.
+
+Schedule the Juju portability work as
+[H3.1](upstream/4.1-postgresql-tests/integration-plan.md#h31-juju-empty-collection-membership)
+of explicit PostgreSQL enablement, before affected H4 acceptance. It can
+proceed alongside H3 and sqlair adoption; neither depends on it.
+
+Amended the same day: H3.1 is a work checkpoint, not a mandatory separate
+upstream PR. Default to a separate reviewable commit in PostgreSQL test
+enablement, not schema generation. This replaces the initial separate-fix
+requirement: SQLite defines empty-list behavior, so portability alone does
+not establish a schema defect. Extract existing-backend correctness bugs
+separately; substantial portability work may justify a prerequisite PR for
+reviewability. This is a narrow exception to the infrastructure-only diff.
+Keep the [task record](upstream/sqlair-empty-in/status.md) at its existing path.
+Remove the PoC X2 rewrite only after reconciling the caller fixes, not after
+a sqlair placeholder release.
+
 ## PoC architecture and workflow decisions
 
 The PostgreSQL runtime, driver, generator and harness decisions below govern

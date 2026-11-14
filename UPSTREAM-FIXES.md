@@ -382,6 +382,25 @@ two SSH failures; all five packages pass on real dqlite.
 
 See the [branch record](upstream/4.1-lookup-key-not-null/status.md#u17-nullable-int-lookup-primary-keys-independent-pr-in-review).
 
+### X2: empty-collection membership (PostgreSQL enablement)
+
+SQLite accepts empty `IN ()` / `NOT IN ()`; PostgreSQL rejects them.
+The PoC masks this with a Stage 3 driver rewrite. The 2026-11-14 decision
+assigns the fix to Juju callers, not sqlair's generic slice expansion:
+inventory empty-input contracts and use appropriate guards/query variants.
+This is not evidence of incorrect dqlite results.
+
+The [task record](upstream/sqlair-empty-in/status.md) has no caller changes
+or validation yet. H3.1 is a checkpoint before affected H4 acceptance,
+defaulting to a separate commit in PostgreSQL test enablement, not an
+independent robustness PR. Extract a standalone correctness fix only if
+the audit finds wrong behavior on existing backends; a large portability
+change may warrant a prerequisite PR for reviewability.
+After landing, reconcile the caller changes and remove the PoC rewrite;
+a sqlair placeholder release alone does not remove this workaround.
+
+### Shared Stage 5 portability improvements
+
 Shared portability improvements on Stage 5. Review each for behaviour
 deltas and extraction readiness; "portability" is not a guarantee of no
 observable dqlite change (notably X36's reused-UUID error):

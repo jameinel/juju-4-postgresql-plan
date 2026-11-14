@@ -49,7 +49,7 @@ in [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md) and
 [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md) progress, retain a path to a Juju
 4.1-based branch containing only the infrastructure needed to run tests
 against PostgreSQL, selected through an environment variable. Do not base
-this branch on the PoC stack or include pending upstream SQL/schema fixes.
+this branch on the PoC stack or include pending independent SQL/schema fixes.
 The goal is repeatable regression validation of SQL consistency,
 independent of PostgreSQL controller runtime support. Include the
 SQL-owning infrastructure and worker packages outside `./domain/...`
@@ -72,6 +72,11 @@ CI/integration implementation remain pending.
 The [integration plan](upstream/4.1-postgresql-tests/integration-plan.md) and
 [branch record](upstream/4.1-postgresql-tests/status.md) own current progress,
 measurements, worktree details and remaining driver/schema/CI decisions.
+The [X2 empty-collection fix](upstream/sqlair-empty-in/status.md) belongs in
+Juju callers, not sqlair. H3.1 is a checkpoint before affected H4 acceptance,
+not a mandatory separate PR: include behavior-preserving caller changes
+as a distinct PostgreSQL-enablement commit, outside H3 schema generation.
+Extract existing-backend correctness bugs separately.
 
 ### Shared SQL/schema fixes versus PostgreSQL support
 

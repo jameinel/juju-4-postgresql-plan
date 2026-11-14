@@ -18,6 +18,7 @@ uncommitted strict-generator checkpoint described below.
 | H3a: source/PoC audit | Complete; five shared-fix groups block full-schema acceptance. |
 | H3b: generation | Named sources committed/pushed in `6e6887c24e`; strict generator/check pipeline and initial typed subset validated locally, uncommitted. |
 | H3c: full-schema acceptance | Not implemented. No complete generated PostgreSQL assets or constructors. |
+| H3.1: empty-collection membership | Planned Juju portability commit in PostgreSQL enablement, not a mandatory separate PR; required before affected H4 acceptance. |
 | H2.1 / H4 | Sqlair adoption and shared-suite enablement remain separate gates. |
 
 The user approved continuing independent H3b work while shared-source
@@ -44,7 +45,12 @@ Next actions:
    with the [placeholder comparison](../../investigations/sqlair-placeholders.md).
    Do not assume `WithDialect(PostgreSQL)` or choose a dependency here.
    H3 can proceed independently; final H4 acceptance cannot.
-3. Leave separately owned [CI](../4.1-postgresql-tests-ci/status.md) and
+3. Coordinate [H3.1 Juju empty-collection handling](integration-plan.md#h31-juju-empty-collection-membership)
+   through the [X2 task record](../sqlair-empty-in/status.md). The caller
+   audit/fix can proceed alongside H3 and H2.1. Default to a separate
+   commit in the test-enablement PR, not the schema-generator commit.
+   It gates affected H4 acceptance, not schema generation or sqlair adoption.
+4. Leave separately owned [CI](../4.1-postgresql-tests-ci/status.md) and
    [combined-fix integration](../4.1-postgresql-tests-integration/status.md)
    reservations unchanged. Their records own implementation status.
 
