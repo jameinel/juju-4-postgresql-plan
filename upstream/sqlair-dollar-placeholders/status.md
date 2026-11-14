@@ -11,7 +11,8 @@ This is the primary proposal for
 [sqlair#189](https://github.com/canonical/sqlair/issues/189): one PR that
 always emits numbered `$N` placeholders. The alternative,
 [`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md), is
-linked from the PR and the issue as a branch, not opened as a second PR.
+linked from the PR as a branch, not opened as a second PR. The issue reply
+is prepared locally.
 
 | | Value (observed 2026-11-14) |
 |---|---|
@@ -20,7 +21,7 @@ linked from the PR and the issue as a branch, not opened as a second PR.
 | Branch | `numbered-placeholders` (pushed to `jameinel/sqlair`) |
 | Base | `main` at `bd54c49` |
 | Head | `ae3d19e` locally and on `jameinel/sqlair` |
-| PR | None. Draft: [pr.md](pr.md) |
+| PR | [#195](https://github.com/canonical/sqlair/pull/195), open; description: [pr.md](pr.md) |
 | Issue comment | None. Draft: [reply-issue-189.md](reply-issue-189.md) |
 
 Commits, reviewable one at a time:
@@ -45,9 +46,8 @@ Next actions:
   that include bulk inserts.
 - [x] Commit the local PostgreSQL test follow-up.
 - [x] Push the follow-up to `jameinel/sqlair`.
-- [ ] Obtain approval for the exact PR content, then open it. After opening
-  it, fill in the PR number in [reply-issue-189.md](reply-issue-189.md) and
-  confirm before posting.
+- [x] Open the approved PR and verify its title, head, base and description.
+- [ ] Obtain approval before posting [reply-issue-189.md](reply-issue-189.md).
 - [ ] With separate approval, delete the superseded fork branches listed
   below.
 

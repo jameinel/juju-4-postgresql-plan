@@ -1,4 +1,4 @@
-I've opened #<PR> to fix this. SQLair now writes numbered `$N`
+I've opened #195 to fix this. SQLair now writes numbered `$N`
 placeholders, numbered in order of first appearance, and passes the values
 positionally. PostgreSQL binds `$N` by number and SQLite binds it by first
 appearance, so the same SQL works on both. It normally rejects raw `$N`

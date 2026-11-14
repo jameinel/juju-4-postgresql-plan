@@ -17,7 +17,7 @@ syntax so that it does not conflict with them.
 | Branch | `agent-guidance` (pushed to `jameinel/sqlair`) |
 | Base | `main` at `bd54c49` |
 | Head | `c373132` locally and on `jameinel/sqlair` |
-| PR | None; draft: [pr.md](pr.md) |
+| PR | [#194](https://github.com/canonical/sqlair/pull/194), open; description: [pr.md](pr.md) |
 
 The file has 70 lines: code map and invariants, validation commands, test
 conventions, docs tooling and commit conventions, deferring policy to
@@ -29,7 +29,7 @@ Next actions:
 
 - [x] Prepare a separate proposal and draft its PR description.
 - [x] Push the separate branch to `jameinel/sqlair`.
-- [ ] Obtain approval for the exact PR content, then open it.
+- [x] Open the approved PR and verify its title, head, base and description.
 
 ## Open questions for the maintainers
 

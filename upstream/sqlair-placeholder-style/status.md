@@ -11,8 +11,9 @@ This is the alternative to
 [`sqlair-dollar-placeholders`](../sqlair-dollar-placeholders/status.md)
 for [sqlair#189](https://github.com/canonical/sqlair/issues/189). It keeps
 `@sqlair_N` as the default and adds a per-database placeholder style
-option. It is published as a branch and linked from the primary PR and the
-issue; no PR is planned unless the maintainers prefer it.
+option. It is published as a branch and linked from the
+[primary PR](https://github.com/canonical/sqlair/pull/195); no PR is planned
+unless the maintainers prefer it. The issue reply remains a local draft.
 
 | | Value (observed 2026-11-14) |
 |---|---|
