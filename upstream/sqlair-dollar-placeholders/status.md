@@ -4,137 +4,105 @@
 
 ## Current state and next actions
 
-Claimed 2026-11-14 by session `020f1b3f-f7b5-4bd4-9ad2-e27661961d66`.
-On 2026-11-14, migrated onto the published
-`postgresql-test-infrastructure` tip `ccf6072c7527d0d897c26d4c7063c687cd0d92b6`
-in worktree `canonical/sqlair/.worktrees/dollar-placeholders-on-postgresql`,
-branch `dollar-placeholders-on-postgresql`, head `1213a73`. The layer has
-`32953f1` (interpolation, cherry-picked from `9efd4ca`) and `1213a73`
-(PostgreSQL coverage using the shared fixture). It is local and unpushed.
-Target repository: [canonical/sqlair](https://github.com/canonical/sqlair).
-The infrastructure branch is a dependency; it has been published to
-`jameinel/sqlair:postgresql-test-infrastructure` at `ccf6072` but has no PR.
-Native GitHub stacks do not support forked heads.
+Owner: session `7bbea3b5-54ae-4766-8d29-6c2f341eda69`, authorized takeover
+from `020f1b3f-f7b5-4bd4-9ad2-e27661961d66` on 2026-11-14.
 
-The original worktree `canonical/sqlair/.worktrees/dollar-placeholders`
-and branch `dollar-placeholders` remain unchanged at `2156df4`, based on
-`bd54c49`, and published to `jameinel/sqlair:dollar-placeholders`. That
-branch retains the separate, alternative PostgreSQL infrastructure.
-Alternative to
-[`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md); both
-are prepared and proposed together, and the maintainers choose one.
+This is the primary proposal for
+[sqlair#189](https://github.com/canonical/sqlair/issues/189): one PR that
+always emits numbered `$N` placeholders. The alternative,
+[`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md), is
+linked from the PR and the issue as a branch, not opened as a second PR.
 
-The [prospective PR description](pr.md) is updated for the migrated branch;
-no PR has been published. The test explicitly drops its table before the
-shared fixture tears down its schema; the fixture's backstop and stale
-cleanup command use `CASCADE`. Formatting passed, and on both Go 1.26.11
-and 1.27.4, vet, SQLite-only tests, PostgreSQL tests with `-race -p 4
--parallel 4`, and `govulncheck` passed. The functional QA example produced
-the expected SQLite and PostgreSQL output. Before migration and after all PostgreSQL
-runs, a catalog inventory found no `sqlair_` or `juju-test-` prefixed
-schemas; both old and shared cleanup tools also initially found none.
-No database or pre-existing schema was dropped.
+| | Value (observed 2026-11-14) |
+|---|---|
+| Repository | [canonical/sqlair](https://github.com/canonical/sqlair) |
+| Worktree | `canonical/sqlair/.worktrees/numbered-placeholders` |
+| Branch | `numbered-placeholders` (local, unpushed) |
+| Base | `main` at `bd54c49` |
+| Head | `2760dcf` |
+| PR | None. Draft: [pr.md](pr.md) |
+| Issue comment | None. Draft: [reply-issue-189.md](reply-issue-189.md) |
 
-Real-dqlite validation remains pending. The shared parser rejection is not
-integrated: raw `$N` can collide with generated parameters. The shared
-decision log and backfill require user confirmation before they are
-committed.
+Commits, reviewable one at a time:
+
+1. `ead635c refactor(expr): number inputs in order of first appearance`
+   (shared)
+2. `50117a0 feat(parser): reject raw numbered placeholders` (shared)
+3. `eb8381a test: run SQLair against PostgreSQL in a separate module`
+   (shared)
+4. `2760dcf fix: emit numbered $N placeholders`
+
+CONTRIBUTING.md says PRs are squash-merged with the PR description as the
+commit message; [pr.md](pr.md) is written for that.
 
 Next actions:
 
-- [x] Reserve in the dashboard; record owner/session here.
-- [x] Migrate the placeholder layer onto the PostgreSQL infrastructure
-  dependency in a new worktree; preserve the original published branch.
-- [ ] Integrate the shared parser rejection and complete the remaining
-  planned commits.
-- [ ] Verify on real dqlite (shared requirements).
-- [x] Update `pr.md` locally. PR publication and future pushes need the
-  user's approval.
+- [ ] Validate on real dqlite: build Juju against this branch with a
+  `replace` directive and run domain state tests that include bulk
+  inserts.
+- [ ] With approval, push `numbered-placeholders` and
+  `placeholder-style-option` to `jameinel/sqlair`, open the PR from
+  [pr.md](pr.md), then post [reply-issue-189.md](reply-issue-189.md) with
+  the PR number.
+- [ ] With separate approval, delete the superseded fork branches listed
+  below.
 
-## Scope
+## Decisions (user, 2026-11-14)
 
-Fix [sqlair#189](https://github.com/canonical/sqlair/issues/189) by always
-emitting numbered `$N` placeholders, numbered in order of first appearance,
-with positional arguments. No public API change. This is the surgical
-option: the placeholder text and argument form change for every driver.
+- Start with the minimal change that is easy to review and understand;
+  keep the configurable alternative available for comparison.
+- Both branches share their first three commits, so that
+  `numbered-placeholders...placeholder-style-option` shows only the cost of
+  configurability.
+- The root module stays on Go 1.24 without pgx. PostgreSQL tests live in
+  the separate `tests/postgresql` module. The Go 1.26 bump is deferred.
+- Unquoted `col$1` is rejected; the documented escape is `"col$1"`.
+- Rationale goes in the PR description and the #189 comment. A decision
+  log ([`sqlair-decision-records`](../sqlair-decision-records/status.md))
+  and agent guidance
+  ([`sqlair-agent-guidance`](../sqlair-agent-guidance/status.md)) are
+  independent proposals.
 
-Out of scope: placeholder options, `?`/`:name` support, dollar-quoted or
-`E''` lexing, empty `IN ()` ([`sqlair-empty-in`](../sqlair-empty-in/status.md)).
+## Compatibility
 
-## Design
+- Generated SQL and the argument form change for every driver; the public
+  API does not.
+- go-mssqldb accepts `@name` and `@pN`, not `$N`, so SQL Server stops
+  working. MySQL did not work before and still does not.
+- Raw `$N` now fails at `Prepare`. On `main` it fails at execution; with
+  `$N` emission and no check, it would silently bind SQLair's first input.
 
-Why first-appearance numbering: SQLite binds `$N` by first appearance and
-PostgreSQL by the digit; they agree only when the numbers follow
-appearance (shared findings). sqlair already appends arguments in that
-order, so the placeholder number equals the argument's position.
+## Validation (2026-11-14, Go 1.27.4, head `2760dcf`)
 
-1. `internal/expr/querybuilder.go`:
-   - `queryBuilder` keeps positional `params []any` instead of
-     `sql.Named` values.
-   - `addInputs`: append each value, write `$<len(params)>`.
-   - `addInsert` / `boundInsertColumn.parameter`: a bulk column appends
-     each row's value and writes its new position. A single-value column
-     appends once on row 0, records that position on the
-     `boundInsertColumn`, and reuses `$<pos>` in later rows. Literals are
-     unchanged.
-   - Remove `inputAssigner` / `firstInputNum` if they become unused; keep
-     the diff otherwise minimal.
-   - Comment the first-appearance invariant where numbers are assigned.
-2. Output aliases `AS _sqlair_N` are unchanged.
-3. Parser: reject bypass `$<digits>` at `Prepare` with a clear error, for
-   example "positional parameters are not supported; use $Type.member".
-   The parser already skips literals and comments; confirm `$1` inside
-   them is still accepted.
+- `gofmt -l .` is empty; `go vet ./...` and `go test ./...` pass in the
+  root and `tests/postgresql` modules; `go mod tidy -diff` is clean in
+  both. The root `go.mod` is unchanged.
+- PostgreSQL: `TestOutputs` and `TestInputs` pass. Before commit 4,
+  `TestInputs` fails with `column "sqlair_0" does not exist`. No
+  `sqlair_test_` schemas are left afterward.
+- The functional QA in [pr.md](pr.md) printed the expected output on
+  SQLite and PostgreSQL, and the PostgreSQL error before commit 4.
+- The infrastructure commit's leak check fires and its `CASCADE` fallback
+  cleans up. govulncheck is clean for the root and the submodule, with
+  and without `-test`. actionlint flags only the existing old action pins.
+- Docs build; `make spelling` flags only the existing `security.md` words
+  (`Cryptographic`, `TLS`, `utilizing`).
+- Not run: real dqlite; the documented Docker command (no local Docker).
 
-## Commits
+## Superseded branches
 
-Commits 1 and 2 must not depend on this branch's placeholder change, so
-that `sqlair-placeholder-style` can reuse them unchanged. The first session
-to finish them records their hashes in both records; the other
-cherry-picks them.
+Reference only; do not extend them.
 
-1. `feat(parser): reject positional $N parameters`, with parser tests.
-2. `test: run the driver suite against PostgreSQL`: shared helper over the
-   backend-neutral `driver_test.go` cases; SQLite run as today; PostgreSQL
-   run gated on `SQLAIR_POSTGRESQL_TEST_URL`; test-only pgx requirement;
-   `postgres` service in `.github/workflows/go-test.yml`. The PostgreSQL
-   run fails until commit 3, so place it after commit 3 in the final
-   history.
-3. `fix: emit numbered $N placeholders` (fixes #189): the querybuilder
-   change; update the 44 `@sqlair_` expectations in
-   `internal/expr/expr_test.go`; add one `internal/expr` case for a bulk
-   insert mixing bulk and single-value columns, asserting SQL text and
-   argument order.
-4. `docs: record the placeholder syntax decision`: a new record in
-   `docs/decisions/` (next number after the backfill) and an index row.
-   It records that sqlair emits `$N` in first-appearance order with
-   positional arguments; why (SQLite first-appearance binding,
-   PostgreSQL digit binding, `database/sql` ordinal contract); which
-   drivers work; why raw `$N` is rejected; and the configurable-style
-   alternative it was weighed against. Status: Proposed until merged.
+| Branch | Head | Location |
+|---|---|---|
+| `dollar-placeholders` | `2156df4` | local and `jameinel/sqlair` |
+| `dollar-placeholders-on-postgresql` | `1213a73` | local only |
+| `postgresql-test-infrastructure` | `ccf6072` | local and `jameinel/sqlair` |
 
-The two shared decision-log commits from
-[`sqlair-decision-records`](../sqlair-decision-records/status.md) come
-before commit 1.
+The previous, longer record is in planning commit `09dc917`.
 
-## Validation
+## Out of scope
 
-- `go test ./...` with no PostgreSQL URL (SQLite suite).
-- `SQLAIR_POSTGRESQL_TEST_URL=... go test ./...` against PostgreSQL 16
-  through pgx `stdlib`.
-- Real dqlite through Juju (shared requirements), including a bulk insert
-  with a single-value column.
-- `go vet ./...`; build the docs if the docs toolchain is available
-  (`docs/Makefile`).
-
-## Acceptance criteria
-
-- Existing tests pass with only SQL-text expectations updated.
-- The driver suite passes on SQLite and PostgreSQL without SQL rewriting.
-- A bulk insert with a reused single-value column binds correctly on
-  SQLite, dqlite and PostgreSQL.
-- `$1` in bypass SQL fails at `Prepare` with a clear error.
-- The PR description states the compatibility impact: generated SQL
-  changes; drivers without `$N` support (possibly SQL Server through
-  `@name`, unverified) would regress; MySQL and Oracle did not work before
-  and still do not. It links the alternative PR.
+Empty `IN ()` rendering
+([`sqlair-empty-in`](../sqlair-empty-in/status.md)), dollar-quoted string
+lexing, and bumping the old `actions/checkout`/`actions/setup-go` pins.

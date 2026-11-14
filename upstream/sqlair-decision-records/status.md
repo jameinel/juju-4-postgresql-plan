@@ -6,30 +6,32 @@
 
 Planned 2026-11-14. Unclaimed. Target repository:
 [canonical/sqlair](https://github.com/canonical/sqlair), base `main` at
-`bd54c49` when planned. Not a separate PR: these commits are shared, and
-both [`sqlair-dollar-placeholders`](../sqlair-dollar-placeholders/status.md)
-and [`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md)
-carry them, ahead of their own changes. Each branch then adds its own
-placeholder decision record.
+`bd54c49` when planned.
+
+Updated 2026-11-14: this is now an independent future proposal, not
+commits shared by the placeholder branches. The placeholder rationale is
+recorded in the
+[primary PR description](../sqlair-dollar-placeholders/pr.md) and the
+#189 comment instead. If the log is adopted later, the chosen placeholder
+approach becomes one of the backfilled records.
 
 Next actions:
 
-- [ ] Whichever placeholder session starts first writes these commits
-  and records their hashes here and in both branch records; the other
-  cherry-picks them.
+- [ ] Decide whether and when to propose the log, after the placeholder
+  choice.
 - [ ] Confirm the backfill list and each record's wording with the user
   before committing; backfilled records describe other people's
   decisions and must cite their PRs.
-- [ ] The PR description proposes the convention to the maintainers and
-  says it can be dropped from the PR if they decline.
+- [ ] The PR description proposes the convention to the maintainers.
 
 ## Decisions (user, 2026-11-14)
 
 - Location: `docs/decisions/`, excluded from the Sphinx build, so it is
   read on GitHub and not published on the docs site. sqlair's docs follow
   Diátaxis, and a decision log is not one of its four types.
-- Delivered as shared commits in both placeholder branches, not as its
-  own PR.
+- Delivered as its own proposal, independent of the placeholder PR. This
+  replaces the earlier plan to carry it as shared commits in both
+  placeholder branches.
 - Backfill earlier sqlair decisions.
 
 ## Design
@@ -63,7 +65,7 @@ be found. Candidates, from `git log` on `bd54c49`:
 | Bulk insert and `omitempty` in `INSERT` | #142, #145 |
 
 The first record should be the decision-log convention itself ("Record
-design decisions"), so the placeholder record follows the backfill.
+design decisions"), followed by the backfill.
 
 ## Commits
 

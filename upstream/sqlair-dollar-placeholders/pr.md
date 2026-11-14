@@ -1,154 +1,171 @@
-# fix: use numbered parameters for SQLair inputs
+# fix: emit numbered $N placeholders to support PostgreSQL
 
-SQLair currently emits named `@sqlair_N` parameters. PostgreSQL's pgx
-driver does not bind that syntax, so SQLair queries fail unless the SQL is
-rewritten by a wrapper.
+SQLair writes each input expression as a named `@sqlair_N` placeholder and
+passes the values as `sql.NamedArg`. PostgreSQL drivers such as pgx only
+accept numbered `$N` placeholders, and PostgreSQL parses `@sqlair_0` as the
+`@` operator applied to a column, so every SQLair query with inputs fails
+on PostgreSQL (#189).
 
-Emit `$N` placeholders and positional arguments instead. Assign numbers in
-order of first appearance: PostgreSQL binds by number, whereas SQLite binds
-these placeholders by appearance. Reuse a single placeholder when a bulk
-insert repeats the same scalar value across rows.
+SQLair now writes numbered placeholders (`$1`, `$2`, ...) and passes the
+values positionally. Inputs are numbered in order of first appearance in
+the generated SQL. PostgreSQL binds `$N` by its number, whereas SQLite
+treats `$N` as a named parameter and indexes it by first appearance; the
+two agree only when the numbers follow appearance order. A value reused in
+every row of a bulk insert keeps its first placeholder, for example
+`VALUES ($1, $2), ($3, $2)`.
 
-This changes generated SQL and argument form for every driver without a
-public API change. Drivers that do not accept `$N` can regress; SQL Server
-users relying on `@name` may be affected, but that has not been verified.
-MySQL and Oracle were not supported by the previous parameter syntax and
-are not made compatible by this change. Real dqlite validation is pending.
+`Prepare` rejects queries that contain their own numbered placeholder, such
+as `WHERE id = $1`, which would otherwise bind to SQLair's first input.
+Placeholders inside string literals, quoted identifiers and comments are
+ignored. An unquoted identifier such as `col$1` is also rejected; quote it
+as `"col$1"`. Dollar-quoted strings are not parsed, so `$1` inside one is
+rejected.
 
-Raw `$N` in SQLair queries is still passed through and can collide with
-generated parameters. Do not mix it with SQLair inputs; rejecting it at
-prepare time remains a follow-up before this is ready to merge.
+A new `tests/postgresql` Go module runs SQLair against PostgreSQL through
+`github.com/jackc/pgx/v5/stdlib`. It is separate so that SQLair does not
+depend on pgx and the root module stays on Go 1.24. Its tests skip unless
+`SQLAIR_POSTGRESQL_TEST_URL` is set, and each test runs in its own schema.
+CI runs the module against a `postgres:16` service, and govulncheck scans
+it. CONTRIBUTING.md describes how to run it locally.
 
-The PostgreSQL test uses the isolated-schema fixture from the PostgreSQL
-test-infrastructure dependency. This is one alternative to configurable
-per-DB placeholder styles; a PR for the alternative has not yet been
-published.
+Compatibility:
 
-Addresses #189.
+- The generated SQL and argument form change for every driver. The public
+  API does not change.
+- Drivers that do not accept `$N` are no longer supported. This includes
+  SQL Server's go-mssqldb, which accepts `@name` and `@pN`. MySQL drivers
+  did not work before and still do not.
+- Queries with raw `$N` placeholders fail at `Prepare` instead of when the
+  query runs.
+
+An alternative keeps `@sqlair_N` as the default and adds `NewDBWithOptions`
+with a per-database placeholder style:
+[`placeholder-style-option`](https://github.com/canonical/sqlair/compare/main...jameinel:sqlair:placeholder-style-option).
+It shares the first three commits of this branch; its
+[own change](https://github.com/jameinel/sqlair/compare/numbered-placeholders...placeholder-style-option)
+adds the option on top of them.
+
+Fixes #189.
 
 ## Functional QA
 
-From the branch checkout, configure `SQLAIR_POSTGRESQL_TEST_URL` with a
-PostgreSQL URL whose role can create schemas. For example, if the URL is in
-a private file:
+Start a disposable PostgreSQL server and point SQLair at it. Any server
+where the user can create schemas also works.
 
 ```bash
-export SQLAIR_POSTGRESQL_TEST_URL="$(<"$HOME/.config/juju-pg-poc/db-url")"
+docker run --rm --detach --name sqlair-postgres \
+    --publish 127.0.0.1:5432:5432 \
+    --env POSTGRES_HOST_AUTH_METHOD=trust postgres:16
+until docker exec sqlair-postgres pg_isready --quiet; do sleep 1; done
+export SQLAIR_POSTGRESQL_TEST_URL='postgres://postgres@localhost:5432/postgres?sslmode=disable'
 ```
 
-Run this example against both SQLite and PostgreSQL. It creates a unique
-PostgreSQL schema, inserts two rows with one reused scalar parameter, and
-drops that schema on exit.
+From the repository root, create a program that runs a bulk insert with a
+reused value, a query with a slice input followed by another input, and a
+`Prepare` call with a raw placeholder. The same program is built once in
+the root module with the SQLite driver and once in the `tests/postgresql`
+module with the pgx driver.
 
 ```bash
-qa_dir=$(mktemp -d ./sqlair-qa-XXXXXX)
-cat > "$qa_dir/main.go" <<'EOF'
+mkdir qa tests/postgresql/qa
+cat > qa/main.go <<'EOF'
 package main
 
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/canonical/sqlair"
-	"github.com/canonical/sqlair/internal/pgtest"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type Item struct {
-	ID int `db:"id"`
+	ID    int    `db:"id"`
+	Label string `db:"label"`
 }
 
-func exercise(db *sql.DB) (result string, err error) {
-	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, "CREATE TABLE items (id INTEGER, label TEXT)"); err != nil {
-		return "", err
-	}
-	defer func() {
-		_, dropErr := db.ExecContext(context.Background(), "DROP TABLE items")
-		err = errors.Join(err, dropErr)
-	}()
-	insert := sqlair.MustPrepare(
-		"INSERT INTO items (id, label) VALUES ($Item.id, $M.label)",
-		Item{}, sqlair.M{},
-	)
-	if err := sqlair.NewDB(db).Query(ctx, insert,
-		[]Item{{ID: 1}, {ID: 2}}, sqlair.M{"label": "shared"},
-	).Run(); err != nil {
-		return "", err
-	}
-	rows, err := db.QueryContext(ctx, "SELECT id, label FROM items ORDER BY id")
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int
-		var label string
-		if err := rows.Scan(&id, &label); err != nil {
-			return "", err
-		}
-		if result != "" {
-			result += "; "
-		}
-		result += fmt.Sprintf("%d %s", id, label)
-	}
-	return result, rows.Err()
-}
-
-func run() (err error) {
-	sqlite, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		return err
-	}
-	sqlite.SetMaxOpenConns(1)
-	defer sqlite.Close()
-	result, err := exercise(sqlite)
-	if err != nil {
-		return err
-	}
-	fmt.Println("sqlite:", result)
-
-	ns, err := pgtest.Open(context.Background(), os.Getenv("SQLAIR_POSTGRESQL_TEST_URL"))
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, ns.Close()) }()
-	result, err = exercise(ns.DB)
-	if err != nil {
-		return err
-	}
-	fmt.Println("postgres:", result)
-	return nil
-}
+type IDs []int
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	sqldb, err := sql.Open(os.Args[1], os.Args[2])
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer sqldb.Close()
+	// A temporary table is only visible on the connection that created it.
+	sqldb.SetMaxOpenConns(1)
+	ctx := context.Background()
+	if _, err := sqldb.ExecContext(ctx, "CREATE TEMP TABLE item (id integer, label text)"); err != nil {
+		log.Fatal(err)
+	}
+	db := sqlair.NewDB(sqldb)
+
+	// The label is a single value reused in every row of the bulk insert.
+	insert := sqlair.MustPrepare("INSERT INTO item (id, label) VALUES ($Item.id, $M.label)", Item{}, sqlair.M{})
+	err = db.Query(ctx, insert, []Item{{ID: 1}, {ID: 2}, {ID: 3}}, sqlair.M{"label": "shared"}).Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// The slice expands to several placeholders before the next input.
+	query := sqlair.MustPrepare("SELECT &Item.* FROM item WHERE id IN ($IDs[:]) AND label = $M.label ORDER BY id", Item{}, IDs{}, sqlair.M{})
+	var items []Item
+	if err := db.Query(ctx, query, IDs{1, 3}, sqlair.M{"label": "shared"}).GetAll(&items); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(items)
+
+	_, err = sqlair.Prepare("SELECT &Item.* FROM item WHERE id = $1", Item{})
+	fmt.Println(err)
 }
 EOF
-go run "$qa_dir"
-rm "$qa_dir/main.go"
-rmdir "$qa_dir"
+cp qa/main.go tests/postgresql/qa/main.go
+cat > qa/sqlite.go <<'EOF'
+package main
+
+import _ "github.com/mattn/go-sqlite3"
+EOF
+cat > tests/postgresql/qa/pgx.go <<'EOF'
+package main
+
+import _ "github.com/jackc/pgx/v5/stdlib"
+EOF
 ```
 
-Expected output:
-
-```text
-sqlite: 1 shared; 2 shared
-postgres: 1 shared; 2 shared
-```
-
-Check for leftover SQLair test schemas:
+Run it against SQLite and PostgreSQL:
 
 ```bash
-go run ./cmd/sqlair-pg-clean --older-than 1s
+go run ./qa sqlite3 :memory:
+(cd tests/postgresql && go run ./qa pgx "$SQLAIR_POSTGRESQL_TEST_URL")
 ```
 
-The example's schema should not appear. This command is a dry run; other
-active or abandoned SQLair test schemas must not be removed without
-identifying them. Its deletion mode uses `CASCADE`.
+Both commands print:
+
+```text
+[{1 shared} {3 shared}]
+cannot parse expression: column 37: raw placeholder "$1" not supported, use SQLair input expressions
+```
+
+Before this change, the PostgreSQL command fails with
+`ERROR: column "sqlair_0" does not exist (SQLSTATE 42703)`.
+
+Run the PostgreSQL test module, then check that it left no test schemas
+behind:
+
+```bash
+(cd tests/postgresql && go test -count=1 -v ./...)
+psql "$SQLAIR_POSTGRESQL_TEST_URL" --tuples-only --no-align \
+    --command "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'sqlair\_test\_%'"
+```
+
+`TestOutputs` and `TestInputs` pass, and the count is `0`. Without
+`SQLAIR_POSTGRESQL_TEST_URL`, both tests are skipped.
+
+Clean up:
+
+```bash
+rm -r qa tests/postgresql/qa
+docker stop sqlair-postgres
+```

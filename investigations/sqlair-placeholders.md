@@ -3,14 +3,15 @@
 [Shared direction](../AGENTS.md) | [Upstream dashboard](../UPSTREAM-PLAN.md)
 
 Shared evidence and design comparison for two alternative
-[canonical/sqlair](https://github.com/canonical/sqlair) changes, prepared
-in parallel and proposed together so that the maintainers can choose:
+[canonical/sqlair](https://github.com/canonical/sqlair) changes. As of
+2026-11-14, the first is the primary PR and the second is a linked
+comparison branch:
 
 - [`sqlair-dollar-placeholders`](../upstream/sqlair-dollar-placeholders/status.md):
   always emit `$N`, numbered in order of first appearance. No API change.
 - [`sqlair-placeholder-style`](../upstream/sqlair-placeholder-style/status.md):
-  a per-`DB` setting with four styles: `@name` (default), `:name`, `$N`
-  and `?`.
+  a per-`DB` option with three styles: `@name` (default), `$N` and
+  `:name`. The `?` style was dropped; see that record.
 
 Related, independent of both:
 [`sqlair-empty-in`](../upstream/sqlair-empty-in/status.md).
@@ -109,43 +110,40 @@ unverified.
 
 | | `sqlair-dollar-placeholders` | `sqlair-placeholder-style` |
 |---|---|---|
-| API | None | Per-`DB` setting on `NewDB` |
+| API | None | `NewDBWithOptions` with `DBOptions.PlaceholderStyle` |
 | Default output | Changes to `$N` | Unchanged (`@sqlair_N`) |
-| Drivers | SQLite, dqlite, PostgreSQL, CockroachDB | Also MySQL (`?`), Oracle (`:name`); SQL Server via `@name` |
-| Possible regression | SQL Server users relying on `@name` (unverified) | None by default |
-| Size | Querybuilder and test expectations | Plus API, style plumbing, per-style checks and docs |
+| Drivers tested | SQLite, PostgreSQL | SQLite (all styles), PostgreSQL (`$N`) |
+| Regression | SQL Server via go-mssqldb (`@name`/`@pN` only) | None by default |
+| Size of own commit | +122/-64, mostly test renumbering | +268/-6: API, style plumbing, per-style tests and docs |
 
-Both include the `$<digits>` rejection and the PostgreSQL integration
-tests. Use the same commits in both branches (see each record).
+Both share three commits: first-appearance numbering, `$<digits>`
+rejection, and the separate `tests/postgresql` module.
 
 ## Where decisions live
 
-sqlair has no decision log. Both branches carry shared commits that add
-`docs/decisions/` (lightweight ADRs, excluded from the Sphinx build) and
-backfill earlier decisions; see
+sqlair has no decision log. The rationale for the placeholder choice is in
+the [primary PR description](../upstream/sqlair-dollar-placeholders/pr.md)
+and the [#189 comment draft](../upstream/sqlair-dollar-placeholders/reply-issue-189.md).
+A decision log is an independent future proposal; see
 [`sqlair-decision-records`](../upstream/sqlair-decision-records/status.md).
-Each branch then adds its own placeholder decision record, naming the
-other approach as the alternative considered. The PR descriptions
-propose the convention to the maintainers, and discussion of the choice
-also goes on [sqlair#189](https://github.com/canonical/sqlair/issues/189).
 This planning record holds the comparison until the choice is made, then
 links to the sqlair artifacts.
 
 ## Shared requirements
 
-- PostgreSQL integration tests live in the main module with a test-only
-  pgx (`github.com/jackc/pgx/v5/stdlib`) import, gated on
-  `SQLAIR_POSTGRESQL_TEST_URL`, with a `postgres` service container added
-  to `.github/workflows/go-test.yml` (decided 2026-11-14). Move the
-  backend-neutral cases of `driver_test.go` into a helper that takes an
-  opener, and run it for each backend rather than duplicating cases.
+- PostgreSQL integration tests live in the separate `tests/postgresql`
+  module, gated on `SQLAIR_POSTGRESQL_TEST_URL`, with a `postgres:16`
+  service job in `.github/workflows/go-test.yml` (decided 2026-11-14,
+  replacing the earlier test-only pgx import in the root module). The root
+  module keeps Go 1.24 and no pgx dependency.
 - Verify `$N` on real dqlite before proposing: build Juju against the
   sqlair branch (`replace` directive) on a host with `dqlite.h`, or use
   Juju CI, and run a representative set of domain state tests including
   bulk inserts.
 - sqlair is not a Juju repository: use sqlair's commands and guidance.
-  Follow sqlair's CONTRIBUTING.md (conventional commits). There is no
-  `jameinel` fork yet; creating one and pushing need the user's approval.
+  Follow sqlair's CONTRIBUTING.md (conventional commits). Branches are
+  published on the `jameinel/sqlair` fork; each push needs the user's
+  approval.
 - Juju PoC reconciliation after a sqlair release: use the chosen API on
   the PostgreSQL path; remove `@sqlair_N` rewriting from
   `internal/database/postgresql`, keeping `?` rewriting for raw

@@ -112,8 +112,9 @@ next actions belong in the branch record, not this table.
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
-| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `020f1b3f-f7b5-4bd4-9ad2-e27661961d66` |
-| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | `6e9894b2-d722-418e-9dac-32096188585b` |
+| [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `020f1b3f`, 2026-11-14) |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `6e9894b2`, 2026-11-14) |
 
 Absence from this table does not establish that an existing branch is
 unowned. Historical records may omit assignments; confirm before takeover.
@@ -272,10 +273,11 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; agree design and deterministic reproduction before dispatch. Incident cause remains unproven. |
-| [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; shared commits carried by both placeholder branches. Unclaimed. |
-| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Claimed canonical/sqlair alternative (sqlair#189): always emit `$N`; proposed together with `sqlair-placeholder-style`. |
+| [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | Independent canonical/sqlair `AGENTS.md` proposal; local branch `agent-guidance`, unpushed, no PR drafted. |
+| [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; independent future proposal, no longer carried by the placeholder branches. Unclaimed. |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Primary canonical/sqlair proposal (sqlair#189): always emit `$N`. Local branch `numbered-placeholders`; PR and #189 comment drafted; push/publication approval and real-dqlite validation pending. |
 | [`sqlair-empty-in`](upstream/sqlair-empty-in/status.md) | Proposed canonical/sqlair follow-up: portable empty-slice rendering (X2). Unclaimed. |
-| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | 2026-11-14: infrastructure and per-`DB` style branches published separately; Go 1.26, dependency fixes and AGENTS.md in independent commits. Test/govulncheck CI passes; documentation spelling, real-dqlite validation and PR preparation remain pending. |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Comparison branch `placeholder-style-option` (per-`DB` style option) sharing three commits with `numbered-placeholders`; linked from the primary PR, no PR planned. Earlier published branches are reference only. |
 
 ## D55 implementation review (2026-11-06)
 
