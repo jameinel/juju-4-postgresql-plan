@@ -17,9 +17,9 @@ linked from the PR and the issue as a branch, not opened as a second PR.
 |---|---|
 | Repository | [canonical/sqlair](https://github.com/canonical/sqlair) |
 | Worktree | `canonical/sqlair/.worktrees/numbered-placeholders` |
-| Branch | `numbered-placeholders` (local, unpushed) |
+| Branch | `numbered-placeholders` (pushed to `jameinel/sqlair`) |
 | Base | `main` at `bd54c49` |
-| Head | `2760dcf` |
+| Head | `2760dcf`; additional uncommitted changes described below |
 | PR | None. Draft: [pr.md](pr.md) |
 | Issue comment | None. Draft: [reply-issue-189.md](reply-issue-189.md) |
 
@@ -37,13 +37,13 @@ commit message; [pr.md](pr.md) is written for that.
 
 Next actions:
 
-- [ ] Validate on real dqlite: build Juju against this branch with a
-  `replace` directive and run domain state tests that include bulk
-  inserts.
-- [ ] With approval, push `numbered-placeholders` and
-  `placeholder-style-option` to `jameinel/sqlair`, open the PR from
-  [pr.md](pr.md), then post [reply-issue-189.md](reply-issue-189.md) with
-  the PR number.
+- [x] Push the approved branch heads to `jameinel/sqlair`.
+- [x] Validate real dqlite with a Juju `replace` directive and state tests
+  that include bulk inserts.
+- [ ] Commit and publish the local follow-up changes, with new approval for
+  any force push; prepare the PR from [pr.md](pr.md) for approval. After
+  opening it, fill in the PR number in [reply-issue-189.md](reply-issue-189.md)
+  and confirm before posting.
 - [ ] With separate approval, delete the superseded fork branches listed
   below.
 
@@ -55,7 +55,7 @@ Next actions:
   `numbered-placeholders...placeholder-style-option` shows only the cost of
   configurability.
 - The root module stays on Go 1.24 without pgx. PostgreSQL tests live in
-  the separate `tests/postgresql` module. The Go 1.26 bump is deferred.
+  the separate `tests/postgresql` module and require Go 1.26.
 - Unquoted `col$1` is rejected; the documented escape is `"col$1"`.
 - Rationale goes in the PR description and the #189 comment. A decision
   log ([`sqlair-decision-records`](../sqlair-decision-records/status.md))
@@ -87,7 +87,22 @@ Next actions:
   and without `-test`. actionlint flags only the existing old action pins.
 - Docs build; `make spelling` flags only the existing `security.md` words
   (`Cryptographic`, `TLS`, `utilizing`).
-- Not run: real dqlite; the documented Docker command (no local Docker).
+- Real dqlite: Juju 4.1 at `4262e78b24`, with a session-local modfile
+  replacing SQLair with this worktree, passed
+  `TestCreateApplicationWithUnits`, `TestSetConstraintFull` and
+  `TestSetConstraintsReplacesPreviousZones` using `dqlite,libsqlite3` and
+  Juju's `_deps` toolchain. `make run-go-tests` also passed seven constraint
+  tests with the same modfile supplied through `GOFLAGS`.
+- Fork CI: Go tests (including PostgreSQL) and vulnerability scan passed.
+  Documentation spelling failed on the existing `security.md` words above.
+- The uncommitted follow-up changes raise the PostgreSQL module to Go 1.26
+  and replace Docker instructions in CONTRIBUTING with a generic connection
+  URL. Root and PostgreSQL vet and tests, including the live Juju PostgreSQL
+  tests, pass with these changes. The PostgreSQL tests also pass with Go
+  1.26.4.
+- The PR draft now describes a Juju setup. Readiness commands were checked
+  against the existing model, and URL construction against synthetic data;
+  fresh deployment and credential extraction were not run end to end.
 
 ## Superseded branches
 

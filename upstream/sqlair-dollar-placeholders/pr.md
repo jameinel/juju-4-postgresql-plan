@@ -23,7 +23,8 @@ rejected.
 
 A new `tests/postgresql` Go module runs SQLair against PostgreSQL through
 `github.com/jackc/pgx/v5/stdlib`. It is separate so that SQLair does not
-depend on pgx and the root module stays on Go 1.24. Its tests skip unless
+depend on pgx and the root module stays on Go 1.24; the test module requires
+Go 1.26. Its tests skip unless
 `SQLAIR_POSTGRESQL_TEST_URL` is set, and each test runs in its own schema.
 CI runs the module against a `postgres:16` service, and govulncheck scans
 it. CONTRIBUTING.md describes how to run it locally.
@@ -49,16 +50,43 @@ Fixes #189.
 
 ## Functional QA
 
-Start a disposable PostgreSQL server and point SQLair at it. Any server
-where the user can create schemas also works.
+Use a PostgreSQL server where the user can create schemas. For example, with
+Juju, a controller that can deploy machine charms, and `jq`, create a
+dedicated model:
 
 ```bash
-docker run --rm --detach --name sqlair-postgres \
-    --publish 127.0.0.1:5432:5432 \
-    --env POSTGRES_HOST_AUTH_METHOD=trust postgres:16
-until docker exec sqlair-postgres pg_isready --quiet; do sleep 1; done
-export SQLAIR_POSTGRESQL_TEST_URL='postgres://postgres@localhost:5432/postgres?sslmode=disable'
+export JUJU_CONTROLLER='<controller name>'
+export SQLAIR_QA_MODEL="$JUJU_CONTROLLER:sqlair-qa"
+juju add-model -c "$JUJU_CONTROLLER" sqlair-qa --no-switch
+juju deploy -m "$SQLAIR_QA_MODEL" postgresql --channel 16/stable
+juju deploy -m "$SQLAIR_QA_MODEL" data-integrator --channel latest/stable \
+    --config database-name=sqlairqa
+juju integrate -m "$SQLAIR_QA_MODEL" postgresql:database data-integrator:postgresql
+juju wait-for application -m "$SQLAIR_QA_MODEL" postgresql \
+    --query='status=="active"' --timeout=20m
+juju wait-for application -m "$SQLAIR_QA_MODEL" data-integrator \
+    --query='status=="active"' --timeout=20m
 ```
+
+The following obtains the relation credentials without printing them and
+builds a URL for the first endpoint. It assumes this disposable deployment
+does not have TLS enabled and that the endpoint is reachable from the test
+machine. Use the appropriate TLS settings for other deployments.
+
+```bash
+set -o pipefail
+SQLAIR_POSTGRESQL_TEST_URL="$(
+    juju run -m "$SQLAIR_QA_MODEL" data-integrator/leader get-credentials --format json |
+        jq -er '[.[] | select(.status == "completed") | .results.postgresql |
+            select(.username and .password and .endpoints and .database)] |
+            if length == 1 then .[0] |
+                "postgres://\(.username | @uri):\(.password | @uri)@\(.endpoints | split(",")[0])/\(.database | @uri)?sslmode=disable"
+            else error("expected one PostgreSQL credential set") end'
+)"
+export SQLAIR_POSTGRESQL_TEST_URL
+```
+
+Alternatively, export a suitable existing PostgreSQL URL.
 
 From the repository root, create a program that runs a bulk insert with a
 reused value, a query with a slice input followed by another input, and a
@@ -167,5 +195,7 @@ Clean up:
 
 ```bash
 rm -r qa tests/postgresql/qa
-docker stop sqlair-postgres
+juju destroy-model "$SQLAIR_QA_MODEL" --destroy-storage --no-prompt
 ```
+
+Only destroy the model if it was created for this QA.

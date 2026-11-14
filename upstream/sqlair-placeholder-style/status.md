@@ -18,9 +18,9 @@ issue; no PR is planned unless the maintainers prefer it.
 |---|---|
 | Repository | [canonical/sqlair](https://github.com/canonical/sqlair) |
 | Worktree | `canonical/sqlair/.worktrees/placeholder-style-option` |
-| Branch | `placeholder-style-option` (local, unpushed) |
+| Branch | `placeholder-style-option` (pushed to `jameinel/sqlair`) |
 | Parent | `eb8381a`, the third shared commit of `numbered-placeholders` |
-| Head | `1fe3704 feat: add a per-database placeholder style option` |
+| Head | `1fe3704 feat: add a per-database placeholder style option`; uncommitted follow-up changes below |
 | PR | None planned. Description if chosen: [pr.md](pr.md) |
 
 The commit adds 268 lines and removes 6 across 7 files. The dollar-only
@@ -28,7 +28,8 @@ commit adds 122 and removes 64, mostly renumbered test expectations.
 
 Next actions:
 
-- [ ] Push with `numbered-placeholders` once approved (see that record).
+- [x] Push the approved head alongside `numbered-placeholders`.
+- [ ] Commit and publish follow-up changes with any required approval.
 - [ ] If the maintainers choose this approach, open a PR from
   [pr.md](pr.md) and validate on real dqlite.
 
@@ -69,6 +70,16 @@ Next actions:
   fails with `column "sqlair_0" does not exist`.
 - `make spelling` flags only the existing `security.md` words.
 - Not run: real dqlite.
+- Fork CI: Go tests (including PostgreSQL) and vulnerability scan passed.
+  Documentation spelling failed on the existing `security.md` words, and
+  link checking failed on API anchors not yet published on pkg.go.dev.
+- The uncommitted follow-up changes raise the PostgreSQL module to Go 1.26,
+  use generic PostgreSQL URL instructions in CONTRIBUTING and link to the
+  package page rather than unreleased API anchors. Root and PostgreSQL vet
+  and tests, including live PostgreSQL with Go 1.26.4, pass; `make linkcheck`
+  passes.
+- The PR draft has the same Juju setup and verification limits as the
+  [primary draft](../sqlair-dollar-placeholders/status.md).
 
 ## Superseded branches
 
