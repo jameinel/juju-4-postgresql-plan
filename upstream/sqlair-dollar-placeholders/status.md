@@ -5,54 +5,50 @@
 ## Current state and next actions
 
 Claimed 2026-11-14 by session `020f1b3f-f7b5-4bd4-9ad2-e27661961d66`.
-Worktree `canonical/sqlair/.worktrees/dollar-placeholders`, branch
-`dollar-placeholders`, base `bd54c4999deabe09aca4216f96170cb55832b28d`
-(`origin/main` at creation), head `2156df4`. Target repository:
-[canonical/sqlair](https://github.com/canonical/sqlair), base `main` at
-`bd54c49` when planned. Alternative to
+On 2026-11-14, migrated onto the published
+`postgresql-test-infrastructure` tip `ccf6072c7527d0d897c26d4c7063c687cd0d92b6`
+in worktree `canonical/sqlair/.worktrees/dollar-placeholders-on-postgresql`,
+branch `dollar-placeholders-on-postgresql`, head `1213a73`. The layer has
+`32953f1` (interpolation, cherry-picked from `9efd4ca`) and `1213a73`
+(PostgreSQL coverage using the shared fixture). It is local and unpushed.
+Target repository: [canonical/sqlair](https://github.com/canonical/sqlair).
+The infrastructure branch is a dependency; it has been published to
+`jameinel/sqlair:postgresql-test-infrastructure` at `ccf6072` but has no PR.
+Native GitHub stacks do not support forked heads.
+
+The original worktree `canonical/sqlair/.worktrees/dollar-placeholders`
+and branch `dollar-placeholders` remain unchanged at `2156df4`, based on
+`bd54c49`, and published to `jameinel/sqlair:dollar-placeholders`. That
+branch retains the separate, alternative PostgreSQL infrastructure.
+Alternative to
 [`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md); both
 are prepared and proposed together, and the maintainers choose one.
 
-Pushed to `jameinel/sqlair:dollar-placeholders` at `2156df4` with explicit
-approval on 2026-11-14; the remote tip was verified. The prospective
-[PR description](pr.md) is prepared locally; no PR has been published.
+The [prospective PR description](pr.md) is updated for the migrated branch;
+no PR has been published. The test explicitly drops its table before the
+shared fixture tears down its schema; the fixture's backstop and stale
+cleanup command use `CASCADE`. Formatting passed, and on both Go 1.26.11
+and 1.27.4, vet, SQLite-only tests, PostgreSQL tests with `-race -p 4
+-parallel 4`, and `govulncheck` passed. The functional QA example produced
+the expected SQLite and PostgreSQL output. Before migration and after all PostgreSQL
+runs, a catalog inventory found no `sqlair_` or `juju-test-` prefixed
+schemas; both old and shared cleanup tools also initially found none.
+No database or pre-existing schema was dropped.
 
-At the user's request, the work is split into two commits:
-`9efd4ca` emits `$N` in first-appearance order with positional arguments
-and updates SQLite expectations; `2156df4` adds PostgreSQL test
-infrastructure. SQLite and PostgreSQL tests exercise bulk insertion with
-reused values via `DB` and `TX`. The branch contains an independent
-candidate for PostgreSQL
-test isolation and cleanup, to compare with the placeholder-style worktree:
-per-test schemas and advisory locks, a two-connection pool, and a cleanup
-command that lists marked schemas but deletes only an explicitly named,
-inactive schema. Cleanup uses transactional `RESTRICT` drops, retrying
-internal dependencies and leaving the schema intact if an outside dependency
-or unsupported object blocks deletion.
-
-On 2026-11-14, the interpolation commit passed `go test -count=1 -timeout
-2m ./...` and `go vet ./...` independently. At `2156df4`,
-`SQLAIR_POSTGRESQL_TEST_URL=... go test -race -count=1 -timeout 2m -p 2
--parallel 4 ./...` passed against the shared PostgreSQL, as did
-`go vet ./...`. The SQLite-only suite also passed before the commits.
-The cleanup command listed no schemas marked by this implementation after
-the runs. No database was created or dropped. Real-dqlite validation remains
-pending. The shared parser rejection is not integrated: raw `$N` currently
-collides with generated parameters. The placeholder-style alternative is
-also committed and pushed separately; retain both candidates for comparison
-rather than overwriting either. The shared decision log and backfill require
-user confirmation before they are committed.
+Real-dqlite validation remains pending. The shared parser rejection is not
+integrated: raw `$N` can collide with generated parameters. The shared
+decision log and backfill require user confirmation before they are
+committed.
 
 Next actions:
 
 - [x] Reserve in the dashboard; record owner/session here.
-- [x] Create worktree `canonical/sqlair/.worktrees/dollar-placeholders`
-  on branch `dollar-placeholders` from current `origin/main`; record the
-  base.
+- [x] Migrate the placeholder layer onto the PostgreSQL infrastructure
+  dependency in a new worktree; preserve the original published branch.
 - [ ] Integrate the shared parser rejection and complete the remaining
   planned commits.
 - [ ] Verify on real dqlite (shared requirements).
-- [x] Prepare `pr.md` locally. PR publication and future pushes need the
+- [x] Update `pr.md` locally. PR publication and future pushes need the
   user's approval.
 
 ## Scope

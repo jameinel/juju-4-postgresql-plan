@@ -19,9 +19,10 @@ Raw `$N` in SQLair queries is still passed through and can collide with
 generated parameters. Do not mix it with SQLair inputs; rejecting it at
 prepare time remains a follow-up before this is ready to merge.
 
-The change also adds isolated PostgreSQL test schemas and an explicit
-cleanup command. This is one alternative to configurable per-DB placeholder
-styles; a PR for the alternative has not yet been published.
+The PostgreSQL test uses the isolated-schema fixture from the PostgreSQL
+test-infrastructure dependency. This is one alternative to configurable
+per-DB placeholder styles; a PR for the alternative has not yet been
+published.
 
 Addresses #189.
 
@@ -52,7 +53,7 @@ import (
 	"os"
 
 	"github.com/canonical/sqlair"
-	"github.com/canonical/sqlair/internal/testpostgres"
+	"github.com/canonical/sqlair/internal/pgtest"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -60,11 +61,15 @@ type Item struct {
 	ID int `db:"id"`
 }
 
-func exercise(db *sql.DB) (string, error) {
+func exercise(db *sql.DB) (result string, err error) {
 	ctx := context.Background()
 	if _, err := db.ExecContext(ctx, "CREATE TABLE items (id INTEGER, label TEXT)"); err != nil {
 		return "", err
 	}
+	defer func() {
+		_, dropErr := db.ExecContext(context.Background(), "DROP TABLE items")
+		err = errors.Join(err, dropErr)
+	}()
 	insert := sqlair.MustPrepare(
 		"INSERT INTO items (id, label) VALUES ($Item.id, $M.label)",
 		Item{}, sqlair.M{},
@@ -79,7 +84,6 @@ func exercise(db *sql.DB) (string, error) {
 		return "", err
 	}
 	defer rows.Close()
-	var result string
 	for rows.Next() {
 		var id int
 		var label string
@@ -107,11 +111,11 @@ func run() (err error) {
 	}
 	fmt.Println("sqlite:", result)
 
-	ns, err := testpostgres.Create(context.Background(), os.Getenv("SQLAIR_POSTGRESQL_TEST_URL"))
+	ns, err := pgtest.Open(context.Background(), os.Getenv("SQLAIR_POSTGRESQL_TEST_URL"))
 	if err != nil {
 		return err
 	}
-	defer func() { err = errors.Join(err, ns.Close(context.Background())) }()
+	defer func() { err = errors.Join(err, ns.Close()) }()
 	result, err = exercise(ns.DB)
 	if err != nil {
 		return err
@@ -142,8 +146,9 @@ postgres: 1 shared; 2 shared
 Check for leftover SQLair test schemas:
 
 ```bash
-go run ./cmd/sqlair-postgresql-cleanup
+go run ./cmd/sqlair-pg-clean --older-than 1s
 ```
 
-The example's schema should not appear. Other active or abandoned SQLair
-test schemas may appear and must not be removed without identifying them.
+The example's schema should not appear. This command is a dry run; other
+active or abandoned SQLair test schemas must not be removed without
+identifying them. Its deletion mode uses `CASCADE`.
