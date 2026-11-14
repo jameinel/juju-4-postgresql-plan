@@ -5,14 +5,17 @@ channel, although snap tracks use the major and minor version.
 Install the missing system packages and Go development tools, select the
 correct Go snap track and compare Go versions in version order. Preserve
 Go tools already on `PATH` and add the configured Go binary directory to
-the static-analysis `PATH`.
+the static-analysis `PATH`. Check that the selected yq supports the JSON
+input and output syntax used by the tests and that golangci-lint is
+version 2.14.x. Fail with a hint rather than overwrite incompatible
+existing binaries.
 
 ## Checklist
 
 - [x] Code style: imports ordered, good names, simple structure, etc
 - [ ] ~Comments saying why design decisions were made~
 - [ ] ~Go unit tests, with comments saying what you're testing~
-- [ ] ~Integration tests, with comments saying what you're testing~
+- [x] Integration tests, with comments saying what you're testing
 - [ ] ~doc.go added or updated in changed packages~
 
 ## QA steps
@@ -76,6 +79,29 @@ lxc exec juju-deps-qa --user 1000 --group 1000 \
 ```
 
 The second run should succeed and print `Go tool binaries unchanged`.
+
+Check that incompatible tools on `PATH` are rejected without replacing them:
+
+```sh
+lxc exec juju-deps-qa --user 1000 --group 1000 \
+  --env HOME=/home/ubuntu --cwd /home/ubuntu/juju -- bash -c '
+    set -e
+    tmp=$(mktemp -d)
+    ln -s /usr/bin/true "$tmp/yq"
+    ln -s /usr/bin/true "$tmp/golangci-lint"
+    export PATH="$tmp:$PATH"
+    if make install-snap-dependencies; then exit 1; fi
+    if make install-development-go-tools; then exit 1; fi
+    test -L "$tmp/yq" && test -L "$tmp/golangci-lint"
+    rm "$tmp/yq" "$tmp/golangci-lint"
+    rmdir "$tmp"
+    echo "Incompatible tools rejected and preserved"
+  '
+```
+
+Both targets should report incompatible tools, and the final line should
+confirm that the existing executables were preserved.
+
 Remove the disposable container:
 
 ```sh

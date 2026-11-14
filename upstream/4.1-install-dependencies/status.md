@@ -4,6 +4,36 @@
 
 ## Current state and next actions
 
+2026-11-14 review follow-up: owner transferred by coordinator to session
+`6d5559ea-28f8-4389-aa51-de3e98e84db4`. Local, origin and PR head are
+`0ed7ee32e4` on `4.1-install-dependencies`. Both Codex findings are addressed:
+the selected yq is probed for JSON input/output syntax, and the selected
+golangci-lint must satisfy the static-analysis 2.14.x rule. Existing tools
+are not overwritten. The coordinator approved both changes.
+
+`cd tests && PATH="$HOME/go/bin:$PATH" ./main.sh static_analysis
+run_install_dependencies_compatibility` passed, including incompatible
+versions, PATH shadowing, unsupported yq syntax, and nonzero probe exits.
+ShellCheck passed for the test scripts and expanded Make recipes; shfmt
+and `git diff --check` passed. `make pre-check` passed but skipped static
+analysis. Full static analysis and a fresh privileged install were not
+repeated for this follow-up. Running the real Go-tools target installed
+the previously absent `govulncheck` in `/home/jameinel/go/bin`; it did not
+replace existing Go tools.
+
+After explicit approval, pushed the follow-up and posted and verified the
+[yq reply](https://github.com/juju/juju/pull/23838#discussion_r4575398069).
+After separate approval, updated and verified the PR description and posted
+and verified the
+[golangci-lint reply](https://github.com/juju/juju/pull/23838#discussion_r4575400794).
+The saved `pr.md` and both reply files match the published text. Neither
+thread was resolved. Checks on the new head were queued or in progress at
+the last observation, with some skipped; human review is still required.
+
+Next: monitor CI and obtain human review.
+
+## State before review
+
 Migrated from existing planning records on 2026-11-11; no new GitHub
 or validation check was performed for this migration. Evidence below
 retains its original dates and revisions; it does not validate later heads.
