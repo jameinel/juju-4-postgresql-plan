@@ -113,6 +113,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
 | [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `020f1b3f-f7b5-4bd4-9ad2-e27661961d66` |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | `6e9894b2-d722-418e-9dac-32096188585b` |
 
 Absence from this table does not establish that an existing branch is
 unowned. Historical records may omit assignments; confirm before takeover.
@@ -274,7 +275,7 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; shared commits carried by both placeholder branches. Unclaimed. |
 | [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Claimed canonical/sqlair alternative (sqlair#189): always emit `$N`; proposed together with `sqlair-placeholder-style`. |
 | [`sqlair-empty-in`](upstream/sqlair-empty-in/status.md) | Proposed canonical/sqlair follow-up: portable empty-slice rendering (X2). Unclaimed. |
-| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Planned canonical/sqlair alternative (sqlair#189): per-`DB` placeholder style. Unclaimed; confirm API names before coding. |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | 2026-11-14: infrastructure and per-`DB` style branches published separately; Go 1.26, dependency fixes and AGENTS.md in independent commits. Test/govulncheck CI passes; documentation spelling, real-dqlite validation and PR preparation remain pending. |
 
 ## D55 implementation review (2026-11-06)
 
