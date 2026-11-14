@@ -270,6 +270,10 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; agree design and deterministic reproduction before dispatch. Incident cause remains unproven. |
+| [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; shared commits carried by both placeholder branches. Unclaimed. |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Planned canonical/sqlair alternative (sqlair#189): always emit `$N`. Unclaimed; proposed together with `sqlair-placeholder-style`. |
+| [`sqlair-empty-in`](upstream/sqlair-empty-in/status.md) | Proposed canonical/sqlair follow-up: portable empty-slice rendering (X2). Unclaimed. |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Planned canonical/sqlair alternative (sqlair#189): per-`DB` placeholder style. Unclaimed; confirm API names before coding. |
 
 ## D55 implementation review (2026-11-06)
 
@@ -345,7 +349,7 @@ to edit PostgreSQL paths in a stock-upstream breakout.
 | Lease migration `date('now')` | `domain/lease/state/migration.go` selects leadership leases with `expiry >= date('now')`: midnight UTC today, so it also exports leases that expired earlier today. PostgreSQL accepts it only as a function-style cast. Confirm intent (likely `expiry > CURRENT_TIMESTAMP`, or all leases) and add a test with an expired lease. |
 | X8 bare `user` | Quote `user` in seven state files and 15 schema DDL references. Valid SQLite; removes the generator's quoting. |
 | X5 scalar `MAX` | `SetLastLogTransferTime` (`modelmigration/state/model/state.go`); use `CASE` as in PoC `1e25d5bf39`. |
-| X2 empty `IN` | sqlair renders an empty slice as `IN ()`. Choose portable rendering in sqlair or caller guards; inventory callers that can pass empty slices. Removes the Stage 3 driver rewrite. |
+| X2 empty `IN` | sqlair renders an empty slice as `IN ()`. Portable rendering in sqlair is planned in [`sqlair-empty-in`](upstream/sqlair-empty-in/status.md); caller guards remain an alternative. Inventory callers that can pass empty slices. Removes the Stage 3 driver rewrite. |
 | `BOOLEAN DEFAULT 0` | `flag.value` (`controller/sql/0016-flag.sql`); use `FALSE`. Audit seed rows that write `0` / `1` to `BOOLEAN` columns. |
 | `STRFTIME` defaults (tentative, D56) | Seven `STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'utc')` defaults in `0003-changelog.sql`, `0001-changelog.sql`, `0015-charm.sql`, `0018-machine.sql` and `0028-cleanup.sql`. Possible change to `CURRENT_TIMESTAMP`, which is portable, always UTC, and matches the whole-second text that `DATETIME('now', 'utc')` already writes. Not committed: it drops millisecond precision on SQLite. No reader needs that precision today, but keeping it costs little (DIALECT.md section 4). Decide before proposing. |
 | Charm `create_time` order | `GetLatestPendingCharmhubCharm` (`application/state/charm.go`) takes the first row of `ORDER BY c.create_time DESC`, which depends on the default because `setCharmState` omits `create_time`. Charms created at the same instant order arbitrarily, and import binds Go-formatted times into the same text column. Bind the time from the domain clock in UTC and add a deterministic tiebreak, or order by an explicit key. Independent of the `STRFTIME` decision. |

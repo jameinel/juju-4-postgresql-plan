@@ -56,6 +56,8 @@ and acceptance criteria first.
   and readiness levels manually (Stage 6 task 06-test-levels).
   Generated-schema freshness tests are still required.
 - Upstream sqlair dialect support replacing driver workarounds (D5).
+  Planned in
+  [`sqlair-placeholders`](../investigations/sqlair-placeholders.md).
 
 U11 cross-model secrets is not deferred: its dedicated task gates the
 functional milestone. Upstream 4.1 fix extraction is ongoing, not Stage 11.
