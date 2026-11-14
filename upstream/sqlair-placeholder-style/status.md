@@ -12,8 +12,9 @@ This is the alternative to
 for [sqlair#189](https://github.com/canonical/sqlair/issues/189). It keeps
 `@sqlair_N` as the default and adds a per-database placeholder style
 option. It is published as a branch and linked from the
-[primary PR](https://github.com/canonical/sqlair/pull/195); no PR is planned
-unless the maintainers prefer it. The issue reply remains a local draft.
+[primary PR](https://github.com/canonical/sqlair/pull/195) and the
+[issue reply](https://github.com/canonical/sqlair/issues/189#issuecomment-6885670677);
+no PR is planned unless the maintainers prefer it.
 
 | | Value (observed 2026-11-14) |
 |---|---|

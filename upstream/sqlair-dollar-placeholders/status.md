@@ -11,8 +11,7 @@ This is the primary proposal for
 [sqlair#189](https://github.com/canonical/sqlair/issues/189): one PR that
 always emits numbered `$N` placeholders. The alternative,
 [`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md), is
-linked from the PR as a branch, not opened as a second PR. The issue reply
-is prepared locally.
+linked from the PR and issue as a branch, not opened as a second PR.
 
 | | Value (observed 2026-11-14) |
 |---|---|
@@ -22,7 +21,7 @@ is prepared locally.
 | Base | `main` at `bd54c49` |
 | Head | `ae3d19e` locally and on `jameinel/sqlair` |
 | PR | [#195](https://github.com/canonical/sqlair/pull/195), open; description: [pr.md](pr.md) |
-| Issue comment | None. Draft: [reply-issue-189.md](reply-issue-189.md) |
+| Issue comment | [Posted](https://github.com/canonical/sqlair/issues/189#issuecomment-6885670677); text: [reply-issue-189.md](reply-issue-189.md) |
 
 Commits, reviewable one at a time:
 
@@ -47,7 +46,7 @@ Next actions:
 - [x] Commit the local PostgreSQL test follow-up.
 - [x] Push the follow-up to `jameinel/sqlair`.
 - [x] Open the approved PR and verify its title, head, base and description.
-- [ ] Obtain approval before posting [reply-issue-189.md](reply-issue-189.md).
+- [x] Post the approved issue reply and verify its text.
 - [ ] With separate approval, delete the superseded fork branches listed
   below.
 
