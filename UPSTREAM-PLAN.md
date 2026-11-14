@@ -112,6 +112,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `020f1b3f-f7b5-4bd4-9ad2-e27661961d66` |
 
 Absence from this table does not establish that an existing branch is
 unowned. Historical records may omit assignments; confirm before takeover.
@@ -271,7 +272,7 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; agree design and deterministic reproduction before dispatch. Incident cause remains unproven. |
 | [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; shared commits carried by both placeholder branches. Unclaimed. |
-| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Planned canonical/sqlair alternative (sqlair#189): always emit `$N`. Unclaimed; proposed together with `sqlair-placeholder-style`. |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Claimed canonical/sqlair alternative (sqlair#189): always emit `$N`; proposed together with `sqlair-placeholder-style`. |
 | [`sqlair-empty-in`](upstream/sqlair-empty-in/status.md) | Proposed canonical/sqlair follow-up: portable empty-slice rendering (X2). Unclaimed. |
 | [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Planned canonical/sqlair alternative (sqlair#189): per-`DB` placeholder style. Unclaimed; confirm API names before coding. |
 

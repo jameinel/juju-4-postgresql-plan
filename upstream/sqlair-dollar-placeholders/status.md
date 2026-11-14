@@ -4,23 +4,56 @@
 
 ## Current state and next actions
 
-Planned 2026-11-14. Unclaimed; this directory is a task identifier, not
-evidence that a branch or worktree exists. Target repository:
+Claimed 2026-11-14 by session `020f1b3f-f7b5-4bd4-9ad2-e27661961d66`.
+Worktree `canonical/sqlair/.worktrees/dollar-placeholders`, branch
+`dollar-placeholders`, base `bd54c4999deabe09aca4216f96170cb55832b28d`
+(`origin/main` at creation), head `2156df4`. Target repository:
 [canonical/sqlair](https://github.com/canonical/sqlair), base `main` at
 `bd54c49` when planned. Alternative to
 [`sqlair-placeholder-style`](../sqlair-placeholder-style/status.md); both
 are prepared and proposed together, and the maintainers choose one.
 
+Pushed to `jameinel/sqlair:dollar-placeholders` at `2156df4` with explicit
+approval on 2026-11-14; the remote tip was verified. The prospective
+[PR description](pr.md) is prepared locally; no PR has been published.
+
+At the user's request, the work is split into two commits:
+`9efd4ca` emits `$N` in first-appearance order with positional arguments
+and updates SQLite expectations; `2156df4` adds PostgreSQL test
+infrastructure. SQLite and PostgreSQL tests exercise bulk insertion with
+reused values via `DB` and `TX`. The branch contains an independent
+candidate for PostgreSQL
+test isolation and cleanup, to compare with the placeholder-style worktree:
+per-test schemas and advisory locks, a two-connection pool, and a cleanup
+command that lists marked schemas but deletes only an explicitly named,
+inactive schema. Cleanup uses transactional `RESTRICT` drops, retrying
+internal dependencies and leaving the schema intact if an outside dependency
+or unsupported object blocks deletion.
+
+On 2026-11-14, the interpolation commit passed `go test -count=1 -timeout
+2m ./...` and `go vet ./...` independently. At `2156df4`,
+`SQLAIR_POSTGRESQL_TEST_URL=... go test -race -count=1 -timeout 2m -p 2
+-parallel 4 ./...` passed against the shared PostgreSQL, as did
+`go vet ./...`. The SQLite-only suite also passed before the commits.
+The cleanup command listed no schemas marked by this implementation after
+the runs. No database was created or dropped. Real-dqlite validation remains
+pending. The shared parser rejection is not integrated: raw `$N` currently
+collides with generated parameters. The placeholder-style alternative is
+also committed and pushed separately; retain both candidates for comparison
+rather than overwriting either. The shared decision log and backfill require
+user confirmation before they are committed.
+
 Next actions:
 
-- [ ] Reserve in the dashboard; record owner/session here.
-- [ ] Create worktree `canonical/sqlair/.worktrees/dollar-placeholders`
+- [x] Reserve in the dashboard; record owner/session here.
+- [x] Create worktree `canonical/sqlair/.worktrees/dollar-placeholders`
   on branch `dollar-placeholders` from current `origin/main`; record the
   base.
-- [ ] Implement the commits below, then validate.
+- [ ] Integrate the shared parser rejection and complete the remaining
+  planned commits.
 - [ ] Verify on real dqlite (shared requirements).
-- [ ] Prepare `pr.md` locally; publication, fork creation and pushes need
-  the user's approval.
+- [x] Prepare `pr.md` locally. PR publication and future pushes need the
+  user's approval.
 
 ## Scope
 
