@@ -60,6 +60,9 @@ SQLite/dqlite results.
 
 ## Working agreement
 
+- Do not use Node.js (`node`) or Perl (`perl`) in this workflow, including
+  ad hoc file-editing or validation scripts. Use direct file tools and
+  repository-provided tooling instead.
 - Refresh and record the upstream 4.1 base (`B`). Check current code and
   existing reviews for completed work before implementing anything.
 - Start each independent branch from `B`; continue open reviews on their
@@ -104,7 +107,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `ddb7e2df-6760-4f1f-94e5-8bcfa0df4332` |
-| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (authorized H3 start, 2026-11-14; H3a audit complete, full-schema gates blocked on shared fixes) |
 | [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no combined fixes) |
@@ -125,6 +128,35 @@ The coordinator refreshes this snapshot at handoff, landing or a status
 sweep. Workers update their branch record, not this dashboard on each
 commit or review. GitHub is authoritative for live PR state. A merged PR
 does not establish functional QA or PoC integration.
+
+### GitHub and coordination snapshot (2026-11-14 19:03 UTC)
+
+All 20 queued Juju PRs remain open. #23765 satisfies the recorded review,
+required CI and QA gates; merging still requires explicit authorization.
+No new landing or PoC reconciliation was verified in this sweep.
+
+- #23769 is at `d41e793fe4`, not the head in its branch record. Simon
+  approved an earlier head; required checks pass at the new head, but
+  GitHub still requires review. Its integer-schema correction and later
+  mainline/PoC reconciliation remain distinct from the PoC text workaround.
+- #23751's required checks pass; human review and functional QA remain.
+  #23759's static analysis and #23805's static analysis report
+  GO-2026-6859. #23805 also has multiple setup/smoke failures.
+- #23806 has an LXD setup failure; #23807 has failed JAAS, arm64 snap,
+  migration and MicroK8s jobs. #23809's bundle smoke was canceled and its
+  aggregate failed. These are separate observations, not a common diagnosis.
+  #23766 retains its merge hold and failed Jenkins status.
+- #23838 has two unanswered Codex claims about incompatible preinstalled
+  `golangci-lint` and `yq`; evaluate them, request review and perform
+  functional QA. They are not confirmed defects.
+- The PostgreSQL test owner reports H2 locally complete and H3a audited;
+  full schemas remain blocked on shared source fixes. Decide whether the
+  owner should continue independent generator-only work or pause. H3b/H3c,
+  CI, full-suite enablement and integration are not complete.
+- The claimed sqlair placeholder alternatives and their prerequisite have
+  no PRs. Their owners record remaining real-dqlite validation, review
+  drafts and documentation/decision work; keep their alternative designs
+  and ownership separate. See their linked claim records.
 
 ### Transfer reconciliation and targeted GitHub check (2026-11-13 20:51 UTC)
 

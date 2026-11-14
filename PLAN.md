@@ -155,6 +155,10 @@ missing inputs; do not ask an executor to design and implement a backlog.
 
 ## Session protocol
 
+Do not use Node.js (`node`) or Perl (`perl`) in this workflow, including
+ad hoc file-editing or validation scripts. Use direct file tools and
+repository-provided tooling instead.
+
 1. Read this plan, the named task and its required references, plus the
    code repository's root and applicable nested `AGENTS.md` guidance.
 2. Check both repositories' status and branch tips. Do not overwrite
