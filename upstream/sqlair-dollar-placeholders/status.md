@@ -19,7 +19,7 @@ linked from the PR and the issue as a branch, not opened as a second PR.
 | Worktree | `canonical/sqlair/.worktrees/numbered-placeholders` |
 | Branch | `numbered-placeholders` (pushed to `jameinel/sqlair`) |
 | Base | `main` at `bd54c49` |
-| Head | `2760dcf`; additional uncommitted changes described below |
+| Head | `ae3d19e` locally and on `jameinel/sqlair` |
 | PR | None. Draft: [pr.md](pr.md) |
 | Issue comment | None. Draft: [reply-issue-189.md](reply-issue-189.md) |
 
@@ -31,6 +31,9 @@ Commits, reviewable one at a time:
 3. `eb8381a test: run SQLair against PostgreSQL in a separate module`
    (shared)
 4. `2760dcf fix: emit numbered $N placeholders`
+5. `1a4d508 test: require Go 1.26 for PostgreSQL tests`
+6. `66bf0d4 ci: pin current GitHub Actions releases`
+7. `ae3d19e fix: reject ambiguous SQL placeholder syntax`
 
 CONTRIBUTING.md says PRs are squash-merged with the PR description as the
 commit message; [pr.md](pr.md) is written for that.
@@ -40,10 +43,11 @@ Next actions:
 - [x] Push the approved branch heads to `jameinel/sqlair`.
 - [x] Validate real dqlite with a Juju `replace` directive and state tests
   that include bulk inserts.
-- [ ] Commit and publish the local follow-up changes, with new approval for
-  any force push; prepare the PR from [pr.md](pr.md) for approval. After
-  opening it, fill in the PR number in [reply-issue-189.md](reply-issue-189.md)
-  and confirm before posting.
+- [x] Commit the local PostgreSQL test follow-up.
+- [x] Push the follow-up to `jameinel/sqlair`.
+- [ ] Obtain approval for the exact PR content, then open it. After opening
+  it, fill in the PR number in [reply-issue-189.md](reply-issue-189.md) and
+  confirm before posting.
 - [ ] With separate approval, delete the superseded fork branches listed
   below.
 
@@ -62,6 +66,15 @@ Next actions:
   and agent guidance
   ([`sqlair-agent-guidance`](../sqlair-agent-guidance/status.md)) are
   independent proposals.
+- The README's "Database agnostic" claim states an intent, not a guarantee of
+  current driver support; it does not need changing for this proposal.
+- Direct review: preserve the lightweight parser, reject the identified
+  ambiguous PostgreSQL syntax, and test the PostgreSQL module with both its
+  minimum and the latest Go version. Error precedence for invalid queries is
+  not guaranteed.
+- Document, rather than implement parsing for, SQLite bracket- and
+  backtick-quoted identifiers. Quotes or comment markers inside them can
+  hide raw placeholders; use double-quoted identifiers and SQLair inputs.
 
 ## Compatibility
 
@@ -69,8 +82,12 @@ Next actions:
   API does not.
 - go-mssqldb accepts `@name` and `@pN`, not `$N`, so SQL Server stops
   working. MySQL did not work before and still does not.
-- Raw `$N` now fails at `Prepare`. On `main` it fails at execution; with
-  `$N` emission and no check, it would silently bind SQLair's first input.
+- Raw `$N` normally fails at `Prepare`. On `main` it fails at execution; with
+  `$N` emission it can silently bind SQLair's first input when the check is
+  confused by unsupported identifier quoting.
+- Dollar-quote delimiters, nested block comments, and a backslash immediately
+  before a single quote in a literal are rejected. This includes some valid
+  SQL; dollar-quote-like text in unquoted identifiers can also be rejected.
 
 ## Validation (2026-11-14, Go 1.27.4, head `2760dcf`)
 
@@ -84,7 +101,7 @@ Next actions:
   SQLite and PostgreSQL, and the PostgreSQL error before commit 4.
 - The infrastructure commit's leak check fires and its `CASCADE` fallback
   cleans up. govulncheck is clean for the root and the submodule, with
-  and without `-test`. actionlint flags only the existing old action pins.
+  and without `-test`.
 - Docs build; `make spelling` flags only the existing `security.md` words
   (`Cryptographic`, `TLS`, `utilizing`).
 - Real dqlite: Juju 4.1 at `4262e78b24`, with a session-local modfile
@@ -95,18 +112,34 @@ Next actions:
   tests with the same modfile supplied through `GOFLAGS`.
 - Fork CI: Go tests (including PostgreSQL) and vulnerability scan passed.
   Documentation spelling failed on the existing `security.md` words above.
-- The uncommitted follow-up changes raise the PostgreSQL module to Go 1.26
+- The committed follow-up changes raise the PostgreSQL module to Go 1.26
   and replace Docker instructions in CONTRIBUTING with a generic connection
   URL. Root and PostgreSQL vet and tests, including the live Juju PostgreSQL
   tests, pass with these changes. The PostgreSQL tests also pass with Go
   1.26.4.
+- Repeated root and PostgreSQL tests, vet, module tidy checks and
+  govulncheck with tests; all pass. Real-dqlite Juju state tests pass again.
+- After actionlint reported the old action versions, the changed workflows
+  were updated to current releases pinned by SHA. Actionlint passes for both
+  changed workflows; the separate TIOBE workflow retains its existing pins
+  and custom runner labels.
 - The PR draft now describes a Juju setup. Readiness commands were checked
   against the existing model, and URL construction against synthetic data;
   fresh deployment and credential extraction were not run end to end.
+- On head `ae3d19e`, root formatting, vet, tests and module tidy checks pass.
+  PostgreSQL vet and live tests pass on Go 1.26.0 and 1.27.4, including the
+  three ambiguous-syntax regressions; its module tidy check is clean.
+  Actionlint passes for both changed workflows. The documentation builds;
+  spelling reports only the pre-existing `security.md` words listed above.
+- Real-dqlite Juju constraint tests pass again using `make run-go-tests` and a
+  session-local modfile pointing at this head. SQLite probes confirmed the
+  documented identifier-quoting limitation. No review response is required:
+  the feedback was provided directly, not on a published PR.
 
 ## Superseded branches
 
-Reference only; do not extend them.
+Reference only; do not extend them. Their worktrees have been removed, but
+the branches remain.
 
 | Branch | Head | Location |
 |---|---|---|
@@ -120,4 +153,4 @@ The previous, longer record is in planning commit `09dc917`.
 
 Empty `IN ()` rendering
 ([`sqlair-empty-in`](../sqlair-empty-in/status.md)), dollar-quoted string
-lexing, and bumping the old `actions/checkout`/`actions/setup-go` pins.
+lexing, and updating the unrelated TIOBE workflow.

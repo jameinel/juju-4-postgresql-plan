@@ -24,13 +24,19 @@ parameter and indexes it by first appearance; the two agree only when the
 numbers follow appearance order. A value reused in every row of a bulk
 insert keeps its first placeholder, for example `VALUES ($1, $2), ($3, $2)`.
 
-`Prepare` rejects queries that contain their own numbered placeholder, such
-as `WHERE id = $1`, which would otherwise bind to SQLair's first input with
-`DollarPlaceholders`. The check applies to every style, so a statement can
-be used with any `DB`. Placeholders inside string literals, quoted
-identifiers and comments are ignored. An unquoted identifier such as
-`col$1` is also rejected; quote it as `"col$1"`. Dollar-quoted strings are
-not parsed, so `$1` inside one is rejected.
+Do not write raw numbered placeholders such as `WHERE id = $1`: they can
+silently bind to SQLair's inputs with `DollarPlaceholders`. `Prepare`
+normally rejects them for every style, so a statement can be used with any
+`DB`. The check ignores placeholders in string literals, double-quoted
+identifiers and comments. An unquoted identifier such as `col$1` is also
+rejected; quote it as `"col$1"`. The check rejects dollar-quote delimiters,
+nested block comments and a backslash immediately before a single quote in
+a string literal, because their interpretation can differ between databases.
+Dollar-quote-like text in unquoted identifiers can also be rejected.
+
+SQLite's bracket- and backtick-quoted identifiers are not parsed; quotes or
+comment markers in them can hide raw placeholders from the check. Use
+double-quoted identifiers instead.
 
 There is no style for `?` placeholders. A `?` placeholder cannot be reused,
 so SQLair would need to repeat values for each use, and the drivers that
@@ -42,8 +48,10 @@ A new `tests/postgresql` Go module runs SQLair against PostgreSQL through
 depend on pgx and the root module stays on Go 1.24; the test module requires
 Go 1.26. Its tests skip unless
 `SQLAIR_POSTGRESQL_TEST_URL` is set, and each test runs in its own schema.
-CI runs the module against a `postgres:16` service, and govulncheck scans
-it. CONTRIBUTING.md describes how to run it locally.
+CI runs the module against a `postgres:16` service with both the module's
+minimum Go version and the latest Go release, and govulncheck scans it. The
+changed workflows use current action releases pinned by commit SHA.
+CONTRIBUTING.md describes how to run the tests locally.
 
 Compared with always emitting `$N`
 ([`numbered-placeholders`](https://github.com/canonical/sqlair/compare/main...jameinel:sqlair:numbered-placeholders)),
@@ -56,26 +64,22 @@ Fixes #189.
 
 ## Functional QA
 
-Use a PostgreSQL server where the user can create schemas. For example, with
-Juju, a controller that can deploy machine charms, and `jq`, create a
-dedicated model:
+Use a PostgreSQL server where the user can create schemas. Set
+`SQLAIR_POSTGRESQL_TEST_URL` to a valid database URL. To set one up with Juju,
+create a dedicated model:
 
 ```bash
 export JUJU_CONTROLLER='<controller name>'
 export SQLAIR_QA_MODEL="$JUJU_CONTROLLER:sqlair-qa"
-juju add-model -c "$JUJU_CONTROLLER" sqlair-qa --no-switch
-juju deploy -m "$SQLAIR_QA_MODEL" postgresql --channel 16/stable
-juju deploy -m "$SQLAIR_QA_MODEL" data-integrator --channel latest/stable \
-    --config database-name=sqlairqa
-juju integrate -m "$SQLAIR_QA_MODEL" postgresql:database data-integrator:postgresql
-juju wait-for application -m "$SQLAIR_QA_MODEL" postgresql \
-    --query='status=="active"' --timeout=20m
-juju wait-for application -m "$SQLAIR_QA_MODEL" data-integrator \
-    --query='status=="active"' --timeout=20m
+juju add-model -c "$JUJU_CONTROLLER" sqlair-qa
+juju deploy postgresql --channel 16/stable
+juju deploy data-integrator --channel latest/stable --config database-name=sqlairqa
+juju integrate postgresql:database data-integrator:postgresql
 ```
 
-The following obtains the relation credentials without printing them and
-builds a URL for the first endpoint. It assumes this disposable deployment
+Wait until `juju status` shows both applications as active. The following uses
+`jq` to obtain the relation credentials without printing them and builds a
+URL for the first endpoint. It assumes this disposable deployment
 does not have TLS enabled and that the endpoint is reachable from the test
 machine. Use the appropriate TLS settings for other deployments.
 

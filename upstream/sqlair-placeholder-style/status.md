@@ -20,7 +20,7 @@ issue; no PR is planned unless the maintainers prefer it.
 | Worktree | `canonical/sqlair/.worktrees/placeholder-style-option` |
 | Branch | `placeholder-style-option` (pushed to `jameinel/sqlair`) |
 | Parent | `eb8381a`, the third shared commit of `numbered-placeholders` |
-| Head | `1fe3704 feat: add a per-database placeholder style option`; uncommitted follow-up changes below |
+| Head | `60c75b0` locally and on `jameinel/sqlair` |
 | PR | None planned. Description if chosen: [pr.md](pr.md) |
 
 The commit adds 268 lines and removes 6 across 7 files. The dollar-only
@@ -29,9 +29,10 @@ commit adds 122 and removes 64, mostly renumbered test expectations.
 Next actions:
 
 - [x] Push the approved head alongside `numbered-placeholders`.
-- [ ] Commit and publish follow-up changes with any required approval.
-- [ ] If the maintainers choose this approach, open a PR from
-  [pr.md](pr.md) and validate on real dqlite.
+- [x] Commit PostgreSQL test and documentation link follow-ups.
+- [x] Push follow-up changes to `jameinel/sqlair`.
+- [ ] If the maintainers choose this approach, prepare a PR from
+  [pr.md](pr.md) for approval.
 
 ## Design
 
@@ -58,6 +59,9 @@ Next actions:
 - Do not claim Oracle support for `ColonPlaceholders`; it is tested only
   with SQLite.
 - Errors, not panics, for invalid options.
+- Match the primary proposal's lightweight PostgreSQL syntax rejection and
+  minimum/latest Go CI matrix; document the SQLite identifier-quoting
+  limitation rather than expanding the parser.
 
 ## Validation (2026-11-14, Go 1.27.4, head `1fe3704`)
 
@@ -69,21 +73,35 @@ Next actions:
   every style on SQLite and for `dollar` on PostgreSQL; `at` on PostgreSQL
   fails with `column "sqlair_0" does not exist`.
 - `make spelling` flags only the existing `security.md` words.
-- Not run: real dqlite.
+- Real dqlite: Juju 4.1 state constraint tests pass with a session-local
+  modfile replacing SQLair with this worktree and `make run-go-tests`.
 - Fork CI: Go tests (including PostgreSQL) and vulnerability scan passed.
   Documentation spelling failed on the existing `security.md` words, and
   link checking failed on API anchors not yet published on pkg.go.dev.
-- The uncommitted follow-up changes raise the PostgreSQL module to Go 1.26,
+- The committed follow-up changes raise the PostgreSQL module to Go 1.26,
   use generic PostgreSQL URL instructions in CONTRIBUTING and link to the
   package page rather than unreleased API anchors. Root and PostgreSQL vet
   and tests, including live PostgreSQL with Go 1.26.4, pass; `make linkcheck`
   passes.
+- Repeated root and PostgreSQL tests, vet, module tidy checks and
+  govulncheck with tests; all pass. The changed workflows use current action
+  releases pinned by SHA, and actionlint passes for those workflows.
 - The PR draft has the same Juju setup and verification limits as the
   [primary draft](../sqlair-dollar-placeholders/status.md).
+- On head `60c75b0`, root formatting, vet, tests and module tidy checks pass.
+  PostgreSQL vet and live tests pass on Go 1.26.0 and 1.27.4, including the
+  ambiguous-syntax regressions; its module tidy check is clean. Actionlint
+  passes for both changed workflows. Documentation builds; spelling reports
+  only the existing `security.md` words.
+- Real-dqlite Juju constraint tests pass again using `make run-go-tests` and a
+  session-local modfile pointing at this head. SQLite identifier quoting is
+  not parsed and can hide raw placeholders, as documented in the draft and
+  reference documentation.
 
 ## Superseded branches
 
-Reference only; do not extend them.
+Reference only; do not extend them. Their worktrees have been removed, but
+the branches remain.
 
 | Branch | Head | Location |
 |---|---|---|

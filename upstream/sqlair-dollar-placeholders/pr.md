@@ -14,20 +14,29 @@ two agree only when the numbers follow appearance order. A value reused in
 every row of a bulk insert keeps its first placeholder, for example
 `VALUES ($1, $2), ($3, $2)`.
 
-`Prepare` rejects queries that contain their own numbered placeholder, such
-as `WHERE id = $1`, which would otherwise bind to SQLair's first input.
-Placeholders inside string literals, quoted identifiers and comments are
-ignored. An unquoted identifier such as `col$1` is also rejected; quote it
-as `"col$1"`. Dollar-quoted strings are not parsed, so `$1` inside one is
-rejected.
+Do not write raw numbered placeholders such as `WHERE id = $1`: they can
+silently bind to SQLair's inputs. `Prepare` normally rejects them, while
+ignoring placeholders in string literals, double-quoted identifiers and
+comments. An unquoted identifier such as `col$1` is also rejected; quote it
+as `"col$1"`. The check rejects dollar-quote delimiters, nested block
+comments and a backslash immediately before a single quote in a string
+literal, because their interpretation can differ between databases.
+Dollar-quote-like text in unquoted identifiers can also be rejected.
+
+SQLite's bracket- and backtick-quoted identifiers are not parsed; quotes or
+comment markers in them can hide raw placeholders from the check. Use
+double-quoted identifiers instead.
 
 A new `tests/postgresql` Go module runs SQLair against PostgreSQL through
 `github.com/jackc/pgx/v5/stdlib`. It is separate so that SQLair does not
 depend on pgx and the root module stays on Go 1.24; the test module requires
-Go 1.26. Its tests skip unless
-`SQLAIR_POSTGRESQL_TEST_URL` is set, and each test runs in its own schema.
-CI runs the module against a `postgres:16` service, and govulncheck scans
-it. CONTRIBUTING.md describes how to run it locally.
+Go 1.26. This is the oldest version that is considered actively maintained,
+both as as an LTS release and upstream. pgx itself only claims to require go
+1.25. Its tests skip unless `SQLAIR_POSTGRESQL_TEST_URL` is set, and each test
+runs in its own schema.  CI runs the module against a `postgres:16` service
+with both the module's minimum Go version and the latest Go release, and
+govulncheck scans it. The changed workflows use current action releases pinned
+by commit SHA.  CONTRIBUTING.md describes how to run the tests locally.
 
 Compatibility:
 
@@ -36,36 +45,32 @@ Compatibility:
 - Drivers that do not accept `$N` are no longer supported. This includes
   SQL Server's go-mssqldb, which accepts `@name` and `@pN`. MySQL drivers
   did not work before and still do not.
-- Queries with raw `$N` placeholders fail at `Prepare` instead of when the
-  query runs.
+- Queries with raw `$N` placeholders normally fail at `Prepare` instead of
+  when the query runs, subject to the identifier-quoting limitation above.
 
 An alternative keeps `@sqlair_N` as the default and adds `NewDBWithOptions`
 with a per-database placeholder style:
 [`placeholder-style-option`](https://github.com/canonical/sqlair/compare/main...jameinel:sqlair:placeholder-style-option).
-It shares the first three commits of this branch; its
-[own change](https://github.com/jameinel/sqlair/compare/numbered-placeholders...placeholder-style-option)
-adds the option on top of them.
+It shares the first three commits of this branch. Its
+[changes from the shared base](https://github.com/jameinel/sqlair/compare/numbered-placeholders...placeholder-style-option)
+include the option and follow-up documentation and test changes; this branch
+also has the same PostgreSQL test follow-up.
 
 Fixes #189.
 
 ## Functional QA
 
-Use a PostgreSQL server where the user can create schemas. For example, with
-Juju, a controller that can deploy machine charms, and `jq`, create a
-dedicated model:
+Use a PostgreSQL server where the user can create schemas. We need
+`SQLAIR_POSTGRESQL_TEST_URL` set to a valid database URL.
+You can set one up with Juju, create a dedicated model:
 
 ```bash
 export JUJU_CONTROLLER='<controller name>'
 export SQLAIR_QA_MODEL="$JUJU_CONTROLLER:sqlair-qa"
-juju add-model -c "$JUJU_CONTROLLER" sqlair-qa --no-switch
-juju deploy -m "$SQLAIR_QA_MODEL" postgresql --channel 16/stable
-juju deploy -m "$SQLAIR_QA_MODEL" data-integrator --channel latest/stable \
-    --config database-name=sqlairqa
-juju integrate -m "$SQLAIR_QA_MODEL" postgresql:database data-integrator:postgresql
-juju wait-for application -m "$SQLAIR_QA_MODEL" postgresql \
-    --query='status=="active"' --timeout=20m
-juju wait-for application -m "$SQLAIR_QA_MODEL" data-integrator \
-    --query='status=="active"' --timeout=20m
+juju add-model -c "$JUJU_CONTROLLER" sqlair-qa
+juju deploy postgresql --channel 16/stable
+juju deploy data-integrator --channel latest/stable --config database-name=sqlairqa
+juju integrate postgresql:database data-integrator:postgresql
 ```
 
 The following obtains the relation credentials without printing them and
@@ -197,5 +202,3 @@ Clean up:
 rm -r qa tests/postgresql/qa
 juju destroy-model "$SQLAIR_QA_MODEL" --destroy-storage --no-prompt
 ```
-
-Only destroy the model if it was created for this QA.
