@@ -106,7 +106,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `9c43947c-a0e6-40c2-a3dc-af93e0bbe9a8` (authorized takeover, 2026-11-12) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `87b89739-8e7d-4e6e-a852-8cf8fa0e4d61` |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `ddb7e2df-6760-4f1f-94e5-8bcfa0df4332` |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `6d5559ea-28f8-4389-aa51-de3e98e84db4` (authorized review follow-up transfer, 2026-11-14) |
 | [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (authorized H3 start, 2026-11-14; H3a audit complete, full-schema gates blocked on shared fixes) |
 | [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
@@ -129,7 +129,48 @@ sweep. Workers update their branch record, not this dashboard on each
 commit or review. GitHub is authoritative for live PR state. A merged PR
 does not establish functional QA or PoC integration.
 
-### GitHub and coordination snapshot (2026-11-14 19:03 UTC)
+### GitHub and coordination snapshot (2026-11-16 15:18 UTC)
+
+Of the 20 previously queued Juju PRs, 18 remain open. Two additional
+user-owned sqlair PRs are open. None is merge-ready: review gates,
+functional QA, CI, or a merge hold remain. GitHub heads were rechecked.
+Skipped checks are not passes.
+
+- #23765 merged 2026-11-14 at head `3b733c237bc98f8669307dae42091469c579542d`,
+  merge `d0876dfe9ad11a760223252f45f0f0fc3c174457`. Preserve NULL
+  Boolean/timestamp fidelity and revisit the markers with the dqlite fix.
+- #23729 merged 2026-11-16 at head `c55d5839e5516157d5017b66ece7655861f2b61e`,
+  merge `f9ddbaee6b90b8d67f84535b67f7fb2b32d5d0f5`. Compare its lease-pin
+  conflict handling with the PoC implementation; reconciliation is pending.
+  The owners of both branch records are not established, so their stale
+  current sections were not edited.
+- #23838 is at `0ed7ee32e4`; its two earlier Codex claims were answered,
+  but a new claim about spaces in the first GOPATH entry is unanswered.
+  Documentation generation was canceled and the aggregate failed; human
+  review and functional QA remain.
+- #23805 has a new Van Cleef comment with three optional suggestions.
+  Static analysis reports GO-2026-6859; JAAS, arm64, migration, upgrade and
+  smoke jobs also failed. #23759 reports the same vulnerability ID; #23806
+  has an LXD setup failure; #23807 has JAAS, arm64, migration and MicroK8s
+  failures. These observations do not establish a common cause.
+- #23809 has two human approvals and passing required checks; functional QA
+  remains. #23766 retains its attachment-invariant merge hold and failed
+  Jenkins status. #23723 remains behind #23710; reconcile its combined
+  schema guard with #23724 when the changes meet.
+- The PostgreSQL test owner records H2 complete and approved independent
+  H3b work in progress. Full-schema acceptance remains blocked on shared
+  fixes; H3c, CI and combined integration are not complete.
+- SQLair `agent-guidance` [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194)
+  has passing checks but no human review. `numbered-placeholders`
+  [canonical/sqlair#195](https://github.com/canonical/sqlair/pull/195)
+  has no human review and a spelling failure for existing `security.md`
+  words. #194 fixes that failure and its spelling check passes. Both PRs
+  remained open when rechecked on 2026-11-16. After #194 lands, rerun
+  #195's spelling check against the updated base; do not assume it passed
+  from #194's result. The configurable alternative is a published branch,
+  not another PR.
+
+### Historical GitHub and coordination snapshot (2026-11-14 19:03 UTC)
 
 All 20 queued Juju PRs remain open. #23765 satisfies the recorded review,
 required CI and QA gates; merging still requires explicit authorization.
@@ -262,10 +303,10 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`4.1-application-exposure-scope`](upstream/4.1-application-exposure-scope/status.md) | Depends on charm; rebase/regenerate after charm lands. |
 | [`4.1-binary-key-columns`](upstream/4.1-binary-key-columns/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-blockcommand-order`](upstream/4.1-blockcommand-order/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | [#23809](https://github.com/juju/juju/pull/23809): direct instance-ID query and adjacent COALESCE follow-up published; Simon approved, but GitHub review gate, failed CI and functional QA remain. |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | [#23809](https://github.com/juju/juju/pull/23809): two current-head human approvals and required CI pass; functional QA remains. |
 | [`4.1-changestream-latest-row`](upstream/4.1-changestream-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | Confirm upstream ordering contract; review, CI triage and functional QA. |
-| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | [#23765](https://github.com/juju/juju/pull/23765): approvals, CI and reported QA satisfy the merge gate; obtain explicit authorization. |
+| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | [#23765](https://github.com/juju/juju/pull/23765) landed; revisit NULL markers when the dqlite dependency is fixed. The owner-uncertain branch record still shows an older open snapshot. |
 | [`4.1-controller-node-id-text`](upstream/4.1-controller-node-id-text/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | [#23806](https://github.com/juju/juju/pull/23806): stream-free controller lookup and review responses published; review, failed CI and live QA remain. Per-binary stream membership is separate design work. |
 | [`4.1-crossmodel-secret-revisions`](upstream/4.1-crossmodel-secret-revisions/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
@@ -275,11 +316,11 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | [#23759](https://github.com/juju/juju/pull/23759) is at `39b1dc3cd8`, based on refreshed 4.1 after the merged keymanager fix; investigate failed CI and await review. Temporary casts have a dependency-fix removal condition. |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | [#23838](https://github.com/juju/juju/pull/23838): clean/repeated-install evidence recorded, aggregate checks SUCCESS; review and PR functional QA remain. |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | [#23838](https://github.com/juju/juju/pull/23838): evaluate the new Codex claim; documentation cancellation, failed aggregate, human review and PR functional QA remain. |
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-keymanager-insert-id`](upstream/4.1-keymanager-insert-id/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lease-migration-tests`](upstream/4.1-lease-migration-tests/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
+| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | [#23729](https://github.com/juju/juju/pull/23729) landed; compare with the PoC during reconciliation. The owner-uncertain branch record still shows an open snapshot. |
 | [`4.1-local-secret-revisions`](upstream/4.1-local-secret-revisions/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lookup-key-not-null`](upstream/4.1-lookup-key-not-null/status.md) | Independent INT-key guard; reconcile the combined guard when changes meet. |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -287,7 +328,7 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`4.1-nullable-primary-keys`](upstream/4.1-nullable-primary-keys/status.md) | Land charm before exposure; retain the explicit stack exception. |
 | [`4.1-objectstore-conflicts`](upstream/4.1-objectstore-conflicts/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-operation-query-portability`](upstream/4.1-operation-query-portability/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
-| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | Central configuration pushed to the fork on the schema-layout prerequisite; [upstream integration plan](upstream/4.1-postgresql-tests/integration-plan.md) records remaining driver/schema/CI stages. PostgreSQL execution is not implemented yet. |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | H2 driver/schema plumbing is pushed and focused PostgreSQL acceptance passed; independent H3b generation is in progress. Full schemas, suite enablement and CI remain incomplete; see the [integration plan](upstream/4.1-postgresql-tests/integration-plan.md). |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Existing review; continue the recorded acceptance contract and outstanding actions. |
 | [`4.1-removal-force-boolean`](upstream/4.1-removal-force-boolean/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | Move-only prerequisite at `9da8100e16`, on refreshed upstream `b36eefc4b3`; pushed to the fork with approval, local PR draft not published. |
@@ -305,11 +346,11 @@ Rows outside the targeted check above retain their earlier recorded state.
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
 | [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; agree design and deterministic reproduction before dispatch. Incident cause remains unproven. |
-| [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | Independent canonical/sqlair `AGENTS.md` proposal; local branch `agent-guidance`, unpushed, no PR drafted. |
+| [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | Independent `AGENTS.md` proposal [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194); checks pass, human review pending. |
 | [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; independent future proposal, no longer carried by the placeholder branches. Unclaimed. |
-| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Primary canonical/sqlair proposal (sqlair#189): always emit `$N`. Local branch `numbered-placeholders`; PR and #189 comment drafted; push/publication approval and real-dqlite validation pending. |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Primary proposal [canonical/sqlair#195](https://github.com/canonical/sqlair/pull/195): always emit `$N`. Human review remains; spelling CI depends on the existing `security.md` fix in [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194). Rerun against the updated base after it lands. Real-dqlite validation and issue reply recorded. |
 | [Juju empty-collection membership (X2)](upstream/sqlair-empty-in/status.md) | Planned Juju caller-level portability commit in PostgreSQL enablement (H3.1), not sqlair rendering or a mandatory separate PR. Required before affected H4 acceptance. Record path retained. |
-| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Comparison branch `placeholder-style-option` (per-`DB` style option) sharing three commits with `numbered-placeholders`; linked from the primary PR, no PR planned. Earlier published branches are reference only. |
+| [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Published comparison branch `placeholder-style-option` (per-`DB` style option), linked from the primary PR; no PR planned unless maintainers choose it. |
 
 ## D55 implementation review (2026-11-06)
 

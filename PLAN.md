@@ -290,10 +290,14 @@ Next:
    X24 #23750 landed on 2026-11-13; the integration owner should compare
    the PoC's earlier equivalent SQL with the final upstream result under
    UPSTREAM-INTEGRATION.md. Reconciliation and its validation remain pending.
+   Lease-pin #23729 landed on 2026-11-16; compare its final conflict handling
+   with the PoC's Stage 5 implementation under the same procedure.
+   Neither landing establishes PoC integration or PostgreSQL validation.
 4. Continue the approved
    [PostgreSQL test-infrastructure checkpoints](upstream/4.1-postgresql-tests/integration-plan.md).
-   Schema layout and central backend configuration are published on the
-   fork; PostgreSQL execution, CI and combined-fix integration remain
+   Schema layout, central backend configuration and H2 driver/schema
+   plumbing are published on the fork; focused H2 PostgreSQL acceptance
+   passed. Full-schema execution, CI and combined-fix integration remain
    unfinished. Keep these branches independent of PoC runtime acceptance.
 
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:

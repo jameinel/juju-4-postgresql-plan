@@ -458,7 +458,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   PostgreSQL aborts the whole transaction. Fixed as portability on
   Stage 5, `fix(lease): resolve lease pin conflicts in sql`, with
   `ON CONFLICT DO NOTHING` (DIALECT.md X18). The independent upstream
-  implementation is in open PR #23729.
+  implementation landed in #23729 on 2026-11-16; compare it with the PoC
+  before reconciliation.
 - `TestSetAPIAddressesSharedPeerRollsBack` violates
   `controller_peer_address.controller_id NOT NULL` on purpose to force a
   rollback. The service never builds a shared peer projection. Only the
@@ -500,7 +501,7 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-lookup-key-not-null`](upstream/4.1-lookup-key-not-null/status.md) | U17 | [#23724](https://github.com/juju/juju/pull/23724) |
 | [`4.1-dbaccessor-pool-cleanup`](upstream/4.1-dbaccessor-pool-cleanup/status.md) | U14 | [juju/juju#23726](https://github.com/juju/juju/pull/23726) |
 | [`4.1-agentbinary-conflict`](upstream/4.1-agentbinary-conflict/status.md) | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) |
-| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | X18 | [#23729](https://github.com/juju/juju/pull/23729) |
+| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | X18 | [#23729](https://github.com/juju/juju/pull/23729), merged 2026-11-16; PoC reconciliation pending |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | X16 | [#23730](https://github.com/juju/juju/pull/23730) |
 | [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | X7 | [#23751](https://github.com/juju/juju/pull/23751) |
@@ -508,7 +509,7 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | U13 follow-up, test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) |
-| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765) |
+| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765), merged 2026-11-14; revisit markers with the dqlite fix |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | U18 | [#23838](https://github.com/juju/juju/pull/23838), open 2026-11-13 |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | U19/X16 | not proposed |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) |
@@ -561,9 +562,9 @@ Notes:
   with their PoC equivalents; neither follow-up is reconciled into the PoC.
 - U16's merged shared-state implementation replaced the earlier PoC
   cherry-picks in the 2026-11-11 rebase; validation remains incomplete.
-  `PinLease` and
-  sequence allocation already have independent review branches; continue
-  those rather than starting new implementations.
+  `PinLease` landed in #23729; compare it with the PoC during
+  reconciliation. Sequence allocation remains in independent review;
+  do not start a duplicate implementation.
   Developer tooling is published as juju/juju#23838; the five-query
   latest-secret rewrite remains a separate unclaimed task in
   UPSTREAM-PLAN.md.
