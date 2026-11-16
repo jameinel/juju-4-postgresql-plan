@@ -4,6 +4,35 @@
 
 ## Current state and next actions
 
+2026-11-16 review follow-up: coordinator authorized takeover by session
+`a7cb8548-f5f6-43de-a460-86cf53db2f6e`. Local, origin and PR head are
+`5c6eb270e6`. The new Codex
+[GOPATH finding](https://github.com/juju/juju/pull/23838#discussion_r4575422384)
+did not reproduce with Go 1.27.3 or 1.27.4: `go env GOBIN` returned the
+effective first GOPATH entry's bin directory, including spaces, with
+GOBIN and GOPATH unexported and GOPATH configured through `go env -w`.
+The coordinator requested a shared lookup rather than a spaces-specific
+regression. Commit `5c6eb270e6` uses `go env GOBIN` for both the
+installer and static analysis, removing the fallback and duplicate logic.
+
+The existing installer compatibility test passed with Go 1.27.3.
+ShellCheck passed for the expanded installer recipe; `git diff --check`
+and `make pre-check` passed, but the latter skipped static analysis.
+An isolated Go configuration showed both consumers use a saved GOBIN.
+Full static analysis and a fresh privileged install were not repeated.
+The existing `pr.md` still matches the live description and needs no
+change. With separate approval, pushed the follow-up and posted and
+verified the [reply](https://github.com/juju/juju/pull/23838#discussion_r4590452385),
+which matches `reply-codex-gopath.md`. The three Codex threads remain
+unresolved.
+
+The live PR requires human review. On the prior head, the documentation
+job was cancelled after 24 hours and `Check Tests Passed` failed; the
+cause of the cancellation is not established. Other checks passed or
+were skipped. Checks on the new head are queued or in progress, with
+some already passed or skipped. Next: monitor CI and obtain human
+review.
+
 2026-11-14 review follow-up: owner transferred by coordinator to session
 `6d5559ea-28f8-4389-aa51-de3e98e84db4`. Local, origin and PR head are
 `0ed7ee32e4` on `4.1-install-dependencies`. Both Codex findings are addressed:
