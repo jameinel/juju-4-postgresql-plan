@@ -122,6 +122,26 @@ next actions belong in the branch record, not this table.
 Absence from this table does not establish that an existing branch is
 unowned. Historical records may omit assignments; confirm before takeover.
 
+### Operation query review update (2026-11-17 22:10 UTC)
+
+[#23693](https://github.com/juju/juju/pull/23693) is open at `9b2e784d3c`.
+Simon requested direct queries instead of the dynamic size-query builder.
+The published follow-up uses static aggregates, constant row-size estimates
+and measured variable text. It retains the NULL fix and object-store content
+accounting; estimates can change pruning decisions near the limit. The PR
+description and reply to Simon were published, but the thread remains open.
+Review is required. Current Actions checks pass except for a cancelled macOS
+client test and skipped jobs; local SQLite, real-dqlite, scoped lint and
+txncheck passed. Manual controller QA and full pre-check remain unrun.
+
+An optional PostgreSQL 16.15 diagnostic ran adapted SQL against isolated
+operation and object-store tables: the estimate and 32 boolean-filter
+combinations passed, and the original non-text `octet_length` issue was
+reproduced. The branch's SQLite-only `IN uuids` syntax failed; the explicit
+subquery already merged in #23750 passed, and a merge preview retained it.
+This is not full Juju/Sqlair PostgreSQL acceptance. The temporary schema was
+rolled back. PoC reconciliation remains separate.
+
 ## Branch summaries
 
 The coordinator refreshes this snapshot at handoff, landing or a status
