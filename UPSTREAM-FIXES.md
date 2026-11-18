@@ -113,8 +113,10 @@ for residual test work and the incomplete validation.
   context/snapshot acknowledgment can diverge under the candidate ABA
   ordering identified during D54. Charms may skip intermediate states,
   but must receive another update when current content differs from the
-  last delivered context. The user confirmed that the context available
-  at hook start must be immutable and match the acknowledged delivery.
+  last delivered context. On 2026-11-12 the user confirmed that the
+  context available at hook start must be immutable and match the
+  acknowledged delivery; the later task record leaves that stricter
+  snapshot requirement open for team decision.
   This is not established as the original incident's cause or as
   dqlite-specific. Relevant stock 4.1 paths were verified at `bd970f693c`;
   deterministic reproduction and implementation design remain pending.
@@ -515,7 +517,7 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | U22/X16 | [juju/juju#23784](https://github.com/juju/juju/pull/23784) |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809), open 2026-11-12 |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809), merged 2026-11-16; PoC reconciliation pending |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | U25 | [juju/juju#23806](https://github.com/juju/juju/pull/23806) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | U24 | [juju/juju#23807](https://github.com/juju/juju/pull/23807) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | X17 | [juju/juju#23805](https://github.com/juju/juju/pull/23805) |
@@ -552,7 +554,7 @@ Notes:
   the integration procedure; no reconciliation is recorded.
   X18 is represented by the
   merged U16 agent-binary fix and the separate `PinLease` review above.
-- U20's published review follow-up selects the instance ID directly rather
+- U20's landed review follow-up selects the instance ID directly rather
   than retaining the PoC's aggregate formulation, and changes the adjacent
   network `IFNULL` to `COALESCE`. Keep that occurrence out of a separate
   cleanup breakout. U25's published follow-up removes the controller

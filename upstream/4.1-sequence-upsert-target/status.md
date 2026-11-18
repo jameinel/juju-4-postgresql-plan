@@ -4,14 +4,33 @@
 
 ## Current state and next actions
 
+On 2026-11-17 the user authorized rebasing and squashing the existing branch
+in its worktree. Local head `e63bb20830` is one commit on upstream 4.1
+`1a0d0c78bc`; its sequence files match the former published head
+`696c116f79`. The worktree belongs to this review task. The rebased head
+was pushed with the user's approval and an explicit lease on the former
+head. GitHub confirmed the new head, reported it mergeable and approved,
+and showed checks queued or pending. The user approved the reply, which was
+[published and verified](https://github.com/juju/juju/pull/23731#issuecomment-6965404634).
+
+The sequence package race suite passed with SQLite and real dqlite using
+`make run-go-tests TEST_PACKAGES='./domain/sequence/...' TEST_ARGS='-p 2
+-race -count=1 -timeout 180s'`. Scoped golangci-lint and repository
+txncheck passed. `make pre-check` passed but skipped static analysis.
+The bounded concurrent allocation stress run reported 40 runs, zero
+failures and two active at the intentional 31-second timeout; it did not
+complete normally. PostgreSQL execution was not tested.
+
+Pedram reported QA passed and approved before the rebase; CI was green or
+skipped at the old head. That QA and CI evidence applies to that head, not
+the rebased commit.
+Van Cleef's three suggestions were addressed and answered previously.
+The live PR description already explains the final implementation, so no
+description edit is proposed. See [the prepared reply](reply-rebase.md).
+
 Migrated from existing planning records on 2026-11-11; no new GitHub
 or validation check was performed for this migration. Evidence below
 retains its original dates and revisions; it does not validate later heads.
-
-Ownership is not established by this historical review entry. Confirm
-the current owner before modifying an existing branch or worktree.
-
-Head `696c116f79` replaces RETURNING with a checked upsert and same-transaction lookup to preserve retryable errors. Current reported checks have no failures or pending jobs; Simon's approval predates this head. Complete functional QA and review. Preserve zero-based allocation, contiguous batches, namespace isolation, rollback and import continuity.
 
 ## Review artifacts
 
@@ -20,6 +39,7 @@ Compare against GitHub before preparing an update; publication needs
 explicit approval of the exact content and action.
 
 - [pr.md](pr.md)
+- [reply-rebase.md](reply-rebase.md)
 
 ## Recorded scope and evidence
 

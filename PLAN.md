@@ -284,8 +284,9 @@ Next:
    user-requested merge hold pending attachment-invariant investigation and
    rework, not an instruction to merge the deterministic-row version.
    U21's integer-schema rework is published as #23769; grouped-column work
-   includes CA-certificate preservation. `4.1-boolean-and-aggregate-literals`
-   remains separately scoped. Alongside these, audit the `0` / `1` seed
+   includes CA-certificate preservation. U20 #23809 landed on 2026-11-16;
+   compare its final SQL with the PoC before reconciliation. Alongside
+   these, audit the `0` / `1` seed
    rows written to `BOOLEAN` columns (UPSTREAM-PLAN.md D55 audit table).
    X24 #23750 landed on 2026-11-13; the integration owner should compare
    the PoC's earlier equivalent SQL with the final upstream result under

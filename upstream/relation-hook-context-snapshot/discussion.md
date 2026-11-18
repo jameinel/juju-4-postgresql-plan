@@ -120,7 +120,11 @@ credentials or endpoints. Agent restarts don't recover it. It is hard
 to diagnose: `relation-get`, `juju exec` and the database all show
 correct current data, and the agent is idle.
 
-## Recommended fix: record the version that was read
+## Proposed fix: record the version that was read
+
+This proposal addresses the triggering bag in the scenario above, but
+is not yet a complete fix: reads of other bags can still miss updates,
+as described below. The design and its full contract remain open.
 
 When the hook reads the data of the unit or application that triggered
 it, record that data's version instead of the queued one. With
@@ -138,9 +142,9 @@ coalescing as long as the hook read A.
 3. **Substitute before the hook is marked Done.** `Execute` saves the
    hook info with step `Done` [done], and `Commit` records whatever
    that contains. Update `ChangeVersion` before that state is saved.
-4. **Only for the triggering unit or application.** If unit/0's hook
-   reads unit/1's data, unit/1's recorded version is unchanged, so its
-   own hook still runs: possibly redundant, never missed.
+4. **Only for the triggering unit or application.** The proposal leaves
+   other bags' recorded versions unchanged. This is insufficient for
+   the cross-unit ordering below.
 5. **If the hook didn't read the data, keep the queued version.** The
    charm was notified and chose not to read.
 
@@ -161,6 +165,21 @@ version bump may be required by convention.
 This keeps today's read behavior, including different bags coming from
 different moments, and needs no schema change.
 
+### Unresolved cross-unit read
+
+Suppose unit/1's version A was acknowledged, but its data is not in
+the cache because the earlier hook did not read it or the agent
+restarted. During unit/0's hook, unit/1 changes to B and the charm first
+reads unit/1's data. Unit/1 then returns to A before the resolver
+selects another hook. The proposal does not update unit/1's recorded
+version, so recorded A equals current A and no unit/1 hook is required,
+even though the charm last read B. Application bags can also be read
+outside their own triggering hook; their corresponding orderings need
+evaluation.
+
+The design must address or explicitly resolve this gap before it is
+recommended as satisfying the notification contract.
+
 ## Alternatives
 
 **Versions that always increase (3.6 behavior).** Add a per-bag
@@ -169,7 +188,7 @@ version. This also prevents the missed update, without API changes.
 Costs: a schema change and an upgrade step for existing rows, and the
 revision must not restart when a unit leaves and rejoins (a model-wide
 sequence avoids that). It produces more redundant hooks than the
-recommended fix.
+trigger-only proposal.
 
 **A fixed snapshot per hook.** At hook start, read all remote data the
 hook may need, with versions, in one transaction. Serve every read in
@@ -200,7 +219,7 @@ Write a deterministic uniter test, using barriers rather than sleeps:
    next operation.
 
 On 4.1 today: the hook reads B, records A, and no further hook runs.
-With the recommended fix: B is recorded and another hook reads A.
+For the triggering bag, the proposal records B and another hook reads A.
 Testing the resolver alone isn't enough; the test has to check what the
 hook actually read.
 
@@ -210,7 +229,10 @@ Also cover:
 - the relation-changed that follows relation-joined;
 - a hook that doesn't read the data;
 - a restart at `Pending` and at `Done`;
-- unit/1's data read during unit/0's hook;
+- an uncached unit/1, previously acknowledged at A, read at B during
+  unit/0's hook and restored to A before the resolver selects a hook;
+- application data read by a hook triggered by a different bag, including
+  an A -> B -> A ordering;
 - an older controller that returns no version.
 
 Run with `-race` and bounded stress. A live reproduction is possible

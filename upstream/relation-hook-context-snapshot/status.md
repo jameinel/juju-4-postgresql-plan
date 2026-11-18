@@ -7,13 +7,14 @@
 ## Current state and next actions
 
 Recorded 2026-11-12 UTC, continuing the local 2026-11-11 D54 investigation.
-Updated 2026-11-17 UTC with the 3.6 comparison and a recommended fix.
+Updated 2026-11-17 UTC with the 3.6 comparison and a proposed fix, and
+2026-11-18 with an unresolved cross-unit gap in that proposal.
 **High-priority transactional correctness concern; unclaimed.** The exact
 cause of the observed incident remains unproven; this is not a confirmed
 wild incident or a dqlite-specific diagnosis.
 
 The [team discussion document](discussion.md) is the reference for the
-analysis, recommended fix and alternatives. The user is drafting an email
+analysis, proposed fix and alternatives. The user is drafting an email
 to the Juju team asking whether this should be fixed for 4.1.
 
 This is an independent Juju 4.1 correctness issue, not a SQL/schema
@@ -36,9 +37,10 @@ require separate approval.
 - Runtime evidence: development build at
   `f3340c67107829347ee750f7e40e806e563411e9`; distinct from stock-source
   inspection. No clean stock runtime reproduction has been run.
-- Phase: source analysis complete and a fix recommended for team
-  discussion. Design decision and deterministic reproduction pending. No
-  fix, regression execution or upstream issue/PR.
+- Phase: source analysis and a proposed fix for team discussion. A
+  cross-unit read exposes a gap in that proposal; design decision and
+  deterministic reproduction remain pending. No fix, regression execution
+  or upstream issue/PR.
 - Dashboard registration: left for coordinator handoff because
   `UPSTREAM-PLAN.md` has other sessions' uncommitted reservation changes.
   The finding register and D54 record link to this task.
@@ -49,9 +51,10 @@ Next actions:
    implementation. The paths were inspected at the revision above;
    check for subsequent changes and existing implementations/reviews before
    branching. Runtime reproduction remains separate from source inspection.
-2. Obtain the team's decision on 4.1 priority and on the design: the
-   recommended "record the version read" fix, monotonic revisions or a
-   per-hook snapshot (see [2026-11-17 findings](#2026-11-17-findings)).
+2. Obtain the team's decision on 4.1 priority and on the design: address
+   the cross-unit gap in "record the version read", or evaluate monotonic
+   revisions or a per-hook snapshot (see
+   [findings](#2026-11-17-findings)).
 3. Implement a deterministic regression for the contract and event
    orderings below. Do not depend on reproducing the original live race.
 4. Prepare one upstream correctness breakout, including diagnostic guidance
@@ -69,11 +72,14 @@ Next actions:
   write, so a hook that read newer data than its queued version always
   got another hook. 4.x content-hash versions repeat on A -> B -> A,
   which turns the same skew into a missed update. This is a regression.
-- **Recommended fix (not yet agreed):** when a hook reads the triggering
+- **Proposed fix (not yet agreed):** when a hook reads the triggering
   unit's or application's data, record the version of what it read.
   The controller returns the version with the settings, and the agent
-  substitutes it before the hook's `Done` state is saved. Details,
-  restart behavior and alternatives are in [discussion.md](discussion.md).
+  substitutes it before the hook's `Done` state is saved. A later review
+  identified an unresolved cross-unit ABA ordering: an uncached
+  non-triggering unit can be read at B after A was acknowledged, then
+  return to A without triggering another hook. Details, restart behavior
+  and alternatives are in [discussion.md](discussion.md).
 - **`juju resolved --no-retry` is out of scope.** The user confirmed its
   contract is to commit without rerunning the hook; it keeps recording
   the queued version.
@@ -81,7 +87,8 @@ Next actions:
   flaw appears to be recording hash(A) after the hook read B. Whether a
   hook must also be prevented from reading data newer than its trigger
   (the stricter 2026-11-12 contract below) is for the team to decide.
-  The recommended fix does not provide that; a per-hook snapshot would.
+  The proposed trigger-only fix does not provide that; a per-hook
+  snapshot would.
 
 ## Required transactional contract
 
@@ -193,7 +200,7 @@ this record does not prescribe a PostgreSQL implementation or dependency.
 Recorded 2026-11-12 UTC for a snapshot-based design. Criteria 1-3 assume
 a hook reads only its assigned snapshot; revise them once the team
 chooses a design. The deterministic test and coverage list in
-[discussion.md](discussion.md#testing) apply to the recommended fix.
+[discussion.md](discussion.md#testing) include the gap in the proposed fix.
 
 1. Capture a coherent snapshot and identity before hook execution; persist
    acknowledgment of that delivery, never of whatever is current at

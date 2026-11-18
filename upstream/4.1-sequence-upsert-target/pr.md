@@ -1,24 +1,24 @@
-> Proposed replacement description for juju/juju#23731, based on published
-> head `76b4a04f09`. This local draft has not been published. The functional
-> QA steps below have not been performed.
-
-Destination: https://github.com/juju/juju/pull/23731
-Action: replace the PR description, subject to approval.
-Title: fix(sequence): target namespace conflicts when allocating sequence values
+> Snapshot of the published description for juju/juju#23731, checked on
+> 2026-11-17. No description change is proposed for the local rebase.
 
 Both sequence allocators use an upsert without a conflict target, which
 PostgreSQL does not accept for `DO UPDATE`. Their unqualified `value`
 expression is also ambiguous between the existing row and the excluded row.
 
 Target the namespace primary key and qualify the stored value. Share a scalar
-allocator between `NextValue` and `NextNValues`, and use `RETURNING` to read
-the allocated value from the upsert without a separate `SELECT`. This keeps
-zero-based allocation, contiguous batches, namespace isolation and rollback
-within the caller's transaction. A zero-count batch remains a no-op.
+allocator between `NextValue` and `NextNValues`. Check that the upsert affected
+one row, then read the allocated value in the same transaction. The write lock
+prevents another transaction from changing that namespace between the two
+statements. Callers must not allocate concurrently using the same transaction.
 
-Add regressions for mixed and concurrent allocations, namespace variants,
-rollback, suppressed writes, and continuation after sequence import. The
-fixtures exercise the allocation contract on SQLite/Dqlite; they do not
+This preserves zero-based allocation, contiguous batches, namespace isolation
+and rollback within the caller's transaction. A zero-count batch remains a
+no-op. Avoid `RETURNING` until dqlite and SQLair preserve write and row
+iteration errors; otherwise retryable conflicts can be reported as other
+errors. The sentinel in https://github.com/juju/juju/pull/23756 signals when
+the bundled dqlite behavior changes and the workaround should be reviewed.
+
+The SQLite and dqlite fixtures exercise the allocation contract but do not
 establish PostgreSQL SQL acceptance or execution.
 
 ## Checklist
@@ -73,7 +73,7 @@ juju debug-log --replay --no-tail -m sequence-qa
 juju destroy-controller sequence-qa-controller --destroy-all-models --destroy-storage
 ```
 
-These steps exercise SQLite/Dqlite, not PostgreSQL.
+These steps exercise SQLite/dqlite, not PostgreSQL.
 
 ## Documentation changes
 
@@ -81,4 +81,5 @@ No CLI or API workflow changes.
 
 ## Links
 
-No associated upstream issue or Jira card.
+- Dqlite `RETURNING` error handling: https://github.com/canonical/dqlite/pull/918
+- Keymanager workaround and dqlite sentinel: https://github.com/juju/juju/pull/23756
