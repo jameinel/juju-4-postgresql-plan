@@ -1,325 +1,244 @@
-# Juju 4.1: relation-hook context and acknowledgment can diverge
+# Juju 4.1: lost relation-changed after an A -> B -> A settings change
 
 ## Summary
 
-There is a source-level race in Juju 4.1 that appears capable of leaving a
-charm with stale relation data while the uniter considers it up to date.
-The hook's change version is selected from a watcher snapshot, but its
-remote settings are fetched separately, lazily, without that version.
-The hook can therefore read content other than the content identified by
-its trigger and subsequent acknowledgment.
+A relation-changed hook can read remote relation data that differs from
+the version the uniter records for it. If the data then returns to its
+earlier content (A -> B -> A), the recorded and current versions match
+and no further hook runs. The charm keeps acting on B until an unrelated
+change happens.
 
-An A -> B -> A transition makes the consequence particularly clear:
-the charm can read B while the uniter records delivery of A, then suppress
-another hook because current content is A again.
+The cause is two properties together:
 
-This is a Juju 4.1 relation-delivery correctness issue, not a database
-portability task. It does not depend on another development branch or a
-different database backend. Cross-model relations and controller restarts
-were involved in the motivating observation, but should not be assumed
-necessary to expose the underlying race.
+1. The version recorded for a hook is chosen when the hook is queued,
+   but the data is fetched later, on the hook's first `relation-get`.
+2. In 4.x, versions are hashes of the content, so A always has the same
+   version.
 
-**Evidence status:** the relevant paths have been inspected in stock
-upstream 4.1 at `bd970f693c8e5060973016fe9059108570fa5bd3`, verified as
-the upstream branch tip on 2026-11-12 UTC. A deterministic failure
-reproduction on an unmodified stock build has not yet been run. The exact
-event ordering in the motivating incident remains unproven.
+3.6 has the first property but its versions only ever increase, so the
+same timing produces an extra hook rather than a missed one. This is a
+4.x regression, independent of the database backend.
 
-## The guarantee at risk
+**Evidence status:**
 
-Charms rely on hook notifications rather than polling relation data.
-Juju need not deliver every intermediate state, but it must attempt
-another update when current content differs from the last context
-delivered to the charm.
+- Code paths inspected at 4.1 `bd970f693c` (2026-11-12 UTC) and
+  confirmed unchanged at 4.1 tip `1a0d0c78bc` (2026-11-17 UTC). 3.6
+  compared at `e23e56080e`.
+- Observed once, on a development build. Not yet reproduced on stock
+  4.1; the exact ordering in that incident is unproven.
 
-The required invariant is:
+## How we found it
 
-**A hook's trigger, immutable remote-data context and acknowledgment must
-describe the same delivery. Record "hook fired with context X", not
-"context was Y when the hook completed".**
+We ran a cross-model relation test on a development build based on
+4.1-beta3.1, using a default dqlite controller. `juju-qa-dummy-source`
+sets `token=foobar` in its relation-joined hook. Two
+`juju-qa-dummy-sink` units run `relation-get token` in relation-changed
+and report "Token is foobar" or "Waiting for token".
 
-Once that context is assigned, a late first read must not obtain newer
-content. Repeated reads, different keys and whole-databag reads must remain
-consistent with the assigned snapshot. Legitimate writes to the unit's own
-relation data are a separate concern.
+Both sinks were healthy. After a controller restart, we suspended and
+resumed the relation. On resume, within the same second:
 
-Here A is a databag containing `token=foobar`; B is the same bag without
-the token. B is not necessarily an entirely empty databag.
+- The source re-ran relation-joined and set `token=foobar`.
+- Both sinks ran relation-joined then relation-changed, and **both read
+  an empty token**.
+- sink/0 got another relation-changed, read `foobar` and recovered.
+- sink/1 got no further hook. It stayed waiting for over an hour,
+  including through another agent restart.
 
-| What the hook actually receives | Current-state transitions | Required behavior |
+Afterwards, the source's data contained `token=foobar`. Both sinks had
+recorded the version of that current data (`4136104582745174885`, from
+hash `e3d84ef9…`). Neither had a pending or failed hook. A fresh
+`relation-get` on sink/1 returned `foobar`. Juju had recorded that sink/1
+was up to date, while the charm's last read had found no token.
+
+The same test passed on a PostgreSQL controller and across controllers
+in both directions. Full timeline and database queries:
+[D54 follow-up](../../stages/09-bootstrap.md#sourcelog-follow-up-fixed-hook-versions-and-an-aba-timing-window).
+
+## How hooks read relation data today
+
+The relation cache code is the same in 3.6 and 4.1, so both releases
+give charms the same view of relation data:
+
+| What the hook reads | Behavior |
+|---|---|
+| `relation-list` members | Membership delivered through joined/departed hooks; fixed for the hook. |
+| Data of the unit that triggered the hook | Cache cleared when the hook starts [context]; fetched live on first read, then fixed for the hook [cache]. |
+| Other units' data, already read in an earlier hook | Cached value, kept until that unit's own hook runs. The charm doesn't "see the future" for units it has already read. |
+| Other units' data, never read | Fetched live on first read, then fixed. |
+| Application data | Cleared whenever a context is built [prune]; live on first read in every hook. |
+| Anything, after an agent restart | Cache is in memory only; live on first read. |
+
+Each bag is fixed once read, so a hook never sees one bag change. There
+is no common snapshot across bags, though, so different bags can come
+from different moments.
+
+## The flaw
+
+| Step | What the code does |
+|---|---|
+| Queue | The resolver copies the watcher's version into the hook [select]. |
+| Read | The first `relation-get` fetches current data; the request carries no version [read] [settings]. |
+| Finish | The queued version is recorded, not the version of what was read [commit] [ack]. |
+| Compare | Versions are a hash of the sorted settings [hash] [version]; another hook runs only if current != recorded [compare]. |
+
+That allows:
+
+| Step | Sink uniter | Source data |
 |---|---|---|
-| A | A -> B -> A | The hook keeps reading A. B may be skipped; an extra A hook is not required merely because B existed. |
-| B | B -> A | Attempt a later hook delivering A, even if an earlier hook had already received A. |
-| A | A -> B, remaining B | Attempt a later hook delivering B. |
-| B, but recorded as A | B -> A | Invalid: equality between recorded A and current A hides a real difference from the charm's last delivered context. |
+| 1 | Queues relation-changed with version(A). | A |
+| 2 | Hook starts, hasn't read yet. | Changes to B |
+| 3 | First `relation-get` reads B (no token). | B |
+| 4 | Hook still running. | Back to A |
+| 5 | Hook finishes; records version(A). | A |
+| 6 | Recorded A == current A; no further hook. | A |
 
-Content-hash reuse is therefore not inherently wrong. Comparing content
-hashes can implement valid coalescing, provided the recorded hash
-identifies the snapshot actually delivered. Replacing hashes with an
-increasing counter alone would not establish that correspondence.
+No event is lost and no hash collides. The data without the token
+hashes to `2e538147…`, which is distinct from `e3d84ef9…`.
 
-## Motivating observation
+**Fit to the incident:** during resume, the source's data plausibly
+held addresses but no token (B) until its joined hook set the token
+again (A). sink/1 matches the sequence above. sink/0 also read B, but
+had queued version(B), so recorded B != A and it got another hook.
 
-On a 4.1-beta3.1-based development build using dqlite, a source application
-and two consumers initially exchanged `foobar` successfully. Following
-cross-model relation suspension/resumption:
+**Not proven:** the logs don't show the queued versions or sub-second
+ordering, and the original controllers are gone.
 
-- Both consumers' first resumed changed hooks read no token.
-- One consumer received another changed hook and read `foobar`.
-- The other remained waiting/idle, with an empty last-hook token file.
-- Current relation data contained `foobar`, and both consumers' persisted
-  relation state acknowledged the current source settings version.
-- A subsequent unit-worker restart did not cause a recovery changed hook
-  on the affected consumer.
+### Why 3.6 didn't lose updates
 
-The source issued `relation-set token=foobar` from resumed joined hooks
-in the same second as the consumers' empty reads. Existing INFO logs do
-not record the selected versions or establish subsecond ordering across
-the source, controller and consumers.
+In 3.6 the settings version increases on every write [v36] [v36-inc]. A
+hook queued at version n that reads n+1 records n, and the current
+version is at least n+1, so another hook runs. The worst case was a
+redundant hook.
 
-This is an observed delivery/read mismatch, but it does not prove that
-the specific ABA interleaving below caused that incident. The runtime
-observation was not made on an unmodified stock build; the corresponding
-code paths were checked independently in stock 4.1.
+## Impact
 
-## What the stock 4.1 code does
+Charms rely on Juju to notify them when relation data differs from what
+they last saw. Juju may skip intermediate values but must eventually
+deliver the current one. Here the charm keeps stale data, which may be
+credentials or endpoints. Agent restarts don't recover it. It is hard
+to diagnose: `relation-get`, `juju exec` and the database all show
+correct current data, and the agent is idle.
 
-The following links are pinned to the inspected upstream revision.
+## Recommended fix: record the version that was read
 
-1. [Hook selection][select] takes `ChangeVersion` from the remote watcher
-   snapshot. This also happens for the guaranteed relation-changed hook
-   after relation-joined.
-2. [Hook-context construction][context] invalidates the triggering remote
-   unit's cached settings. It does not capture those settings alongside
-   the selected version.
-3. [The relation cache][cache] fetches a remote databag on its first read.
-   This gives a stable cached bag after that read, but not a snapshot of
-   the content available when the hook was selected or started.
-4. [The API read][read] sends relation/local-unit/remote-unit identity to
-   `ReadRemoteSettings`, without the selected change version or snapshot
-   identity. [State retrieval][settings] reads current committed settings.
-5. [Hook commit][commit] passes the original `hook.Info` to the completion
-   callback, and [relation-state update][ack] records its `ChangeVersion`.
-   The running operation's [remote-update callback][remote-updates] is
-   empty. The inspected path does **not** substitute a newer version at
-   completion.
-6. [Settings hashing][hash] and [version conversion][version] allow
-   identical restored content to have the same version as before.
-   [The resolver][compare] schedules another changed hook only when
-   remote and recorded versions differ.
+When the hook reads the data of the unit or application that triggered
+it, record that data's version instead of the queued one. With
+content-hash versions this is the right comparison: if current data
+equals what the charm read, nothing is owed, and A -> B -> A is valid
+coalescing as long as the hook read A.
 
-The [resolver loop][loop] refreshes the watcher snapshot after operations.
-That does not repair a mismatch if the recorded version and the final
-watcher version are both A.
+1. **The controller returns the version with the data.** Read the
+   settings hash in the same transaction as the settings
+   [settings], and add a version to `params.SettingsResult` [params].
+   The agent should not compute the hash itself: any format mismatch
+   would make the versions never match and queue relation-changed
+   forever.
+2. **The cache keeps settings and version together.**
+3. **Substitute before the hook is marked Done.** `Execute` saves the
+   hook info with step `Done` [done], and `Commit` records whatever
+   that contains. Update `ChangeVersion` before that state is saved.
+4. **Only for the triggering unit or application.** If unit/0's hook
+   reads unit/1's data, unit/1's recorded version is unchanged, so its
+   own hook still runs: possibly redundant, never missed.
+5. **If the hook didn't read the data, keep the queued version.** The
+   charm was notified and chose not to read.
 
-This is not evidence that a database transaction exposes partially written
-settings. Separate, individually consistent transactions can still select
-version A and later read content B.
+Restarts behave correctly [steps]:
 
-### A plausible failure ordering
-
-| Step | Uniter/hook | Current source content |
+| Agent restarts | Saved step | Result |
 |---|---|---|
-| 1 | Select a changed hook with version A. Its remote-unit cache is invalidated but not populated. | A |
-| 2 | Keep the hook before its first remote read. | Changes to B |
-| 3 | First `relation-get token` fetches B and returns no token; the charm applies B. | B |
-| 4 | Let watcher state return to A while the hook is still running. | Restored to A |
-| 5 | Successful completion records the originally selected version A. | A |
-| 6 | Resolver compares recorded A with current A and finds no further operation. | A |
+| While the hook runs | `Pending` | Treated as a hook error; a retry reruns the hook, reads again and records that. |
+| After the hook, before commit | `Done` | Commit only, using the substituted version. |
 
-The charm's last input was B, but the uniter acts as though it delivered A.
-No hash collision or lost watcher notification is necessary.
+`juju resolved --no-retry` commits the queued version without rerunning
+the hook. That is its contract, and it stays unchanged.
 
-## Plausible reproduction approaches
+Compatibility: an older controller returns no version, so the agent
+keeps today's behavior. An older agent ignores the new field. A facade
+version bump may be required by convention.
 
-These are proposed experiments, not completed reproductions.
+This keeps today's read behavior, including different bags coming from
+different moments, and needs no schema change.
 
-### 1. Deterministic uniter/context regression
+## Alternatives
 
-Use explicit barriers in the existing resolver, operation and context test
-fixtures, or a composed harness spanning them:
+**Versions that always increase (3.6 behavior).** Add a per-bag
+revision that increases on every write, and use it as the watcher
+version. This also prevents the missed update, without API changes.
+Costs: a schema change and an upgrade step for existing rows, and the
+revision must not restart when a unit leaves and rejoins (a model-wide
+sequence avoids that). It produces more redundant hooks than the
+recommended fix.
 
-1. Start with a source bag A and select a changed hook carrying A's version.
-2. Prepare its context with a cold remote-unit cache, and block before
-   the hook's first remote read.
-3. Make the backing settings read return B; release the read and record
-   the value actually delivered to the hook.
-4. Before permitting completion, restore A and explicitly deliver the
-   corresponding watcher state. Synchronize on watcher processing, not
-   just the database write.
-5. Complete the hook, inspect persisted acknowledgment and ask the resolver
-   for its next operation.
+**A fixed snapshot per hook.** At hook start, read all remote data the
+hook may need, with versions, in one transaction. Serve every read in
+the hook from that snapshot and record its versions. This removes
+differences between bags as well as the missed update. It is a larger
+design: which data to include, whether to keep the "don't see the
+future" caching across hooks, what a retry uses, payload size, and
+whether credential-bearing data may be stored on the agent. No
+database transaction should stay open while the hook runs.
 
-The suspected current result is: actual read B, acknowledgment A, and no
-next changed operation. A resolver-only test is insufficient: it could
-prove that equal versions suppress a hook without establishing which
-content the context exposed.
+Rejected:
 
-With a fix, either the assigned A context must read A, or pre-execution
-coalescing must explicitly assign a coherent B context/version and later
-deliver A. It must not execute with an A identity while exposing B.
-Use barriers rather than sleeps, then run race detection and bounded stress.
+- Hashing on the agent: risks endless relation-changed hooks if the
+  formats differ.
+- Recording the version current at commit: it describes data the hook
+  may not have seen.
+- Forcing a hook after every resume: other A -> B -> A paths remain.
 
-### 2. Gated minimal charms on a disposable stock 4.1 model
+## Testing
 
-Use a provider that publishes a configurable token and a consumer with a
-minimal shell relation-changed hook. Place them on separate machines so
-the consumer's machine-wide hook lock does not block the provider.
+Write a deterministic uniter test, using barriers rather than sleeps:
 
-The consumer needs two out-of-band gates: one immediately before its first
-`relation-get`, and another after recording that read but before exit.
-Put markers/gates in its local filesystem, not in relation data.
+1. Queue relation-changed at version(A) and block the hook before its
+   first read.
+2. Change the data to B, then let the read happen.
+3. Restore A and wait until the uniter's watcher has seen it.
+4. Let the hook finish; check the recorded version and the resolver's
+   next operation.
 
-1. Establish a healthy baseline with a third value such as `initial`.
-2. Publish A (`foobar`) to trigger the consumer's changed hook. Wait for
-   its pre-read marker.
-3. Remove the token to publish B. Confirm the committed databag through
-   the controller API without executing a command through the blocked
-   consumer's uniter.
-4. Release the first gate. Confirm the consumer recorded the absent token
-   and is waiting at the pre-exit gate.
-5. Restore exactly A. Avoid timestamp/counter keys or other bag changes
-   that would prevent the full settings hash from returning to A.
-6. Confirm the consumer's watcher has processed restored A, then release
-   the exit gate.
-7. Check actual applied data, current relation data, persisted delivery
-   state and subsequent hooks. An idle agent alone is not success.
+On 4.1 today: the hook reads B, records A, and no further hook runs.
+With the recommended fix: B is recorded and another hook reads A.
+Testing the resolver alone isn't enough; the test has to check what the
+hook actually read.
 
-Release gates through SSH or another out-of-band test mechanism, **not
-`juju exec` on the blocked consumer**: that command may wait behind the
-hook being held.
+Also cover:
 
-Step 6 is important. A controller API read showing A does not prove that
-the consumer watcher has processed A. Without a harness or scoped
-instrumentation confirming that boundary, this charm-based experiment
-remains timing-sensitive. It is a useful candidate, not a promise of an
-immediate live reproduction.
+- application data;
+- the relation-changed that follows relation-joined;
+- a hook that doesn't read the data;
+- a restart at `Pending` and at `Done`;
+- unit/1's data read during unit/0's hook;
+- an older controller that returns no version.
 
-### 3. Lifecycle-assisted reproduction
+Run with `-race` and bounded stress. A live reproduction is possible
+with a gated test charm, but it is timing-sensitive and not required.
 
-Use an ordinary dqlite controller, separate offer/consume models, one source
-and two consumers. Verify both have applied A, then suspend/resume the
-cross-model relation while the source republishes A from its joined hook.
-Record each consumer independently.
+## Diagnosing affected units
 
-Run a separate variant with a controller reconnect/restart; do not assume
-it is required. Reentry can naturally introduce address-only settings
-before the source restores the token, but the required ordering may be
-rare. Bound repetitions, stop on a mismatch and retain evidence. Do not
-use failure to reproduce as evidence that the contract is safe.
+Suspect a unit that is idle and acting on stale data while current
+relation data and its recorded version both look current. Equal
+versions don't show what an earlier hook read, and a fresh
+`relation-get` can't reconstruct it. Compare what the charm recorded or
+applied with the source's write and restart times before intervening.
+Any new logging should record hook and version identities, not
+settings, which may contain credentials.
 
-## Potential implementation plan
-
-The design should make a hook delivery an explicit combination of content,
-identity and lifecycle state. The following is a discussion proposal, not
-an implementation decision.
-
-### Preferred starting point: materialize the context before execution
-
-1. **Define the delivery boundary.** Treat a watcher event as a reason to
-   consider a hook, not as proof of the payload that a later read will
-   return. Before execution, select a coherent settings/identity pair.
-   If newer data is coalesced at preparation time, update the selected
-   delivery consistently before running the hook.
-2. **Read content and identity together.** Provide a domain/state operation
-   that obtains the relevant remote settings, versions and membership in
-   one bounded read transaction, including archived settings that departure
-   hooks are entitled to read. Expose a typed snapshot through the agent
-   API. Keep snapshot semantics in the domain and orchestration/auth in the
-   facade; do not combine independent reads and call them atomic.
-3. **Give the hook a private immutable view.** Seed its remote-data cache
-   from that snapshot. Late first reads and reads of other keys/bags in
-   the defined scope must not fall through to current live data. Avoid
-   mutable cache sharing with actions, commands or later hooks. Keep the
-   unit's own writable settings separate.
-4. **Persist the delivery consistently.** Integrate snapshot identity and
-   any necessary replay data with the pending/running/completed operation
-   lifecycle. Commit the identity of the context actually assigned, not
-   a fresh completion-time lookup. Capturing other units' bags must not
-   silently acknowledge their separate joined/changed notifications.
-5. **Reconcile against that delivered context.** After completion, evaluate
-   current watcher state against the acknowledged snapshot. Final content
-   different from the delivered context must remain pending; identical
-   final content may legitimately coalesce.
-6. **Specify recovery and compatibility.** Decide whether a restart/retry
-   retains the original snapshot or explicitly begins a new coherent
-   delivery. Never attach live content to an old identity silently.
-   Review state serialization, rolling agent/controller upgrades,
-   authorization and snapshot retention before choosing the wire/storage
-   representation.
-
-Do not hold a database transaction open for the duration of a charm hook.
-Capture a bounded snapshot and release the transaction before execution.
-Persisting relation payloads also needs a deliberate data-retention and
-access-control decision: databags can contain credentials.
-
-### Alternatives and tradeoffs
-
-| Approach | Benefit | Main concern |
-|---|---|---|
-| Eager, coherent per-hook snapshot | Straightforward immutable reads; potentially no historical settings store | Payload/read/memory cost for large contexts; restart persistence and snapshot scope need design. |
-| Server-side snapshot handle with versioned reads | Lazy transfer while preserving a selected historical view | Requires retained snapshot/history, cleanup, authorization and recovery; substantially more machinery. |
-| Return a version with each existing lazy read and acknowledge that version | Can improve correspondence for a bag that was read | Does not by itself provide a start-of-hook snapshot or prevent different bags/late reads from seeing different times. |
-| Replace hashes with monotonic revisions only | Distinguishes A/B/A occurrences and may cause a recovery hook | Does not stop a hook labeled A from reading B; not a complete transactional-context fix. |
-
-Start by evaluating the eager snapshot approach against actual context size
-and lifecycle requirements. A narrower change is acceptable only if it
-establishes the agreed invariant, not merely if it produces an extra hook
-in the motivating example.
-
-## Questions for team discussion
-
-- What is the precise snapshot scope: triggering unit/app bags, all remote
-  data in the relation, or all remote relation data available to the hook?
-  How should relation membership/listing align with those frozen reads?
-- At which boundary may a queued notification be coalesced into a newer
-  coherent delivery, and how is that reflected in pending operation state?
-- What should retry/restart preserve, and can it explicitly select a new
-  context without breaking existing hook-ordering and recovery guarantees?
-- Can existing hash-based identity be retained once delivery is coherent,
-  or is a separate revision/incarnation identity useful? Neither choice
-  should substitute for snapshotting.
-- How should older agents and controllers negotiate the behavior, and what
-  evidence is sufficient to support a 4.1 fix/backport?
-
-## Acceptance and field diagnosis
-
-Cover both normal and guaranteed post-joined changed hooks, unit and
-application bags, late first reads, repeated/different-key reads,
-independent consumers, scope reentry and pending-operation recovery.
-Explicitly test both valid A/B/A coalescing and the obligation to deliver A
-after a B context. Exercise updates around capture, execution and commit.
-Preserve departure/archived-settings reads and join/change/depart/broken
-ordering. Test the actual payload and persisted acknowledgment, not only
-events.
-
-For field diagnosis, an idle unit retaining stale applied data while
-current relation data and recorded versions agree is suspicious, but not
-proof of ABA. Correlate actual hook output/applied state, source writes,
-scope/restart timing and persisted delivery state before intervention.
-Current API or `juju exec` reads do not reconstruct an earlier hook context.
-
-If additional instrumentation is needed, correlate hook/delivery IDs,
-snapshot identities and acknowledgment boundaries without dumping
-credential-bearing data. Existing INFO logs may be insufficient to
-establish the exact ordering.
-
-The impact is potentially more serious than an incorrect status message:
-a charm may retain stale credentials, endpoints or other configuration
-while trusting that no further notification is owed. Recovery may require
-an unrelated future change because persisted state already appears current.
-The fix should restore the delivery guarantee rather than require charms
-to poll or operators to replay hooks.
-
-[select]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/relation/resolver.go#L188-L206
-[context]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/runner/context/contextfactory.go#L238-L260
-[cache]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/runner/context/cache.go#L70-L124
-[read]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/api/agent/uniter/relationunit.go#L144-L173
-[settings]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/domain/relation/state/relation.go#L2296-L2326
-[commit]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/operation/runhook.go#L284-L291
-[ack]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/relation/state.go#L103-L135
-[remote-updates]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/operation/runhook.go#L350-L353
-[hash]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/domain/relation/state/relation.go#L2475-L2490
-[version]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/domain/relation/state/relation.go#L2121-L2134
-[compare]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/relation/resolver.go#L337-L368
-[loop]: https://github.com/juju/juju/blob/bd970f693c8e5060973016fe9059108570fa5bd3/internal/worker/uniter/resolver/loop.go#L95-L157
+[select]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/relation/resolver.go#L188-L206
+[context]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/runner/context/contextfactory.go#L238-L260
+[cache]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/runner/context/cache.go#L70-L95
+[prune]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/runner/context/cache.go#L49-L58
+[read]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/api/agent/uniter/relationunit.go#L144-L173
+[settings]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/domain/relation/state/relation.go#L2296-L2326
+[params]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/rpc/params/internal.go#L263-L266
+[commit]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/operation/runhook.go#L284-L291
+[done]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/operation/runhook.go#L195-L200
+[ack]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/relation/state.go#L103-L135
+[steps]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/resolver.go#L166-L197
+[hash]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/domain/relation/state/relation.go#L2475-L2490
+[version]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/domain/relation/state/relation.go#L2121-L2134
+[compare]: https://github.com/juju/juju/blob/1a0d0c78bcea8ab077735a7f404b2fb31ac93702/internal/worker/uniter/relation/resolver.go#L337-L368
+[v36]: https://github.com/juju/juju/blob/e23e56080e27d9f537b872d87f6f41af72ba8625/state/settings.go#L31-L33
+[v36-inc]: https://github.com/juju/juju/blob/e23e56080e27d9f537b872d87f6f41af72ba8625/state/settings.go#L436-L455
