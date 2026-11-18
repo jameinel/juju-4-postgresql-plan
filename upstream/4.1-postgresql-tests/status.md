@@ -5,34 +5,37 @@
 
 ## Current state and next actions
 
-Observed 2026-11-14. Owner/session:
+Observed 2026-11-18. Owner/session:
 `1182cd49-fff3-42a1-b3ef-bf58b866213c`; branch `4.1-postgresql-tests`,
-worktree `../4.1-postgresql-tests`. Code HEAD and last verified GitHub head:
-`6e6887c24ec77236796ef0ea96c279ac3b86341c`. The worktree contains the
-uncommitted strict-generator checkpoint described below.
+worktree `../4.1-postgresql-tests`. Code HEAD:
+`9320d7493592acd722871b4e763099eb638e1a3f`, rebased locally onto upstream
+4.1 `d380e5e4fba4c9918a0774638ffa3138aeece73e`. Last verified GitHub
+branch head: `6e6887c24ec77236796ef0ea96c279ac3b86341c`. The rebased
+branch has not been pushed.
 
 | Stage | State |
 |---|---|
-| H1: central backend configuration | Committed/pushed, `6e677c2850`. |
-| H2: PostgreSQL driver/schema plumbing | Committed/pushed, `57f02035c7`; focused PostgreSQL 16.15 acceptance passed. |
+| H1: central backend configuration | Rebased locally as `0b482eba90`; original `6e677c2850` was pushed. |
+| H2: PostgreSQL driver/schema plumbing | Rebased locally as `7cf365ce63`; original `57f02035c7` was pushed. |
 | H3a: source/PoC audit | Complete; five shared-fix groups block full-schema acceptance. |
-| H3b: generation | Named sources committed/pushed in `6e6887c24e`; strict generator/check pipeline and initial typed subset validated locally, uncommitted. |
+| H3b: generation | Named sources rebased locally as `9e2d9b89ff`; strict generator/check pipeline, typed subset and existing-target foreign keys committed locally in `9320d74935`. |
 | H3c: full-schema acceptance | Not implemented. No complete generated PostgreSQL assets or constructors. |
 | H3.1: empty-collection membership | Planned Juju portability commit in PostgreSQL enablement, not a mandatory separate PR; required before affected H4 acceptance. |
 | H2.1 / H4 | Sqlair adoption and shared-suite enablement remain separate gates. |
 
 The user approved continuing independent H3b work while shared-source
-blockers remain. The latest checkpoint passes SQLite/real-dqlite race
-checks, preservation checks and full pre-check; it does not complete H3.
-`govulncheck` is absent and non-blocking; no vulnerability scan is claimed.
+blockers remain. The rebased checkpoint passes focused SQLite, PostgreSQL
+and real-dqlite checks; full pre-check belongs to the earlier checkpoint,
+not the rebased branch. It does not complete H3. No vulnerability scan
+was run for this rebase.
 H2 and the named-source checkpoint were pushed with approval on 2026-11-14.
 No PR is recorded; further publication requires separate approval.
 
-Ancestry remains stock upstream
-`b36eefc4b34badcdef972c859e96ccb974c592e2` -> layout
-`9da8100e161f59ce5a86485e0725db1b8101154d` -> H1 -> H2 -> named sources.
-H1 was restored from the verified fork before H2; H2/H3 imported neither
-PoC ancestry nor shared-source fixes.
+Local ancestry starts at upstream 4.1
+`d380e5e4fba4c9918a0774638ffa3138aeece73e` -> layout `7a49ebbeec` ->
+H1 -> H2 -> named sources -> strict generator. The original ancestry
+and pushed revisions remain historical evidence below. The rebase did
+not import PoC ancestry or unpublished shared-source fixes.
 
 Next actions:
 
@@ -40,7 +43,9 @@ Next actions:
    expressions/triggers, and correct identity/changelog allocation.
    Then add complete assets, PostgreSQL constructors and integrated
    generation/freshness checks under the [H3 contract](h3-plan.md).
-   Shared defects remain separate fixes, not PoC overrides.
+   Shared defects remain separate fixes, not PoC overrides. Integrate and
+   revalidate the existing nullable-primary-key fixes at the appropriate
+   combined-fix checkpoint; the current base predates them.
 2. Coordinate [H2.1 sqlair adoption](integration-plan.md#h21-adopt-upstream-sqlair-placeholders)
    with the [placeholder comparison](../../investigations/sqlair-placeholders.md).
    Do not assume `WithDialect(PostgreSQL)` or choose a dependency here.
@@ -213,6 +218,76 @@ that package (`Makefile:563-567`). Do not invoke `go generate` recursively
 from pgschemagen or repurpose facade `rebuild-schema`. Wire a non-writing
 freshness command into `tests/suites/static_analysis/schema.sh`; leave
 `make rebuild-ddl` / `generate/ddlgen` behavior unchanged.
+
+## H3 rebase onto upstream 4.1 (2026-11-18)
+
+Committed the strict generator checkpoint as `ae7cd0ada8` before rebasing.
+Fetched upstream 4.1 at `d380e5e4fba4c9918a0774638ffa3138aeece73e`
+and rebased all five local commits without conflicts. `git range-diff`
+shows equivalent patches; the new head is
+`9320d7493592acd722871b4e763099eb638e1a3f`. The upstream revision includes
+the landed lease-pin and controller-export fixes. It introduces no changes
+to `domain/schema` relative to the old base, so the existing H3 schema
+blockers and partial generation limits remain.
+
+On the rebased branch, the generator/schema race suites passed on SQLite
+and real dqlite; the translated foreign-key fixture ran on PostgreSQL.
+H1/H2 focused driver, configuration, schema and sequence suites passed
+on SQLite and real dqlite, and the PostgreSQL driver and schema suites ran
+against PostgreSQL. Generator lint passed. The assembled-schema audit
+matched the earlier full output byte-for-byte, and trigger regeneration
+produced no drift. Full pre-check and stress were not repeated for this
+rebase; their earlier evidence is retained below.
+
+Logs in this session's `files/`: `h3-rebase-sqlite.log`,
+`h3-rebase-dqlite.log`, `h3-rebase-postgresql.log`,
+`h3-rebase-h2-sqlite.log`, `h3-rebase-h2-dqlite.log`,
+`h3-rebase-h2-pg.log` and `h3-rebase-audit.log`.
+
+## H3b existing-target foreign keys (2026-11-17)
+
+At that checkpoint, uncommitted above
+`6e6887c24ec77236796ef0ea96c279ac3b86341c`. Added table-level
+foreign-key translation when the referenced table and
+primary/unique key already exist, including self-references, composite
+keys, existing plain unique indexes and supported update/delete actions.
+Checks cover referenced columns and types, constraint-name collisions and
+identifier shortening. Forward references, deferred constraints and
+unrecognized clauses still reject; emitted constraints are not deferrable.
+The first three assembled controller patches translate, including both
+lease foreign keys. Full generation stops at controller `0003-changelog`
+and model `0001-changelog`: `INTEGER PRIMARY KEY` allocation remains
+unsupported.
+
+The SQLite and real-dqlite source fixtures and translated PostgreSQL
+fixture exercised immediate violations, nullable references, self-reference,
+composite references (including reversed key order), cascade updates/deletes
+and `SET NULL`. PostgreSQL metadata confirmed the tested constraint is
+nondeferrable. These fixtures do not establish forward-reference ordering,
+runtime `PRAGMA defer_foreign_keys` behavior or complete schema parity.
+
+This old base also predates the existing nullable-primary-key fixes:
+[lookup keys](../4.1-lookup-key-not-null/status.md),
+[charm keys](../4.1-nullable-primary-keys/status.md) and
+[exposure scope](../4.1-application-exposure-scope/status.md). For example,
+the original controller `lease_type.id INT PRIMARY KEY` accepts NULL on
+SQLite but not PostgreSQL; its exported 4.1 representation is nullable.
+The lookup-key fix addresses this source declaration and payload boundary.
+Do not infer that the partial generated lease patch establishes full
+behavioral parity or duplicate the shared fixes inside the generator.
+Reconcile against their actual integrated revisions before H3 acceptance.
+
+Focused SQLite and real-dqlite generator/schema race suites passed, as did
+the selected PostgreSQL foreign-key race test and scoped generator lint.
+Real-dqlite race stress reported 54 completed runs and zero failures at
+30 seconds; two runs were still active when the outer timeout stopped it.
+The latest Go files were formatted with `gci`/`gofmt`. The previous
+full pre-check and byte-preservation evidence remain tied to the earlier
+checkpoint below, not these foreign-key changes.
+
+Evidence in this session's `files/`: `h3-foreignkeys-sqlite-final.log`,
+`h3-foreignkeys-pg-final.log`, `h3-foreignkeys-dqlite-final.log`,
+`h3-foreignkeys-dqlite-verbose.log` and `h3-fk-dqlite-stress.log`.
 
 ## H3b strict-generator checkpoint (2026-11-14)
 
