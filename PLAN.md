@@ -242,7 +242,7 @@ without coordination.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. New sequence/export fixtures add no skips. 06-test-levels and 06-schema-skip remain |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. Static-analysis cleanup is complete at `09=a1a9610167`. No new skips. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Run 5 bootstrapped PostgreSQL at `f3340c6710`; full D54 acceptance remains open on the consumer token mismatch and teardown/isolation checks. Four review checkpoints await redistribution; comparison not started |
@@ -274,7 +274,10 @@ Next:
    [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
    The landed batch is reconciled locally onto upstream `d380e5e4fb`;
    [new revision-specific evidence](stages/06-compatibility.md#upstream-rebase-2026-11-18)
-   records `09=68a0a25a99`, the fixture repairs and static-analysis limits.
+   records the sweeps at `09=68a0a25a99` and the fixture repairs.
+   The [static-analysis follow-up](stages/06-compatibility.md#static-analysis-follow-up-2026-11-18)
+   records the documentation/test-only cleanup and complete configured
+   static-analysis pass at `09=a1a9610167`.
    Skips, the three import packages (D40), `domain/recovery/state` and
    06-schema-skip remain explicit coverage gaps. Preserve the
    [repair handoff](handoffs/2026-11-10-stage-6-parallel-repairs.md)
@@ -306,15 +309,20 @@ Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
 Current local tips (2026-11-18, base `d380e5e4fb`, local only):
-`00=eb241e7bc7`, `01=14abbf3201`, `02=db349a2433`, `03=7c4f12615f`,
-`04=84365797f0`, `05=a1cc9ab091`, `06=d9583e5686`, `07=e5dcbf5449`,
-`08=61c026c25d`, `09=68a0a25a99`. Recovery tags
+`00=eb241e7bc7`, `01=14abbf3201`, `02=db349a2433`, `03=3df21588fc`,
+`04=3cec77ac4a`, `05=815db8ae37`, `06=5ae72ebf74`, `07=e8ab655255`,
+`08=dcd03ff354`, `09=a1a9610167`. Recovery tags
 `pg-poc-before-upstream-d380e5e4fb/00-base-fixes` through `/09-bootstrap`
-preserve all ten prior stage tips. The four Stage 9 review checkpoints
-remain in place, and the database-pool experiment branch is unchanged.
+preserve all ten pre-rebase tips. Tags
+`pg-poc-before-static-analysis-68a0a25a99/00-base-fixes` through
+`/09-bootstrap` preserve the ten pre-cleanup tips, including the
+`09=68a0a25a99` sweep revision. The four Stage 9 review checkpoints remain
+in place, and the database-pool experiment branch is unchanged.
 See the [reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
 and [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-18).
-Full static analysis and D54 functional acceptance are not complete.
+Full configured static analysis passed at `09=a1a9610167`; optional
+`govulncheck` was unavailable and did not run. D54 functional acceptance
+remains open.
 
 Previous local tips (2026-11-11, base `bd970f693c`):
 `00=b5e5c7f644`, `01=cc4e33a336`, `02=11c1c182dd`, `03=6ef34e58cd`,

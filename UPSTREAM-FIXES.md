@@ -648,7 +648,11 @@ Inputs: upstream `4.1` was fetched and pinned at `d380e5e4fb`; old base
 `bd970f693c`, old top `f3340c6710`. Recovery tags
 `pg-poc-before-upstream-d380e5e4fb/00-base-fixes` through
 `/09-bootstrap` preserve all ten original stage tips.
-The local final top is `68a0a25a99`; PLAN.md records every stage tip.
+The rebase was validated at `68a0a25a99`. Subsequent documentation/test-only
+[static-analysis cleanup](stages/06-compatibility.md#static-analysis-follow-up-2026-11-18)
+restacked the local top to `a1a9610167`; PLAN.md records the current tips.
+The earlier broad sweeps remain evidence for `68a0a25a99`, not the later
+cleanup revision. These PoC lint repairs are not new stock-upstream bugs.
 No remote branches or upstream-only owner branches were rewritten.
 
 Landed batch and reconciliation:

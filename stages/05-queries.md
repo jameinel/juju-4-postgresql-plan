@@ -40,9 +40,10 @@ as required upstream approaches. Ask before changing an assigned scope.
 
 ## Upstream reconciliation (2026-11-18)
 
-Stage 5 is `a1cc9ab091`, based on upstream `d380e5e4fb` through the lower
-PoC stages. The landed CTE-membership, lease-pin, Boolean/machine-password
-and sequence fixes replace their older PoC duplicates. In particular,
+The rebase left Stage 5 at `a1cc9ab091`, based on upstream `d380e5e4fb`
+through the lower PoC stages. The landed CTE-membership, lease-pin,
+Boolean/machine-password and sequence fixes replace their older PoC
+duplicates. In particular,
 retain the final upstream nullable machine-password lookup and checked
 shared sequence allocator, not the PoC's earlier aggregate/allocator.
 Mixed commits retain their unrelated PostgreSQL portability changes.
@@ -54,6 +55,12 @@ belong to Stage 6, with [final-tip evidence](06-compatibility.md#upstream-rebase
 at `09=68a0a25a99`; testing Stage 5 alone still does not select PostgreSQL.
 Unmerged U15/U21/U22 and other independent review differences are unchanged.
 No local stack branch was pushed.
+
+The [static-analysis follow-up](06-compatibility.md#static-analysis-follow-up-2026-11-18)
+restacked Stage 5 to `815db8ae37` and Stage 9 to `a1a9610167` without
+changing query logic. Cloud-type IDs and secret-revision expiry results
+are reset at transaction entry so retried test observations cannot retain
+failed-attempt results. Their focused checks pass on all three backends.
 
 ## Remaining tasks
 

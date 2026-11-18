@@ -52,11 +52,85 @@ approved skips. New blockers return to their owning task; do not silently
 weaken the gate. Gates use the N16 tiers and levels: the readiness level
 runs tiers A and B in full; do not add packages outside them.
 
+## Static-analysis follow-up (2026-11-18)
+
+The local stack is restacked through `09=a1a9610167`; Stage 6 is
+`5ae72ebf74`. All 21 reported findings are repaired in their owning
+layers, without suppressions, new skips or production-code changes.
+Generated schemas and executable non-test Go code are unchanged from
+the earlier sweep revision `68a0a25a99`.
+
+| Check | Findings | Stages | Repair |
+|---|---|---|---|
+| Package documentation | 4 | 04, 06, 07 | Move package overviews to `doc.go`, retaining the PostgreSQL test namespace/cleanup contracts. |
+| `modernize/rangeint` | 2 | 03 | Use integer ranges while retaining five pool reads and three prepared inserts. |
+| `sqlclosecheck` | 2 | 04, 06 | Defer row cleanup on assertion failures; retain the explicit checked close before the next iteration. |
+| `txncheck` captured mutations | 3 | 03, 05 | Count retry invocations outside the transaction body; reset query result slices/maps at transaction entry. |
+| `txncheck` assertions | 10 | 08 | Return bootstrap query errors through initialization and assert captured results afterward. |
+
+Every existing value assertion remains covered. The bootstrap checks still
+verify the lease count, controller ID, absent dqlite node/bind fields on
+PostgreSQL, model schema selection and resolved dqlite bind address.
+The retry test still injects two serialization failures and requires
+exactly three attempts. No stock-upstream task or owner branch was changed.
+
+`GOMAXPROCS=2 STATIC_ANALYSIS=1 make pre-check` completed with exit 0 in
+418 seconds at `a1a9610167`, including package documentation, schema,
+import boundaries, golangci-lint, module tidy, binary fanout and txncheck.
+The existing optional `govulncheck` stage was explicitly disabled because
+the tool is not installed; this is not vulnerability-scan evidence.
+Neither manifests nor generated sources changed during the run.
+Log: `/tmp/pg-poc-a1a9-static-analysis.log`.
+
+Focused checks used `GOMAXPROCS=2`, `-race -count=1 -p 2 -timeout 120s`;
+PostgreSQL also used `-parallel 1` and the private test URL. Real dqlite
+used `make run-go-tests`, `dqlite,libsqlite3` and bundled musl/CGO libraries.
+
+| Backend | Packages passed | Leaf methods passed | Failures / skips |
+|---|---|---|---|
+| SQLite | 5 | 6 | 0 / 0 |
+| Real dqlite | 5 | 6 | 0 / 0 |
+| PostgreSQL | 6 | 9 | 0 / 0 |
+
+The shared state selections were
+`domain/cloud/state: TestStateSuite/TestAllowCloudTypeIdempotent`,
+`domain/unitstate/state: TestCommitHookSuite/TestUpdateSecretsWithExpireTimeOnlyLatestRevision`
+and
+`domain/removal/state/model: TestApplicationSuite/TestEnsureApplicationOnMultipleMachines`.
+SQLite/dqlite also selected `TestCurrentTimestampDefaults` in both
+`domain/schema` suites (`TestControllerSchemaSuite`, `TestModelSchemaSuite`)
+and `internal/database` selector
+`TestBootstrapSuite/TestDqliteInitialiserResolvesBindAddress`.
+PostgreSQL instead added the three `internal/database/postgresql`
+`TestDriverSuite` methods `TestPreparedStatement`,
+`TestSessionRoleSurvivesPoolReuse` and `TestSerializationFailureRetried`,
+both `domain/schema: TestPostgreSQLSuite` methods `TestController` and
+`TestModel` (which exercise the shared timestamp helper on SQLite and
+PostgreSQL), and `internal/database` selector
+`TestBootstrapPostgresSuite/TestBootstrapPostgres`.
+Logs: `/tmp/pg-poc-a1a9-{sqlite,dqlite,postgresql}-lint-fixtures.log`.
+
+Bounded race stress completed ten runs with zero failures for each of:
+SQLite bind-address bootstrap (11s), real-dqlite bind-address bootstrap
+(13s), the three changed PostgreSQL driver methods together (12s), and
+PostgreSQL bootstrap (16s). Each group used `stress -p 1 -count 10
+-failfast -timeout 10s`, `-test.timeout=8s -test.count=1` and outer
+`timeout 31s`. The PostgreSQL groups ran sequentially after the focused
+checks, with exclusive use of the test server.
+Logs: `/tmp/pg-poc-a1a9-{sqlite,dqlite}-bootstrap-stress.log` and
+`/tmp/pg-poc-a1a9-postgresql-driver-bootstrap-stress.log`.
+
+The earlier 142-package sweeps below remain revision-specific evidence;
+they were not repeated for this documentation/test-only cleanup.
+Existing deferred coverage and D54 functional/teardown acceptance remain
+unchanged. All ten stage ancestries and recovery tag sets are retained.
+Nothing was pushed or published.
+
 ## Upstream rebase (2026-11-18)
 
 All ten stage branches were rebased onto upstream `d380e5e4fb` and their
-adjacent ancestry verified. The final local tip is `09=68a0a25a99`;
-Stage 6 is `d9583e5686`. The
+adjacent ancestry verified. The rebase's validated tip was `09=68a0a25a99`;
+Stage 6 was `d9583e5686`. The
 [reconciliation record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
 maps the five landed fixes and removed duplicates. Generated PostgreSQL
 schema assets are unchanged. No branches were pushed, owner-held upstream
