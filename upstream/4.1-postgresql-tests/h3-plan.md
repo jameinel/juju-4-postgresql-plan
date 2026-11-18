@@ -8,6 +8,16 @@ evidence or authorization to publish. The [branch record](status.md) owns
 current progress: H3a is complete, H3b is partial and H3c is not implemented.
 Do not silently expand into H4 or a shared fix.
 
+Decision update, 2026-11-18: the user selected an independent
+[upstream source-order cleanup](../4.1-schema-dependency-order/status.md)
+instead of extending automatic PostgreSQL dependency relocation. The actual
+table/view graph has no multi-object cycles; the current model file grouping
+does. Consume the explicit source order after that cleanup integrates, keep
+the generator strict, and reject new unresolved dependencies. Do not modify
+the shared SQL sources on this harness branch or expand a general solver.
+Preservation checks below apply relative to the integrated source baseline;
+the separate task owns its deliberate patch-order/hash-chain changes.
+
 ## Starting point and boundaries
 
 Work in `../4.1-postgresql-tests`, branch `4.1-postgresql-tests`, from
@@ -105,8 +115,9 @@ H3 is not complete until both full schemas pass.
    schema for the selected Juju version, including Go-built triggers and
    applicable post-patches. Keep source identity/order traceable; do not
    duplicate trigger lists or version registries in the generator.
-2. Generate checked-in controller/model SQL in dependency-valid order.
-   Resolve tables, foreign keys, views and trigger functions explicitly.
+2. Generate checked-in controller/model SQL in the explicit dependency-valid
+   source order established by the separate cleanup. Validate tables,
+   foreign keys, views and trigger functions without automatic relocation.
    Reject unsupported syntax, unresolved references, name collisions and
    unexpected input files with identifying diagnostics. Do not pass an
    unknown construct through merely because its text was tokenized.

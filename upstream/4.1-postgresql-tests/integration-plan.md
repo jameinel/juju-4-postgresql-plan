@@ -46,6 +46,8 @@ rerun on the refreshed base.
 ```text
 upstream/4.1
   |
+  +-- 4.1-schema-dependency-order       independent source-order cleanup
+  |
   +-- 4.1-schema-layout                 independent prerequisite PR
         |
         +-- 4.1-postgresql-tests        schema generator + shared SQL harness
@@ -61,6 +63,14 @@ The integration line is disposable, not a fourth mergeable feature. The layout
 branch is a short-lived prerequisite, not another permanent testing workstream.
 Pending correctness fixes remain independently reviewable branches based on
 stock 4.1; the diagram does not make them depend on infrastructure.
+
+On 2026-11-18 the user approved a separate
+[source-order task](../4.1-schema-dependency-order/status.md), based directly
+on stock 4.1. Integrate its explicit definition ordering into the harness
+without importing pending SQL fixes. The harness generator remains strict
+and source-ordered rather than implementing a general dependency relocation
+pass. Reconcile this cleanup with the layout move when they meet; neither
+independent source branch is authorized to change the other's worktree.
 
 Create local CI/integration refs after the initial harness checkpoint to reserve
 the agreed workstreams. Initially those refs contain no CI or combined-fix
