@@ -125,6 +125,50 @@ for residual test work and the incomplete validation.
   Unclaimed record and standalone team discussion draft:
   [relation-hook-context-snapshot](upstream/relation-hook-context-snapshot/status.md).
 
+### Sequence fixture portability follow-up (2026-11-18)
+
+The rebase onto `d380e5e4fb` exposed two newly landed sequence fixtures
+from juju/juju#23731 that cannot execute on PostgreSQL:
+`TestSequenceAllocationStaleSnapshot` issues `PRAGMA journal_mode=WAL`,
+and `TestSequenceAllocationNotApplied` creates SQLite `RAISE(IGNORE)`
+triggers. These are **portability/test-enablement changes**, not new
+SQLite/dqlite correctness bugs.
+
+With user approval, PoC Stage 6 `0013861abe` adapts both without skips.
+WAL configuration remains SQLite-only. Both transactions allocate from the
+same namespace, establishing a real write conflict on PostgreSQL as well as
+SQLite/dqlite; assertions retain retryability and contiguous allocations.
+The PostgreSQL suppressed-write fixture uses a `BEFORE` trigger returning
+NULL, retaining all zero-affected-row and unchanged-storage assertions.
+The complete 18-test package passed with `-race` on all three backends.
+
+No equivalent fixture work was found in the sequence branch record or the
+current `4.1-postgresql-tests` tree/record. Carry this follow-up into the
+existing [H4 shared-suite enablement](upstream/4.1-postgresql-tests/integration-plan.md)
+scope, using its central backend-selection APIs rather than copying the
+PoC's `BackendForTest` dependency blindly. Do not modify the active owner's
+branch or dirty record, create a duplicate assignment, or add PostgreSQL
+runtime dependencies to the merged sequence fix. No upstream extraction or
+publication is claimed.
+
+### Controller-export fixture follow-up (2026-11-18)
+
+The newly landed juju/juju#23765 regression
+`TestExportOtherNullableColumns` uses `INSERT INTO user`, which PostgreSQL
+rejects with 42601 because `user` is reserved (X8). Quote the identifier as
+`"user"` on every backend; preserve all NULL/false/true and timestamp
+assertions. This is a shared test-SQL portability improvement, not a change
+to export behavior or format.
+
+The PoC re-sweep at `83d9e6f474` reproduced the failure. Stage 6
+`d9583e5686` applies the one-line adaptation; the complete controller-export
+package passes on SQLite, real dqlite and PostgreSQL. No equivalent
+adaptation was found in the export or PostgreSQL test-enablement records.
+Carry this additional fixture into the existing H4 enablement scope, or
+extract the standard identifier quoting independently; do not create a
+duplicate reservation or modify owner-held branches. The final code
+revision and PostgreSQL evidence belong to Stage 6.
+
 ### Unassigned test findings (2026-11-10)
 
 - **Latent (test), X17:** `domain/model/state/controller/state_test.go`
@@ -460,8 +504,9 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   PostgreSQL aborts the whole transaction. Fixed as portability on
   Stage 5, `fix(lease): resolve lease pin conflicts in sql`, with
   `ON CONFLICT DO NOTHING` (DIALECT.md X18). The independent upstream
-  implementation landed in #23729 on 2026-11-16; compare it with the PoC
-  before reconciliation.
+  implementation landed in #23729 on 2026-11-16. The 2026-11-18 rebase
+  retains its targeted conflict handling and new regression coverage,
+  dropping the duplicate PoC commit; see the reconciliation record below.
 - `TestSetAPIAddressesSharedPeerRollsBack` violates
   `controller_peer_address.controller_id NOT NULL` on purpose to force a
   rollback. The service never builds a shared peer projection. Only the
@@ -470,8 +515,9 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   clauses, and `ON CONFLICT DO UPDATE` with no conflict target
   (`domain/sequence`), are ambiguous or invalid only on PostgreSQL
   (DIALECT.md X3, X4). Fixed as portability on Stage 5; the independent
-  upstream sequence fix merged as #23731 on 2026-11-18. Compare its
-  checked upsert and retry handling with the PoC before reconciliation.
+  upstream sequence fix merged as #23731 on 2026-11-18. The 2026-11-18
+  rebase retains its checked shared allocator and retry coverage, dropping
+  only the duplicate sequence hunks from the mixed PoC upsert commit.
 
 ## Upstream review status
 
@@ -504,21 +550,21 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-lookup-key-not-null`](upstream/4.1-lookup-key-not-null/status.md) | U17 | [#23724](https://github.com/juju/juju/pull/23724) |
 | [`4.1-dbaccessor-pool-cleanup`](upstream/4.1-dbaccessor-pool-cleanup/status.md) | U14 | [juju/juju#23726](https://github.com/juju/juju/pull/23726) |
 | [`4.1-agentbinary-conflict`](upstream/4.1-agentbinary-conflict/status.md) | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) |
-| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | X18 | [#23729](https://github.com/juju/juju/pull/23729), merged 2026-11-16; PoC reconciliation pending |
+| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | X18 | [#23729](https://github.com/juju/juju/pull/23729), merged 2026-11-16; reconciled locally onto `d380e5e4fb` on 2026-11-18 |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | X16 | [#23730](https://github.com/juju/juju/pull/23730) |
-| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731), merged 2026-11-18; PoC reconciliation pending |
+| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731), merged 2026-11-18; reconciled locally onto `d380e5e4fb`, with Stage 6 fixture adaptations |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | X7 | [#23751](https://github.com/juju/juju/pull/23751) |
-| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | X24 | [#23750](https://github.com/juju/juju/pull/23750), merged 2026-11-13; PoC reconciliation pending |
+| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | X24 | [#23750](https://github.com/juju/juju/pull/23750), merged 2026-11-13; reconciled locally onto `d380e5e4fb` on 2026-11-18 |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | U13 follow-up, test diagnostics, dqlite CI | [#23756](https://github.com/juju/juju/pull/23756) |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | Nullable Boolean, dqlite CI | [#23759](https://github.com/juju/juju/pull/23759) |
-| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765), merged 2026-11-14; revisit markers with the dqlite fix |
+| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | Controller backup NULL fidelity | [#23765](https://github.com/juju/juju/pull/23765), merged 2026-11-14; reconciled locally onto `d380e5e4fb`, with Stage 6 fixture quoting; revisit markers with the dqlite fix |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | U18 | [#23838](https://github.com/juju/juju/pull/23838), open 2026-11-13 |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | U19/X16 | not proposed |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | U21/X23 | [#23769](https://github.com/juju/juju/pull/23769) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | U22/X16 (latent bug) | [#23766](https://github.com/juju/juju/pull/23766) |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | U22/X16 | [juju/juju#23784](https://github.com/juju/juju/pull/23784) |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809), merged 2026-11-16; PoC reconciliation pending |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | U20 | [juju/juju#23809](https://github.com/juju/juju/pull/23809), merged 2026-11-16; reconciled locally onto `d380e5e4fb` on 2026-11-18 |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | U25 | [juju/juju#23806](https://github.com/juju/juju/pull/23806) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | U24 | [juju/juju#23807](https://github.com/juju/juju/pull/23807) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | X17 | [juju/juju#23805](https://github.com/juju/juju/pull/23805) |
@@ -551,8 +597,8 @@ Notes:
   SQL, not only in tests.
 - X7 remains in review in #23751. X24 landed in #23750 on 2026-11-13
   at head `67daa565a6`, merge commit `20a76d44fe97e2f9b5a1c5bcf01d9b2cf19d60d1`.
-  Compare the PoC's earlier equivalent SQL with the landed result under
-  the integration procedure; no reconciliation is recorded.
+  The 2026-11-18 rebase retains its final SQL and scoped regression,
+  dropping the equivalent PoC commit; see the reconciliation record below.
   X18 is represented by the
   merged U16 agent-binary fix and the separate `PinLease` review above.
 - U20's landed review follow-up selects the instance ID directly rather
@@ -561,14 +607,14 @@ Notes:
   cleanup breakout. U25's published follow-up removes the controller
   lookup's stream parameter while preserving the model's same-transaction
   target-stream check; true per-binary stream membership is not implemented.
-  Follow the linked branch records and compare the eventual landed results
-  with their PoC equivalents; neither follow-up is reconciled into the PoC.
+  U20 is reconciled in the 2026-11-18 rebase; U25 still needs comparison
+  with its eventual landed result.
 - U16's merged shared-state implementation replaced the earlier PoC
   cherry-picks in the 2026-11-11 rebase; validation remains incomplete.
-  `PinLease` landed in #23729; compare it with the PoC during
-  reconciliation. Sequence allocation landed in #23731; compare its final
-  implementation with the PoC before reconciliation, rather than starting
-  a duplicate implementation.
+  The 2026-11-18 rebase reconciles `PinLease` from #23729 and the checked
+  allocator from #23731, retaining upstream regressions rather than
+  competing PoC implementations. Sequence fixture portability is the
+  separate follow-up above, not a duplicate allocator implementation.
   Developer tooling is published as juju/juju#23838; the five-query
   latest-secret rewrite remains a separate unclaimed task in
   UPSTREAM-PLAN.md.
@@ -595,6 +641,37 @@ See the [branch record](upstream/4.1-sqlite-integers/status.md#integer-schema-re
 ### Separate agent-workflow guidance
 
 See the [branch record](upstream/4.1-pr-description-guidance/status.md#separate-agent-workflow-guidance).
+
+## PoC reconciliation onto d380e5e4fb (2026-11-18)
+
+Inputs: upstream `4.1` was fetched and pinned at `d380e5e4fb`; old base
+`bd970f693c`, old top `f3340c6710`. Recovery tags
+`pg-poc-before-upstream-d380e5e4fb/00-base-fixes` through
+`/09-bootstrap` preserve all ten original stage tips.
+The local final top is `68a0a25a99`; PLAN.md records every stage tip.
+No remote branches or upstream-only owner branches were rewritten.
+
+Landed batch and reconciliation:
+
+| Landing | Retained result / PoC residual |
+|---|---|
+| juju/juju#23750, merge `20a76d44fe` | Keep all eleven explicitly aliased CTE membership subqueries and departure-scoping regression. Drop PoC `d01046e00f`; later operation-size casts remain separate. |
+| juju/juju#23729, merge `f9ddbaee6b` | Keep targeted `(lease_uuid, entity_id) DO NOTHING` and pin regressions. Drop PoC `28b5decfcd`, which otherwise replays as a comment-only commit. The later database-clock correction remains. |
+| juju/juju#23765, merge `d0876dfe9a` | Retain controller-export NULL fidelity and its tests; there was no competing PoC implementation to drop. |
+| juju/juju#23809, merge `13e2e9c7a3` | Keep Boolean predicates, COALESCE, and the final nullable machine-password lookup with no bare aggregate. Drop PoC `5c36024cb9`, `4c87de7574` and `0800d5a171`; the COALESCE hunk also disappears from mixed `605950162c`. |
+| juju/juju#23731, merge `31e6c07744` | Keep the shared scalar allocator, targeted/qualified upsert, affected-row check, same-transaction lookup and retry coverage. Remove only the two sequence hunks from mixed `4a693fe577`, retaining its other seven files. |
+
+`git range-diff` was inspected, including automatic duplicate drops.
+All adjacent stage ancestry checks passed. No upstream schema source
+changed in this batch; PostgreSQL generated assets are unchanged and the
+freshness/schema checks passed. The four Stage 9 review checkpoints remain
+in place; redistribution was not part of this rebase.
+
+Stage 6 carries the two new fixture commits, `0013861abe` (sequence)
+and `d9583e5686` (controller export). Final-tip build, validation results
+and remaining gates are recorded in
+[Stage 6](stages/06-compatibility.md#upstream-rebase-2026-11-18).
+This integration is local only; publication requires separate approval.
 
 ## PoC reconciliation onto bd970f693c (2026-11-11)
 

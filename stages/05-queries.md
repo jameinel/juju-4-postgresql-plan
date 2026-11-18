@@ -38,6 +38,23 @@ Use [UPSTREAM-PLAN.md](../UPSTREAM-PLAN.md#purpose-and-sqlschema-acceptance)
 for upstream design and acceptance; do not treat these source implementations
 as required upstream approaches. Ask before changing an assigned scope.
 
+## Upstream reconciliation (2026-11-18)
+
+Stage 5 is `a1cc9ab091`, based on upstream `d380e5e4fb` through the lower
+PoC stages. The landed CTE-membership, lease-pin, Boolean/machine-password
+and sequence fixes replace their older PoC duplicates. In particular,
+retain the final upstream nullable machine-password lookup and checked
+shared sequence allocator, not the PoC's earlier aggregate/allocator.
+Mixed commits retain their unrelated PostgreSQL portability changes.
+Controller-export NULL handling also arrives through the new base.
+
+The [reconciliation record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
+maps source commits and landed revisions. New sequence and export fixtures
+belong to Stage 6, with [final-tip evidence](06-compatibility.md#upstream-rebase-2026-11-18)
+at `09=68a0a25a99`; testing Stage 5 alone still does not select PostgreSQL.
+Unmerged U15/U21/U22 and other independent review differences are unchanged.
+No local stack branch was pushed.
+
 ## Remaining tasks
 
 ### Nullable BOOLEAN dqlite workaround (integrated locally)

@@ -242,7 +242,7 @@ without coordination.
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
 | 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Repairs integrated; the 142-package PostgreSQL and real-dqlite selections passed at `09=f3340c6710`, with recorded skips and deferred coverage. 06-test-levels and 06-schema-skip remain |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. New sequence/export fixtures add no skips. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Run 5 bootstrapped PostgreSQL at `f3340c6710`; full D54 acceptance remains open on the consumer token mismatch and teardown/isolation checks. Four review checkpoints await redistribution; comparison not started |
@@ -266,14 +266,16 @@ Next:
    explicit target approval. Automatic controller-wide cleanup is future
    work, not an acceptance gate. Obtain separate approval for teardown/
    isolation checks and complete them before comparison.
-2. Finish the outstanding rebase checks and redistribute the four Stage 9
-   review checkpoints into their owning layers. The Stage 6 repair batches,
+2. Redistribute the four Stage 9 review checkpoints into their owning
+   layers. The Stage 6 repair batches,
    resource-list assertion repair, nullable-BOOLEAN fix and catalog-query
    fix are integrated. The charm-removal timestamp fixture passes on all
    three backends; see
    [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-11).
-   At `09=f3340c6710`, the full build and both 142-package sweeps passed;
-   skips, the three import packages (D40), `domain/recovery/state` and
+   The landed batch is reconciled locally onto upstream `d380e5e4fb`;
+   [new revision-specific evidence](stages/06-compatibility.md#upstream-rebase-2026-11-18)
+   records `09=68a0a25a99`, the fixture repairs and static-analysis limits.
+   Skips, the three import packages (D40), `domain/recovery/state` and
    06-schema-skip remain explicit coverage gaps. Preserve the
    [repair handoff](handoffs/2026-11-10-stage-6-parallel-repairs.md)
    and revision-specific evidence. Follow changed-layer validation after
@@ -284,18 +286,15 @@ Next:
    user-requested merge hold pending attachment-invariant investigation and
    rework, not an instruction to merge the deterministic-row version.
    U21's integer-schema rework is published as #23769; grouped-column work
-   includes CA-certificate preservation. U20 #23809 landed on 2026-11-16;
-   compare its final SQL with the PoC before reconciliation. Alongside
+   includes CA-certificate preservation. Alongside
    these, audit the `0` / `1` seed
    rows written to `BOOLEAN` columns (UPSTREAM-PLAN.md D55 audit table).
-   X24 #23750 landed on 2026-11-13; the integration owner should compare
-   the PoC's earlier equivalent SQL with the final upstream result under
-   UPSTREAM-INTEGRATION.md. Reconciliation and its validation remain pending.
-   Lease-pin #23729 landed on 2026-11-16; compare its final conflict handling
-   with the PoC's Stage 5 implementation under the same procedure.
-   Sequence allocation #23731 landed on 2026-11-18; compare its checked
-   upsert and retry handling with the Stage 5 implementation. These
-   landings do not establish PoC integration or PostgreSQL validation.
+   The landed CTE-membership, lease-pin, controller-export, U20 and sequence
+   fixes were reconciled into the local PoC on 2026-11-18; see the
+   [source mapping](UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18).
+   Record the new sequence/export fixture adaptations with the existing
+   H4 shared-suite enablement scope; neither is a new stock-backend bug.
+   No owner-held upstream branch was changed or republished.
 4. Continue the approved
    [PostgreSQL test-infrastructure checkpoints](upstream/4.1-postgresql-tests/integration-plan.md).
    Schema layout, central backend configuration and H2 driver/schema
@@ -306,7 +305,18 @@ Next:
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
-Current local tips (2026-11-11, base `bd970f693c`, verification incomplete):
+Current local tips (2026-11-18, base `d380e5e4fb`, local only):
+`00=eb241e7bc7`, `01=14abbf3201`, `02=db349a2433`, `03=7c4f12615f`,
+`04=84365797f0`, `05=a1cc9ab091`, `06=d9583e5686`, `07=e5dcbf5449`,
+`08=61c026c25d`, `09=68a0a25a99`. Recovery tags
+`pg-poc-before-upstream-d380e5e4fb/00-base-fixes` through `/09-bootstrap`
+preserve all ten prior stage tips. The four Stage 9 review checkpoints
+remain in place, and the database-pool experiment branch is unchanged.
+See the [reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
+and [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-18).
+Full static analysis and D54 functional acceptance are not complete.
+
+Previous local tips (2026-11-11, base `bd970f693c`):
 `00=b5e5c7f644`, `01=cc4e33a336`, `02=11c1c182dd`, `03=6ef34e58cd`,
 `04=c0f57b0134`, `05=6630d3b862`, `06=0b4dbfbcae`, `07=c26d84b91a`,
 `08=06d2a16bdb`, `09=f3340c6710`. The original stage tips are tagged
@@ -442,8 +452,9 @@ functionality rather than disappearing from scope.
 ## Stack workflow
 
 Every stage branch sits on the one below it in the table, in one line
-(N4, N8). The base is upstream `4.1` at `bd970f693c` (since 2026-11-11;
-verification remains incomplete). The earlier base was `5259edff43`;
+(N4, N8). The base is upstream `4.1` at `d380e5e4fb` (since 2026-11-18;
+see Stage 6 for revision-specific checks and remaining acceptance gates).
+The prior bases were `bd970f693c` and `5259edff43`;
 older `a8591fe1b8` tips are tagged `pg-poc-base-a8591fe1b8/*`.
 Stage 5 also
 carries unchanged cherry-picks of open upstream PRs (D43; listed in

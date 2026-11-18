@@ -92,6 +92,30 @@ For dispatch and validation details, read the
 [breakout validation guide](.github/skills/upstream-breakout/references/validation.md)
 when starting or reviewing implementation work.
 
+## PostgreSQL fixture follow-up (2026-11-18)
+
+The PoC rebase onto upstream `d380e5e4fb` retains the landed sequence
+allocator from juju/juju#23731. Its new stale-snapshot and suppressed-write
+tests use SQLite-only PRAGMA/trigger fixtures. PoC Stage 6 `0013861abe`
+adapts them without skips and passes the complete sequence package on
+SQLite, real dqlite and PostgreSQL.
+
+No equivalent adaptation was found in the sequence or PostgreSQL
+test-infrastructure records/current tree. This belongs to the existing
+H4 shared-suite enablement scope, not a new stock-backend correctness fix
+or a duplicate branch reservation. Port it with the independent branch's
+central backend-selection APIs; do not import PoC ancestry/runtime code.
+The [finding register](UPSTREAM-FIXES.md#sequence-fixture-portability-follow-up-2026-11-18)
+owns the details. The active PostgreSQL owner's dirty record was preserved.
+No upstream extraction or publication was performed.
+
+The broader re-sweep also found a newly landed juju/juju#23765 fixture
+using unquoted `user`. The portable `"user"` spelling retains all NULL
+fidelity assertions and belongs to the same enablement follow-up (or an
+independent shared test-SQL cleanup), not a new export-format change.
+See the [export fixture finding](UPSTREAM-FIXES.md#controller-export-fixture-follow-up-2026-11-18)
+for provenance and revision-specific evidence.
+
 ## Breakout claims
 
 Reservations are serialized by the coordinator. Re-read this index and
@@ -431,6 +455,8 @@ overwriting them.
 
 Open PR rows reflect the latest GitHub check and linked owner records;
 landed and unclaimed task rows retain their recorded state.
+The five landed-batch rows also record local PoC reconciliation on
+2026-11-18; that is not a new upstream review or publication snapshot.
 
 | Branch/task record | Recorded summary |
 |---|---|
@@ -438,14 +464,14 @@ landed and unclaimed task rows retain their recorded state.
 | [`4.1-application-exposure-scope`](upstream/4.1-application-exposure-scope/status.md) | Depends on charm; rebase/regenerate after charm lands. |
 | [`4.1-binary-key-columns`](upstream/4.1-binary-key-columns/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-blockcommand-order`](upstream/4.1-blockcommand-order/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | [#23809](https://github.com/juju/juju/pull/23809) landed; compare the final SQL with the PoC before reconciliation. The owner-held record still shows an open snapshot. |
+| [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | [#23809](https://github.com/juju/juju/pull/23809) landed; final SQL reconciled locally onto `d380e5e4fb` on 2026-11-18. The owner-held record still shows an open snapshot. |
 | [`4.1-changestream-latest-row`](upstream/4.1-changestream-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | [#23805](https://github.com/juju/juju/pull/23805), head `62a12cdc6a`: current-head human approval, addressed bot feedback and reported manual QA; Actions aggregate passes, Jenkins statuses fail. The ordering-contract question was not explicitly answered. |
-| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | [#23765](https://github.com/juju/juju/pull/23765) landed; revisit NULL markers when the dqlite dependency is fixed. The owner-uncertain branch record still shows an older open snapshot. |
+| [`4.1-controller-export-null`](upstream/4.1-controller-export-null/status.md) | [#23765](https://github.com/juju/juju/pull/23765) landed; reconciled locally onto `d380e5e4fb`, including the quoted-user fixture follow-up. Revisit NULL markers when the dqlite dependency is fixed. The owner-uncertain branch record still shows an older open snapshot. |
 | [`4.1-controller-node-id-text`](upstream/4.1-controller-node-id-text/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | [#23806](https://github.com/juju/juju/pull/23806): stream-free controller lookup and review responses published; review, failed CI and live QA remain. Per-binary stream membership is separate design work. |
 | [`4.1-crossmodel-secret-revisions`](upstream/4.1-crossmodel-secret-revisions/status.md) | [#23688](https://github.com/juju/juju/pull/23688): await requested human review; required CI passes and bot feedback was answered. |
-| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | [#23750](https://github.com/juju/juju/pull/23750) landed; merge and reported QA recorded. Compare final SQL and scoped behavior with the PoC before reconciliation; coordinate any branch work because ownership is not established. |
+| [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | [#23750](https://github.com/juju/juju/pull/23750) landed; final SQL and scoped regression reconciled locally onto `d380e5e4fb` on 2026-11-18. Coordinate any branch work because ownership is not established. |
 | [`4.1-dbaccessor-pool-cleanup`](upstream/4.1-dbaccessor-pool-cleanup/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
@@ -455,7 +481,7 @@ landed and unclaimed task rows retain their recorded state.
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-keymanager-insert-id`](upstream/4.1-keymanager-insert-id/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lease-migration-tests`](upstream/4.1-lease-migration-tests/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | [#23729](https://github.com/juju/juju/pull/23729) landed; compare with the PoC during reconciliation. The owner-uncertain branch record still shows an open snapshot. |
+| [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | [#23729](https://github.com/juju/juju/pull/23729) landed; targeted conflict handling reconciled locally onto `d380e5e4fb` on 2026-11-18. The owner-uncertain branch record still shows an open snapshot. |
 | [`4.1-local-secret-revisions`](upstream/4.1-local-secret-revisions/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lookup-key-not-null`](upstream/4.1-lookup-key-not-null/status.md) | [#23724](https://github.com/juju/juju/pull/23724): await requested human review; required CI passes. Reconcile the independent INT-key guard with exposure when they meet. |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -470,7 +496,7 @@ landed and unclaimed task rows retain their recorded state.
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | Reservation head pushed to the fork with approval; no CI implementation. |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | Reservation head pushed to the fork with approval; exact initial pending-PR inventory recorded, no combined-fix implementation. |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | Pending; coordinate with the remote-secret review before dispatch. |
-| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | [#23731](https://github.com/juju/juju/pull/23731) landed at `e63bb20830`; compare its SQL and retry handling with the PoC before reconciliation. The owner-held record still describes the pre-merge state. |
+| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | [#23731](https://github.com/juju/juju/pull/23731) landed at `e63bb20830`; checked allocator and retry coverage reconciled locally onto `d380e5e4fb`. Stage 6 fixture adaptations are recorded above for H4, without new skips. The owner-held record still describes the pre-merge state. |
 | [`4.1-sql-standard-syntax`](upstream/4.1-sql-standard-syntax/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sql-test-literals`](upstream/4.1-sql-test-literals/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sqlite-integers`](upstream/4.1-sqlite-integers/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -535,7 +561,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | Finding | Candidate scope / next action |
 |---|---|
 | X7 | Published as #23751; follow the linked branch record. |
-| X24 | #23750 landed; compare its final result with the PoC during reconciliation. Do not duplicate. |
+| X24 | #23750 landed and was reconciled locally on 2026-11-18. Do not duplicate. |
 | X3/X4, other upserts | Sequence allocation landed in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |

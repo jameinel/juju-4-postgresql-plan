@@ -52,6 +52,104 @@ approved skips. New blockers return to their owning task; do not silently
 weaken the gate. Gates use the N16 tiers and levels: the readiness level
 runs tiers A and B in full; do not add packages outside them.
 
+## Upstream rebase (2026-11-18)
+
+All ten stage branches were rebased onto upstream `d380e5e4fb` and their
+adjacent ancestry verified. The final local tip is `09=68a0a25a99`;
+Stage 6 is `d9583e5686`. The
+[reconciliation record](../UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
+maps the five landed fixes and removed duplicates. Generated PostgreSQL
+schema assets are unchanged. No branches were pushed, owner-held upstream
+branches modified, or live controller experiments performed.
+
+### Fixture adaptations
+
+The landed sequence tests exposed SQLite-specific WAL and trigger setup.
+Stage 6 `0013861abe` guards WAL setup to SQLite, supplies the equivalent
+PostgreSQL suppressing trigger, and makes competing transactions allocate
+from the same namespace. The latter establishes a genuine stale-write
+conflict on PostgreSQL as well as SQLite/dqlite; unrelated-key writes need
+not conflict there. Single/batch affected-row failures, retryability,
+contiguous allocations and stored-state assertions remain covered. All
+18 sequence methods pass on all three backends without added skips.
+
+The broader PostgreSQL sweep at `09=83d9e6f474` then found the newly landed
+controller-export fixture's unquoted `user`. Stage 6 `d9583e5686` quotes
+`"user"` on every backend without changing any export assertion. All four
+controller-export methods pass on SQLite, real dqlite and PostgreSQL.
+Both adaptations are recorded as
+[upstream fixture follow-ups](../UPSTREAM-FIXES.md#sequence-fixture-portability-follow-up-2026-11-18)
+for existing H4 shared-suite enablement; no equivalent adaptation was found
+in the current owner records/tree, and no new branch was claimed.
+
+### Revision-specific validation
+
+At final tip `68a0a25a99`, `GOMAXPROCS=2 go build -p 2 ./...` passed.
+SQLite checks passed with `-race -count=1 -p 2 -parallel 1 -timeout 5m`
+for `domain/sequence/state`, `domain/export/state/controller`,
+`generate/pgschemagen`, `core/database/schema` and `domain/schema/...`.
+This includes schema/generator freshness checks; there was no schema
+change to regenerate. The IDE build check also returned success, with
+its explicit limited-diagnostics caveat.
+
+Both final-tip 142-package selections started at 21:09 UTC and completed
+with exit 0 and no race reports. They use the manifest recipe under
+[PostgreSQL re-sweep](#postgresql-re-sweep), excluding `domain/modelimport`,
+`domain/modelimport/state/model`, `internal/migration` and
+`domain/recovery/state`. The sorted manifest's SHA-256 is
+`d08b0919855142a445d1477fe78a2593c638d272668d2e7cbd714e9250cf82ed`.
+Each ran with `GOMAXPROCS=2`, `-race -count=1 -p 4
+-parallel 1 -timeout 55m` and a 60-minute outer timeout. PostgreSQL uses
+untagged binaries and the private test URL; real dqlite uses
+`make run-go-tests`, `dqlite,libsqlite3` and bundled musl/CGO libraries.
+
+| Backend | Packages pass / fail / no tests | Test-level skip events | Elapsed |
+|---|---|---|---|
+| PostgreSQL | 140 / 0 / 2 | 189 | 15m02s |
+| Real dqlite | 140 / 0 / 2 | 82 | 6m48s |
+
+Skip counts include skipped parent suites. The two no-test packages are
+`internal/changestream/testing` and `internal/database/testing`; their
+consumers ran in the selection. These race-enabled sweeps are correctness
+evidence, not a performance comparison or D54 acceptance.
+Logs are `/tmp/pg-poc-68a0-{postgresql,dqlite}-sweep.jsonl`,
+`/tmp/pg-poc-68a0-build.log` and `/tmp/pg-poc-68a0-sqlite-schema.log`.
+
+The complete pre-export-repair sweeps at `83d9e6f474` completed with
+PostgreSQL 139 pass / 1 fail / 2 no-test packages (189 test-level skip
+events), and real dqlite 140 / 0 / 2 (82 skip events). PostgreSQL's sole
+failure was `TestExportOtherNullableColumns` fixture setup, repaired
+above; the full export package then passed on PostgreSQL. Those older
+sweeps do not substitute for the final-tip runs.
+
+Sequence race stress at `83d9e6f474` completed ten runs with zero failures
+on each of SQLite (16s), real dqlite (22s) and PostgreSQL (30s).
+The final tip has identical sequence source. Stress selected
+`^TestSequenceSuite$/^TestSequence(Allocation|ConcurrentMixed)` using
+`stress -p 1 -count 10 -failfast -timeout 20s`, `-test.timeout=15s
+-test.count=1` and an outer `timeout 31s`. The PostgreSQL run had exclusive
+use of the test server after the sweep. The invalid-URL probe at
+`83d9e6f474` failed with connection refused, demonstrating backend
+selection rather than a silently passing SQLite fallback.
+Logs are `/tmp/pg-poc-83d9-sequence-{sqlite,dqlite,postgresql}-stress.log`
+and `/tmp/pg-poc-83d9-backend-proof.log`.
+
+`STATIC_ANALYSIS=1 make pre-check` at `83d9e6f474` exited 2 on four
+package comments outside `doc.go`: `core/database/dialect/dialect.go`,
+`generate/pgschemagen/main.go`, `internal/database/connsource/connsource.go`
+and `internal/database/postgresql/testing/schema.go`. All four are
+unchanged from the pre-rebase PoC; they were not repaired as part of this
+rebase. Later pre-check stages did not run. Scoped golangci-lint and
+txncheck passed for both changed fixture packages.
+See `/tmp/pg-poc-83d9-pre-check.log` and
+`/tmp/pg-poc-{83d9-sequence,export-fixture}-{lint,txncheck}.log`.
+
+Existing skips and deferred import/recovery coverage remain gaps, not
+passes. D54 functional/bootstrap acceptance, the consumer-token finding,
+teardown/isolation checks, the four Stage 9 checkpoint redistributions
+and publication remain separate work. This rebase does not reopen live
+controller access or approve database cleanup.
+
 ## Upstream rebase (2026-11-11)
 
 The stack was rebased onto upstream `bd970f693c`; its tip before the

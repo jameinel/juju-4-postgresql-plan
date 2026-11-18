@@ -181,3 +181,29 @@ dqlite build.
 | X42 | Locks taken by deleting a namespace | dqlite: `PRAGMA delete_database` removes one database, with no per-object locks | Every dropped object takes an AccessExclusive lock, held until commit and never fast-path. That includes each table's TOAST table and index and its row and array types, each index and constraint, the 4 internal triggers of each foreign key, and each trigger, function, view rule and default. Each lock uses a slot in a shared lock table sized `max_locks_per_transaction × (MaxBackends + max_prepared_transactions)`, shared by every session in the cluster. On PostgreSQL 16, MaxBackends is `max_connections + autovacuum_max_workers + 1 + max_worker_processes + max_wal_senders`, so the PoC server's table is 64 × 137 = 8,768 (6,400 was recorded before 2026-10-28). The hash table can borrow spare shared memory, so the limit is soft. When the table is full, any session's next lock fails with 53200 `out of shared memory`. Measured 2026-10-27 at 156 model patches: one model schema takes 4,421 locks with CASCADE and 4,428 with `DeleteSchema`'s RESTRICT sequence; `juju_controller` takes 1,473. Foreign keys account for 36% (317 constraints and 1,268 triggers), tables for 28% (251 × 5) and change-log triggers with one function each for 13% (292 × 2). Controller and 2 models in one transaction (10,303 locks) succeeded on spare shared memory; controller and 5 models failed. | Done: Stage 8 task 08-delete-locks (D53). Every Juju schema change transaction takes a per-database advisory lock first, so one model delete (4,418 locks, about 50%) or create (3,628, about 41%) runs at a time on each database. The cleanup tool drops one schema per transaction (D52). |
 | X43 | Predicate locks of long transactions | One writer and no SSI bookkeeping | SERIALIZABLE transactions take SIRead locks in a server-wide table sized from `max_pred_locks_per_transaction` × MaxBackends (8,768 targets on the PoC server). A committed transaction's SIRead locks are kept until every transaction that overlapped it has ended, so one long SERIALIZABLE transaction pins the locks of every SERIALIZABLE transaction that commits meanwhile, across all schemas. When the table is full, any SERIALIZABLE statement fails with 53200 and the hint "increase max_pred_locks_per_transaction". | D53 (Stage 8, 08-delete-locks): schema change transactions run at READ COMMITTED. Measured 2026-10-28: with model creates (about 1.1 s each) at SERIALIZABLE beside two readers of every table of another model, creates and readers failed (peak 17,536 SIRead rows). With four readers of 10 tables each the peak was about 13,700; at READ COMMITTED it was 830. Two readers of every table still fail with no schema changes running, so heavy SERIALIZABLE reads can exhaust the table on their own (Stage 11 READ COMMITTED experiment). |
 | X44 | `NULL` in a primary key column | A non-integer `PRIMARY KEY` column may hold NULL, and NULLs are distinct, so duplicate rows with a NULL key column are accepted | Every primary key column is implicitly `NOT NULL`: 23502 on insert | Shared fix (Stage 9 finding, U15): upstream #23710 (charm keys) and #23723 (exposure scope), both in review and cherry-picked onto Stage 5 (D43). `application_exposed_endpoint_cidr` / `_space` used a NULL `application_endpoint_uuid` for the wildcard endpoint; four more tables had nullable key columns (listed in U15). |
+
+### Sequence allocation fixtures (X19/X50, 2026-11-18)
+
+The landed sequence regressions need backend-appropriate fixtures, not a
+production allocator workaround. SQLite enables WAL with a PRAGMA;
+PostgreSQL has no such command. A competing write to an unrelated namespace
+does not establish the same stale-write conflict across both isolation
+models. Stage 6 `0013861abe` makes both transactions allocate from the same
+namespace and retains the retryability and contiguous-value assertions.
+
+SQLite's `RAISE(IGNORE)` suppresses a write without an error. For the
+equivalent PostgreSQL affected-row regression, a `BEFORE` row trigger
+returns NULL for the selected inserts/updates, rather than raising an
+exception and aborting the transaction. Both single and batch allocation
+must report zero affected rows and leave stored sequences unchanged.
+The complete sequence package passes on all three backends without skips;
+the [upstream follow-up](UPSTREAM-FIXES.md#sequence-fixture-portability-follow-up-2026-11-18)
+belongs to shared-suite enablement.
+
+### Controller-export fixtures (X8, 2026-11-18)
+
+The newly landed nullable-column regression also needs `"user"` quoted in
+its INSERT fixture. Stage 6 `d9583e5686` retains every export assertion;
+the complete controller-export package passes on all three backends.
+The [upstream follow-up](UPSTREAM-FIXES.md#controller-export-fixture-follow-up-2026-11-18)
+is shared identifier portability, not a changed export representation.
