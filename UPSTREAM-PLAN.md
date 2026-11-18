@@ -105,6 +105,7 @@ next actions belong in the branch record, not this table.
 |---|---|
 | [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `9c43947c-a0e6-40c2-a3dc-af93e0bbe9a8` (authorized takeover, 2026-11-12) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `a738cfe3-142f-4810-a9ec-22d6556fb5ec` (authorized takeover, 2026-11-16) |
+| [`4.1-controller-presence-test`](upstream/4.1-controller-presence-test/status.md) | `df17884f-b667-42da-a8d1-e4b4f898678d` (reserved, 2026-11-18) |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `a7cb8548-f5f6-43de-a460-86cf53db2f6e` (authorized takeover, 2026-11-16) |
 | [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (authorized H3 start, 2026-11-14; H3a audit complete, full-schema gates blocked on shared fixes) |
