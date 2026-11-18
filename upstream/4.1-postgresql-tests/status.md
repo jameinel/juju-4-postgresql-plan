@@ -5,62 +5,52 @@
 
 ## Current state and next actions
 
-Observed 2026-11-18. Owner/session:
-`1182cd49-fff3-42a1-b3ef-bf58b866213c`; branch `4.1-postgresql-tests`,
-worktree `../4.1-postgresql-tests`. Code HEAD:
-`c59a24d92ab167313f4393e0651f5ca76c1efcc4`, based on upstream 4.1
-`d380e5e4fba4c9918a0774638ffa3138aeece73e`. Last verified GitHub branch
-head: `c59a24d92ab167313f4393e0651f5ca76c1efcc4`. Same-patch forward
-foreign-key ordering is validated but uncommitted in the code worktree.
+Observed 2026-11-18. Branch `4.1-postgresql-tests`, worktree
+`../4.1-postgresql-tests`.
+
+- Implementation/evidence owner: `1182cd49-fff3-42a1-b3ef-bf58b866213c`.
+  Design/planning continuation: `5eb9907f-1835-4e64-98a2-d54e0aa2461d`.
+- Code HEAD: `c59a24d92ab167313f4393e0651f5ca76c1efcc4`; upstream base:
+  `d380e5e4fba4c9918a0774638ffa3138aeece73e`. The last recorded GitHub
+  branch head matches code HEAD; no PR is recorded.
+- The worktree contains an uncommitted same-patch FK relocation checkpoint.
+  Preserve it pending reconciliation, but do not extend it: the selected
+  design is [explicit upstream source ordering](#source-order-not-automatic-relocation).
 
 | Stage | State |
 |---|---|
 | H1: central backend configuration | Pushed as `985463ee4d`. |
 | H2: PostgreSQL driver/schema plumbing | Pushed as `a80e0b835b`. |
-| H3a: source/PoC audit | Complete; five shared-fix groups block full-schema acceptance. |
-| H3b: generation | Named sources and strict generator pushed; same-patch forward foreign keys are uncommitted. |
+| H3a: source/PoC audit | Complete; shared-source blockers identified below. |
+| H3b: generation | Named sources (`79a21a0148`) and strict foundation (`c59a24d92a`) pushed; full translation is incomplete. |
 | H3c: full-schema acceptance | Not implemented. No complete generated PostgreSQL assets or constructors. |
 | H3.1: empty-collection membership | Planned Juju portability commit in PostgreSQL enablement, not a mandatory separate PR; required before affected H4 acceptance. |
 | H2.1 / H4 | Sqlair adoption and shared-suite enablement remain separate gates. |
 
-The user approved continuing independent H3b work while shared-source
-blockers remain. The current uncommitted checkpoint passes focused SQLite,
-PostgreSQL and real-dqlite checks; full pre-check belongs to an earlier
-checkpoint, not the current changes. It does not complete H3. No
-vulnerability scan was run for this checkpoint. No PR is recorded;
-further publication requires separate approval.
-
-Local ancestry starts at upstream 4.1
-`d380e5e4fba4c9918a0774638ffa3138aeece73e` -> layout `468bbf32ae` ->
-H1 -> H2 -> named sources -> strict generator. The earlier ancestry and
-pushed revisions remain historical evidence below. The rebase did not
-import PoC ancestry or unpublished shared-source fixes.
+The branch starts from stock 4.1 plus layout `468bbf32ae`; it contains no
+PoC ancestry or unpublished shared-source fixes. Independent H3b work is
+approved while source blockers remain. Focused checks do not establish H3
+completion; see [evidence and limits](#evidence-and-limits). Further
+publication requires separate approval.
 
 Next actions:
 
-1. Follow the user-approved independent
-   [source-order cleanup](../4.1-schema-dependency-order/status.md).
-   Do not extend the generator's automatic dependency relocation while
-   that source contract is being established. Keep the existing dirty
-   ordering checkpoint intact pending reconciliation, not as the chosen
-   final design. Advance other H3b work against actually used constructs,
-   not general SQLite translation; see
-   [scope findings](#h3b-scope-findings-2026-11-18).
-   Address identity/changelog allocation, used views/expressions/triggers,
-   complete assets, PostgreSQL constructors and generation/freshness wiring.
-   Shared defects remain separate fixes, not PoC overrides. Integrate and
-   revalidate the existing nullable-primary-key fixes at the appropriate
-   combined-fix checkpoint; the current base predates them.
-2. Coordinate [H2.1 sqlair adoption](integration-plan.md#h21-adopt-upstream-sqlair-placeholders)
+1. Leave [source-order cleanup](../4.1-schema-dependency-order/status.md)
+   to the user's separate thread. Consume its explicit order when
+   integrated; do not build a generic relocation solver.
+2. Continue independent H3b work on identity/changelog allocation, clocks,
+   used views/expressions/indexes/triggers, complete assets, PostgreSQL
+   constructors and generation/freshness wiring. Translate actual assembled
+   constructs, not arbitrary SQLite SQL. Keep shared fixes separate and
+   revalidate them at the combined-fix checkpoint.
+3. Coordinate [H2.1 sqlair adoption](integration-plan.md#h21-adopt-upstream-sqlair-placeholders)
    with the [placeholder comparison](../../investigations/sqlair-placeholders.md).
    Do not assume `WithDialect(PostgreSQL)` or choose a dependency here.
-   H3 can proceed independently; final H4 acceptance cannot.
-3. Coordinate [H3.1 Juju empty-collection handling](integration-plan.md#h31-juju-empty-collection-membership)
-   through the [X2 task record](../sqlair-empty-in/status.md). The caller
-   audit/fix can proceed alongside H3 and H2.1. Default to a separate
-   commit in the test-enablement PR, not the schema-generator commit.
-   It gates affected H4 acceptance, not schema generation or sqlair adoption.
-4. Leave separately owned [CI](../4.1-postgresql-tests-ci/status.md) and
+   [H3.1 empty-collection handling](../sqlair-empty-in/status.md) is a
+   separate Juju caller-level portability commit, normally in the
+   test-enablement PR. Neither blocks H3; both gate affected H4 acceptance.
+4. Complete H3c acceptance before shared-suite enablement. Leave
+   separately owned [CI](../4.1-postgresql-tests-ci/status.md) and
    [combined-fix integration](../4.1-postgresql-tests-integration/status.md)
    reservations unchanged. Their records own implementation status.
 
@@ -74,7 +64,9 @@ Next actions:
 - Initial PostgreSQL acceptance targets version 16, fresh creation and
   identical version/hash reapplication. Incremental upgrades are a later
   capability; incompatible schemas must fail. Preserve existing
-  SQLite/dqlite APIs, schema bytes, ordering and supported upgrades.
+  SQLite/dqlite APIs, schema bytes, ordering and supported upgrades relative
+  to the integrated source baseline. The separate source-order task owns
+  its deliberate patch-order/hash-chain changes.
 - `DqliteSuite` still rejects PostgreSQL pending H3/H4. PostgreSQL-only
   low-level suites skip for other backends, but explicit PostgreSQL
   configuration/connection failures fail rather than skip or fall back.
@@ -84,14 +76,33 @@ Next actions:
   unvalidated: under 30 minutes, preferably under 15, including setup,
   compilation and cleanup. Focused timings do not establish that gate.
 
+## Source order, not automatic relocation
+
+The user selected an independent upstream cleanup on 2026-11-18, followed
+by a strict source-ordered generator. The
+[source-order task](../4.1-schema-dependency-order/status.md) owns the
+implementation, release-policy gate and acceptance.
+
+A read-only SQLite audit found no multi-object cycles among tables/FKs
+or view-read dependencies; `user` has a valid self-reference. There are
+four controller and 34 model forward table-to-target FK edges, including
+two and 27 cross-file edges. Model file grouping creates patch-level
+cycles, so some definitions must move between files rather than merely
+renaming whole patches. The audit did not establish target-key/index
+timing, write/trigger side-effect ordering or PostgreSQL acceptance.
+
+The PoC instead relocated forward/cyclic FKs and forward views in generated
+PostgreSQL output. That machinery is unnecessary for the observed acyclic
+object graph once source order is corrected. Validate dependencies and
+reject unresolved references; do not silently move constraints past writes.
+Runtime transactional FK deferral remains a separate compatibility issue.
+
 ## H3a actual-source audit (2026-11-14)
 
-Audited clean code head `57f02035c70aac8435c28341b9175980a9014ff5`
-and read-only PoC reference
-`f3340c67107829347ee750f7e40e806e563411e9`. Neither code checkout was
-modified. No code was ported, no fixes were cherry-picked and no overrides
-were approved by this audit. Findings below are tied to those revisions,
-not the current upstream branch or GitHub review status.
+Baseline: H2 `57f02035c70aac8435c28341b9175980a9014ff5`; read-only
+PoC reference `f3340c67107829347ee750f7e40e806e563411e9`. The assembled
+inventory was unchanged at the current base. These are source/design
+findings, not live upstream review status or complete PostgreSQL acceptance.
 
 ### Complete assembled inputs
 
@@ -140,13 +151,15 @@ controller ec1a871b89759916171bb623aed20b32f78eacbcb9e11aecc28de482fa593f0d
 model      74da449c07021e636dca9717090121ab0bceeff873e92dc25c039d39c4d98c05
 ```
 
+Source reordering deliberately changes these ordered digests and patch
+hashes; establish a new integrated baseline after that task lands.
+
 The source inventory, per-patch hashes and diagnostic program are retained
 in session `1182cd49-fff3-42a1-b3ef-bf58b866213c`'s `files/` directory:
-`h3-audit.go`, `h3-audit-final.log` and `h3-audit-before.log`. At audit
-completion, the code worktree was clean and all source and Go-built patch
-bytes were unchanged. No release DDL assets exist in H2's tracked dqlite trees;
-`generate/ddlgen` and its historical release-output behavior remain
-unchanged. This is H3a evidence, not generated PostgreSQL acceptance.
+`h3-audit.go` and `h3-audit-final.log`. Source and Go-built patch bytes were
+preserved through the current checkpoint. No release DDL assets exist in
+H2's tracked dqlite trees; prerelease `make rebuild-ddl` produced no release
+files, so historical release-output generation was not exercised.
 
 ### PoC override inventory: seven files, eleven hunks
 
@@ -176,6 +189,15 @@ The nullable-Boolean correction also depends on the existing
 (`domain/application/state/application.go:2777-2797`); merely adding
 PostgreSQL identities would not establish a shared storage contract.
 
+The base also predates the separate nullable-primary-key fixes for
+[lookup keys](../4.1-lookup-key-not-null/status.md),
+[charm keys](../4.1-nullable-primary-keys/status.md) and
+[exposure scope](../4.1-application-exposure-scope/status.md). For example,
+SQLite permits NULL in `lease_type.id INT PRIMARY KEY` and its exported
+representation is nullable; PostgreSQL rejects it. A generator-only
+nullability change would hide the shared schema/payload defect. Reconcile
+and revalidate the actual integrated fixes rather than duplicating them.
+
 ### Other translation and compatibility concerns
 
 | Concern / source | Classification and required treatment | Blocker |
@@ -187,7 +209,7 @@ PostgreSQL identities would not establish a shared storage contract.
 | `controller/sql/0007-model.sql:92,144,176` | Three `IIF` calls; `CASE` expresses the same Boolean result portably. No `IFNULL` calls occur in H2's assembled DDL/trigger sources. Existing shared IIF cleanup remains separately owned; a transitional lexical translation must not be described as a root-cause fix. | Does not block independent generator mechanics. |
 | `controller/sql/0016-flag.sql:3` | One numeric `BOOLEAN DEFAULT 0`; shared cleanup candidate is `FALSE`. No assembled seed rows populate a table containing a Boolean column at H2. Still test numeric Boolean seed conversion with fixtures, using declared table/column position and explicit insert column lists. | No global substitution or inferred new data contract. |
 | Unquoted `user` references | Existing shared quoting candidate. PostgreSQL quoting is a lexical compatibility rewrite only: preserve strings/comments and all references, not just `CREATE TABLE`. | Does not block independent generator mechanics. |
-| FK/view dependency order | Genuine backend difference. Resolve referenced keys/indexes, forward references and table cycles; reject missing targets, duplicate definitions and view cycles. H2 declares no `DEFERRABLE` constraints, so distinguish creation-time forward references from deferred enforcement. Test explicit deferred-reference fixtures; do not make all FKs deferred silently. | H3b dependency validator and H3c actual constraint behavior. |
+| FK/view dependency order | Consume the separate cleanup's explicit source order. Validate referenced tables/keys/indexes and reject missing targets or duplicate definitions; do not add automatic relocation. No assembled DDL declares `DEFERRABLE`, but model import and recovery use `PRAGMA defer_foreign_keys` (`domain/modelimport/state/model/import.go`, `domain/recovery/state/load.go`). Creation-time ordering does not provide that runtime behavior; coordinate the schema/caller design without silently deferring every FK. | H3b dependency validation and H3c actual constraint behavior; affected H4 import/recovery coverage needs runtime parity. |
 | Long names and `_pkey` | Mechanical dialect naming with semantic error-classification consequences. Preserve H2's default primary-key suffix; reject unique names using it. Detect collisions across PostgreSQL relation/function/trigger namespaces after shortening, rather than assuming a short hash makes collisions impossible. | H3b validation and H3c actual error classification. |
 | Generic/custom guards, `RAISE(FAIL/ABORT)`, trigger `WHEN` | Genuine compatibility boundary. H2 maps PostgreSQL `P0001` to trigger errors, but SQLite FAIL and PostgreSQL exceptions have different statement/transaction rollback behavior. Prove rejected mutations, no surviving unintended changelog/namespace writes and successful allowed changes; retain old/new-row and NULL predicates. | H3c behavior acceptance; textual rewrite is insufficient. |
 | Changelog `id` and `internal/changestream/stream/stream.go:477-489` | The consumer reads only IDs above its watermark. PoC's per-schema advisory-lock trigger allocates after locking because PostgreSQL defaults run before BEFORE triggers. Preserve insert visibility, rollback gaps and explicit-ID semantics; a bare identity sequence can miss a late commit. | H3c deterministic two-transaction, cancellation, independent-schema and bounded stress coverage; no acceptance from string assertions. |
@@ -200,453 +222,145 @@ start time as an accidental `now()` substitution. Existing ambiguous
 same-instant charm ordering is separately registered; H3 does not choose
 a new ordering key or modify domain SQL.
 
-### Reusable generator provenance and required changes
-
-Reference files below are all under `generate/pgschemagen/` at PoC
-`f3340c6710`. None had been copied at the H3a checkpoint; subsequent
-selective reuse is recorded in the strict-generator checkpoint below.
-
-| Component | Reuse assessment |
-|---|---|
-| `lexer.go`, `split.go` | Reuse token-preserving lexical/splitting structure and literal/comment/function-body fixtures. Add strict malformed/unsupported-construct rejection; tokenization alone is not syntax validation. |
-| `translate.go` | Reuse explicit type mapping, typed Boolean seed conversion, identifier quoting and deterministic shortening ideas. Add storage-map integration, collision validation and H2 timestamp handling. Replace the permissive unknown-statement/function pass-through; do not port `DATETIME -> now()` or its changelog helper as proven semantics. |
-| `trigger.go` | Reuse parsed trigger structure, OLD/NEW return selection and predicate-in-function handling for subqueries. Validate event/row syntax and supported body statements. Exercise actual guard/rollback behavior, not only generated strings. |
-| `order.go` | Reuse forward-FK relocation and deterministic dependency traversal. Strengthen definition/collision detection, supported-reference parsing and trigger/function dependencies; its maps currently overwrite duplicate table/view definitions. |
-| `diff.go` | Reuse exact old-line context matching, but reject ambiguous matches, empty/no-op/stale overrides and unsupported diff input. Its current offset search accepts the first matching location, and its tests explicitly allow an empty override. Any retained override needs provenance/removal conditions. |
-| `generate.go` | Redesign source identity extraction around the shared assembler. `readSQLFiles` rejects all `.PATCH.sql`; `patchNames` assumes every trailing patch is a trigger. Neither is acceptable. Add deterministic non-writing freshness checks and generated ownership markers; current `writeOutput` deletes arbitrary unproduced entries in `sql/`. |
-| `main.go`, `generate_test.go` | Retain controller/model orchestration and useful focused fixtures, not a second schema registry. Add CLI `-check`, version/post-patch fixtures and deliberate missing/extra/drift cases. Current tests do not establish PostgreSQL storage, concurrency or complete H3c coverage. |
-
-Generation ordering must remain:
-existing `go generate ./domain/schema` trigger directives, then one
-PostgreSQL generation step. `make rebuild-triggers` already invokes
-that package (`Makefile:563-567`). Do not invoke `go generate` recursively
-from pgschemagen or repurpose facade `rebuild-schema`. Wire a non-writing
-freshness command into `tests/suites/static_analysis/schema.sh`; leave
-`make rebuild-ddl` / `generate/ddlgen` behavior unchanged.
-
-## H3b scope findings (2026-11-18)
-
-### Source-order decision
-
-User-authorized continuation session:
-`5eb9907f-1835-4e64-98a2-d54e0aa2461d`. Before any new code edits, the user
-asked whether source ordering could replace a generic dependency solver,
-then chose a separate upstream source cleanup followed by a strict
-generator. The independent
-[task record](../4.1-schema-dependency-order/status.md) owns implementation
-and acceptance. This supersedes expanding generator ordering as the next
-step; the existing uncommitted code was not changed by this continuation.
-
-A read-only SQLite audit of both fully assembled schemas found no
-multi-object cycles among tables/FKs or view-read dependencies, apart from
-the valid `user` self-reference. The model SQL files do have patch-level
-cycles due to grouping, so some definitions must move between files;
-renaming whole patches is insufficient. There are four controller and
-34 model forward table-to-target FK edges, including two and 27 cross-file
-edges respectively. The audit does not establish key/index timing, data
-side-effect ordering or PostgreSQL acceptance.
-
-The PoC instead kept source order and relocated forward/cyclic FKs and
-forward views in generated PostgreSQL output. That is reference behavior,
-not the selected upstream solution. After the source cleanup integrates,
-keep generation source-ordered and reject new unresolved dependencies;
-reconcile unnecessary relocation code separately. Other shared SQL fixes,
-runtime FK-deferral parity, identity/clocks, triggers, complete assets and
-H3c acceptance remain unchanged.
-
-### Remaining actual-source constructs
-
-The user clarified that a complete general-purpose translator is not the
-goal. Translate the constructs used by the assembled controller and model
-schemas, and reject unsupported forms with useful errors. Do not spend
-time implementing arbitrary expressions, hypothetical view cycles, or
-deferred-constraint syntax merely for completeness. The inventory below
-is evidence for the current base, not proof about future schema revisions.
-
-- **Ordering is needed beyond the current subset.** Controller
-  `0005-cloud.sql` declares `cloud_credential` with an FK to `user` and
-  a view joining it; `user` is created in `0015-user.sql`. Likewise,
-  `0007-model.sql` defines views using tables created in later patches.
-  Even within `0007-model.sql`, an unrelated `model_type` seed insert
-  precedes the `model` table that resolves `model_namespace`'s FK.
-  The current blanket pending-FK barrier rejects that input. The separate
-  source-order task owns the remedy; do not move constraints past arbitrary
-  writes or transplant the PoC ordering pass into this branch.
-- **Used SQL forms remain.** The current assembled schemas contain views
-  and Go-built triggers, check constraints, partial/expression indexes
-  (for example `0004-controller.sql` and `0015-user.sql`), and expressions
-  such as `IIF`. Support the used forms and their observable semantics;
-  the audit above identifies 20 controller and 59 model views and 89
-  controller and 291 model triggers.
-- **Identity and clock behavior remain.** Both changelog schemas use
-  `INTEGER PRIMARY KEY AUTOINCREMENT`, as do controller
-  `0013-autocert-cache.sql` and `0021-user-ssh-keys.sql`. The watermark
-  reader in `internal/changestream/stream/stream.go` selects IDs above its
-  last watermark, so a sequence alone can miss an out-of-order commit.
-  Preserve relevant allocation/explicit-ID behavior and timestamp
-  precision and evaluation time for the seven `STRFTIME` defaults and
-  actual trigger writes.
-- **Runtime deferral is a separate real dependency.** No assembled DDL
-  declares `DEFERRABLE`, but `domain/modelimport/state/model/import.go`
-  and `domain/recovery/state/load.go` use `PRAGMA defer_foreign_keys` for
-  transactional loading. The currently emitted nondeferrable PostgreSQL
-  FKs do not implement that behavior. Coordinate the necessary schema and
-  caller design for affected shared-suite tests; do not assume rejecting
-  general `DEFERRABLE` syntax solves runtime parity or silently defer every
-  constraint. Keep this distinct from creation-time forward references.
-
-The H3 goal remains reproducible complete generated assets and actual-schema
-acceptance on PostgreSQL, with existing SQLite/dqlite behavior preserved.
-The code ordering checkpoint remains uncommitted; planning is recorded
-separately. The last published code head remains `c59a24d92a`.
-
-## H3b same-patch foreign-key ordering (2026-11-18)
-
-Uncommitted above `c59a24d92a`. Forward table-level foreign keys are
-installed as soon as the target and matching primary/unique key exist,
-including keys supplied by a later plain unique index. Existing-target
-keys stay inline. Table cycles and multiple pending keys are emitted
-deterministically, and target types, columns and shortened constraint
-names remain checked. PostgreSQL constraints remain nondeferrable.
-
-Unresolved references fail at the end of their source patch. While any
-key is unresolved, only supported table and index creation may intervene;
-other statements fail rather than observe or change data before the
-constraint exists. Cross-patch relocation, general view/trigger ordering,
-and runtime `PRAGMA defer_foreign_keys` parity remain unimplemented.
-Generation failures leave output untouched. Full generation still stops
-at controller `0003-changelog` and model `0001-changelog` because
-`INTEGER PRIMARY KEY` allocation is unsupported.
-
-Focused generator/schema race suites passed on SQLite and real dqlite.
-Both existing and forward foreign-key fixtures ran on PostgreSQL; the
-forward fixture also ran on real dqlite. Tests cover immediate violations,
-rollback, cycles, composite keys, cascades and `SET NULL`; PostgreSQL
-metadata confirms the relocated constraints are nondeferrable. Scoped
-generator lint passed, touched Go files were formatted, and `git diff
---check` passed. The IDE build reported success with limited diagnostics.
-Bounded real-dqlite race stress reported 54 completed runs and zero
-failures at 30 seconds; two runs were still active at the outer timeout.
-Full pre-check and vulnerability scanning were not run for this checkpoint.
-
-Evidence in this session's `files/`: `h3-forward-fk-sqlite-final.log`,
-`h3-forward-fk-postgresql-final.log`, `h3-forward-fk-dqlite-final.log`,
-`h3-forward-fk-stress.log` and `h3-forward-fk-audit.log`.
-
-## H3 commit-message rework (2026-11-18)
-
-The rebased branch was pushed as `9320d7493592acd722871b4e763099eb638e1a3f`.
-Afterward, the five local commit bodies were wrapped to 72 columns without
-changing their wording, authors or trees. The resulting local head is
-`c59a24d92ab167313f4393e0651f5ca76c1efcc4`, subsequently pushed with
-approval.
-Verified each commit tree and whitespace-normalized message/author against
-the previously pushed branch. No tests were repeated for this message-only
-rewrite.
-
-## H3 rebase onto upstream 4.1 (2026-11-18)
-
-Committed the strict generator checkpoint as `ae7cd0ada8` before rebasing.
-Fetched upstream 4.1 at `d380e5e4fba4c9918a0774638ffa3138aeece73e`
-and rebased all five local commits without conflicts. `git range-diff`
-shows equivalent patches; the new head is
-`9320d7493592acd722871b4e763099eb638e1a3f`. The upstream revision includes
-the landed lease-pin and controller-export fixes. It introduces no changes
-to `domain/schema` relative to the old base, so the existing H3 schema
-blockers and partial generation limits remain.
-
-On the rebased branch, the generator/schema race suites passed on SQLite
-and real dqlite; the translated foreign-key fixture ran on PostgreSQL.
-H1/H2 focused driver, configuration, schema and sequence suites passed
-on SQLite and real dqlite, and the PostgreSQL driver and schema suites ran
-against PostgreSQL. Generator lint passed. The assembled-schema audit
-matched the earlier full output byte-for-byte, and trigger regeneration
-produced no drift. Full pre-check and stress were not repeated for this
-rebase; their earlier evidence is retained below.
-
-Logs in this session's `files/`: `h3-rebase-sqlite.log`,
-`h3-rebase-dqlite.log`, `h3-rebase-postgresql.log`,
-`h3-rebase-h2-sqlite.log`, `h3-rebase-h2-dqlite.log`,
-`h3-rebase-h2-pg.log` and `h3-rebase-audit.log`.
-
-## H3b existing-target foreign keys (2026-11-17)
-
-At that checkpoint, uncommitted above
-`6e6887c24ec77236796ef0ea96c279ac3b86341c`. Added table-level
-foreign-key translation when the referenced table and
-primary/unique key already exist, including self-references, composite
-keys, existing plain unique indexes and supported update/delete actions.
-Checks cover referenced columns and types, constraint-name collisions and
-identifier shortening. Forward references, deferred constraints and
-unrecognized clauses still reject; emitted constraints are not deferrable.
-The first three assembled controller patches translate, including both
-lease foreign keys. Full generation stops at controller `0003-changelog`
-and model `0001-changelog`: `INTEGER PRIMARY KEY` allocation remains
-unsupported.
-
-The SQLite and real-dqlite source fixtures and translated PostgreSQL
-fixture exercised immediate violations, nullable references, self-reference,
-composite references (including reversed key order), cascade updates/deletes
-and `SET NULL`. PostgreSQL metadata confirmed the tested constraint is
-nondeferrable. These fixtures do not establish forward-reference ordering,
-runtime `PRAGMA defer_foreign_keys` behavior or complete schema parity.
-
-This old base also predates the existing nullable-primary-key fixes:
-[lookup keys](../4.1-lookup-key-not-null/status.md),
-[charm keys](../4.1-nullable-primary-keys/status.md) and
-[exposure scope](../4.1-application-exposure-scope/status.md). For example,
-the original controller `lease_type.id INT PRIMARY KEY` accepts NULL on
-SQLite but not PostgreSQL; its exported 4.1 representation is nullable.
-The lookup-key fix addresses this source declaration and payload boundary.
-Do not infer that the partial generated lease patch establishes full
-behavioral parity or duplicate the shared fixes inside the generator.
-Reconcile against their actual integrated revisions before H3 acceptance.
-
-Focused SQLite and real-dqlite generator/schema race suites passed, as did
-the selected PostgreSQL foreign-key race test and scoped generator lint.
-Real-dqlite race stress reported 54 completed runs and zero failures at
-30 seconds; two runs were still active when the outer timeout stopped it.
-The latest Go files were formatted with `gci`/`gofmt`. The previous
-full pre-check and byte-preservation evidence remain tied to the earlier
-checkpoint below, not these foreign-key changes.
-
-Evidence in this session's `files/`: `h3-foreignkeys-sqlite-final.log`,
-`h3-foreignkeys-pg-final.log`, `h3-foreignkeys-dqlite-final.log`,
-`h3-foreignkeys-dqlite-verbose.log` and `h3-fk-dqlite-stress.log`.
-
-## H3b strict-generator checkpoint (2026-11-14)
-
-Uncommitted above `6e6887c24e`, using the pinned PoC as a reviewed reference,
-not definitive behavior. No PoC override or shared fix was copied.
-
-### Implementation and reference reuse
-
-- `generate/pgschemagen/` provides `-dqlite`, `-dest` and non-writing
-  `-check`. It consumes complete named sources at `version.Current`.
-  Shared post-patch inventories distinguish excluded future files from
-  unregistered inputs; `core/database/schema.HasArgs` rejects bound
-  arguments rather than losing them.
-- Adapted the PoC lexer/splitter and exact-diff ideas, adding strict
-  malformed-input, nested-comment and dollar-delimiter handling, unique
-  context matching and range checks. Unknown SQL and empty/no-op/stale/
-  ambiguous overrides reject instead of passing through.
-- The typed subset covers scalar columns, primary/unique keys, literal
-  seed rows, plain indexes and non-key `ADD COLUMN` post-patches. It uses
-  declared columns for Booleans and the existing storage map for binary
-  `TEXT`. Quoting/shortening detect relation-name collisions and preserve
-  `_pkey`; mixed-case quoted identifiers reject pending lookup support.
-- Exact H2 clocks use statement time: milliseconds for supported
-  `STRFTIME`, whole seconds for `DATETIME`/`CURRENT_TIMESTAMP`. This has
-  fixture evidence only, not PostgreSQL storage/long-transaction acceptance.
-  The PoC's transaction-time `now()` rewrite was not copied.
-- Both namespaces translate/preflight before writing. Headers preserve
-  source position, identity/digest and Juju version. Check mode leaves
-  contents, modes, mtimes and directories unchanged. Write mode skips
-  identical files, writes atomically and removes only owned stale files;
-  unowned files, symlinks, directories and unsafe paths reject.
-- Overrides need exact `Source`, nonempty `Reason` and `Remove-when`.
-  Unused overrides fail; raw snapshots and handwritten diffs have separate
-  ownership. Structural overrides reject pending dependency validation.
-
-### Evidence and limits
-
-Passed from the code worktree, including synthetic generation and
-freshness mutations for content, missing/extra files, Go patches,
-source-only whitespace, registered patches and overrides:
-
-```sh
-JUJU_TEST_DATABASE=sqlite go test -race -p 2 -count=1 -timeout 120s \
-    ./generate/pgschemagen ./domain/schema/... ./core/database/schema
-JUJU_TEST_DATABASE=dqlite make run-go-tests \
-    TEST_PACKAGES='./generate/pgschemagen ./domain/schema/... ./core/database/schema' \
-    TEST_ARGS='-race -p 2 -count=1 -timeout 120s'
-go generate -run triggergen ./domain/schema
-git --no-pager diff --exit-code -- domain/schema/dqlite
-STATIC_ANALYSIS=1 make pre-check
-git --no-pager diff --check
-```
-
-Both real CLI modes reject the controller foreign key in
-`dqlite/controller/sql/0002-lease.sql` without creating output. The model
-fixture rejects `INTEGER PRIMARY KEY` allocation in
-`dqlite/model/sql/0001-changelog.sql`. These are generator limitations,
-not new shared-source defects.
-
-The audit still matches H3a byte-for-byte, including all patch hashes and
-SQLite inventories; trigger regeneration has no drift. Race-compiled
-SQLite schema stress completed 12 runs, two processes, zero failures.
-Full pre-check passed (414-second static suite, including lint/schema/
-`txncheck`); touched Go files use `gci`/`gofmt`. IDE diagnostics are limited;
-CLI checks provide substantive compilation evidence.
-
-Logs in the current owner's session `files/`:
-`h3b-generator-sqlite-final.log`, `h3b-generator-dqlite.log`,
-`h3b-generator-stress.log`, `h3b-audit-after.log`, `h3b-trigger-generation.log`,
-`h3b-cli-generate.log`, `h3b-cli-check.log` and
-`h3b-pre-check-final.log`. `h3b-generator-files.sha256` fingerprints the
-15 validated uncommitted Go files. Temporary stress binaries were removed.
-
-No PostgreSQL acceptance ran here. The incomplete generator is deliberately
-not wired into existing generation or static checks; remaining work and
-shared blockers are listed above.
-
-## H3b named-source foundation (2026-11-14)
-
-Commit `6e6887c24e` exposes `ControllerPatchSourcesForVersion` and
-`ModelPatchSourcesForVersion`; existing DDL constructors use those same
-sequences. `PatchSource` preserves full patch values, SQL paths, and
-registering-Go-file identities such as `model.go#patch-0038`.
-Version-selected post-patches remain last, with the original registries
-authoritative. Runtime file-selection behavior is unchanged; strict
-inventory rejection belongs to the generator.
-
-Fixtures cover exact assembled sources, single closure evaluation,
-bound arguments, non-trigger post-patches, registration order, version
-inclusion/exclusion and missing inputs. SQLite/real-dqlite race suites,
-both generation consumers, scoped lint/`txncheck` and full pre-check
-(402 seconds) passed at this commit. Real-dqlite race stress completed
-14 runs with zero failures before the intentional 31-second outer timeout.
-The audit matched H3a; trigger regeneration had no drift.
-`make rebuild-ddl` produced no release files at prerelease `4.1-beta3`,
-so historical release-output generation was not exercised.
-
-Evidence in the current owner's session `files/`:
-`h3-sources-sqlite-final.log`, `h3-sources-dqlite.log`,
-`h3-trigger-generation.log`, `h3-ddl-generation.log`,
-`h3-sources-stress.log`, `h3-sources-lint.log`, `h3-sources-txncheck.log`,
-`h3-sources-after-final.log` and `h3-pre-check-no-govulncheck.log`.
-`h3-sources-files.sha256` fingerprints its five committed files.
-
-## H2 implementation and provenance (2026-11-14)
-
-Revision `57f02035c70aac8435c28341b9175980a9014ff5`, above H1
-`6e677c28505645413b55862e732c28e576ced3b9`. Selectively adapted the PoC
-pgx driver with `github.com/jackc/pgx/v5 v5.11.0`, not a verbatim import.
-
-- Explicit connectors default to serializable transactions and UTC.
-  Positional `?` and Sqlair parameters are bound as PostgreSQL `$N`;
-  native numbered parameters work without mixing representations.
-  Quoted literals/identifiers, comments and dollar-quoted bodies are
-  preserved. Unquoted `?` is treated as a legacy placeholder, not a
-  PostgreSQL JSON operator; this is a known bridge limitation that H2.1
-  must resolve before accepting native sqlair PostgreSQL output.
-  Invalid empty `IN ()` is deliberately not rewritten or hidden.
-- Error classification covers wrapped SQLSTATEs under both build-tag
-  variants. Serialization failures and deadlocks retry; connection loss
-  and server shutdown do not retry an uncertain commit blindly.
-  Existing shared transaction retry machinery is reused.
-- PostgreSQL schema application takes a transaction advisory lock at
-  READ COMMITTED, applies DDL and persisted version/hash records atomically,
-  accepts fresh/identical schemas and rejects incremental upgrades or
-  changed/newer hash chains. SQLite bookkeeping SQL and upgrades remain
-  unchanged. Error causes survive schema-layer wrapping.
-- The test helper reads central configuration, creates a random owned
-  schema, bounds admin/scoped pools to 2/4 connections, and closes pools
-  before dropping only that schema. Cleanup uses a fresh bounded context,
-  not the canceled test context. There is no stale-schema sweep.
-- Malformed connection diagnostics do not include the original connection
-  string. Neither the driver nor the helper reads PoC environment settings.
-  No production backend-selection path was added.
-
-**H3 prerequisite:** PostgreSQL uses SQLSTATE `23505` for primary-key and
-unique violations. H2 preserves Juju's distinction using PostgreSQL's
-default `_pkey` primary-key constraint suffix. Generated schemas must keep
-that convention and not give unique constraints that suffix, or replace
-the name-based classification before claiming compatibility.
-
-### Validation
-
-Commands used the shared `_deps` and the approved existing PostgreSQL 16.15
-server, supplied privately through central configuration. No PoC environment
-reading or new server provisioning was added. Final executable checks
-preceded only comment/formatting changes in `57f02035c7`; stress binaries
-were rebuilt from that exact commit.
-
-Focused PostgreSQL checks passed with the central selector explicitly set:
-
-```sh
-export JUJU_TEST_DATABASE=postgresql
-# Supply JUJU_TEST_POSTGRESQL_URL privately.
-timeout 150s go test -v -race -p 2 -count=1 -timeout 120s \
-    ./internal/database/postgresql/... \
-    ./internal/database/drivererrors ./core/database/schema \
-    -run 'TestRewriteSuite|TestDriverSuite|TestPostgreSQLSchemaSuite|TestPostgreSQLSuite'
-```
-
-Coverage includes backend settings, binding/prepared statements, typed
-values/timestamps, constraints, commit/rollback/retry, cancellation,
-fresh/identical schema hashes, incompatible-schema rejection and atomic/
-concurrent application.
-
-The same unchanged existing package selection passed with race detection
-on SQLite and real dqlite. An intentionally invalid unused PostgreSQL URL
-was retained for both, demonstrating that other backends ignore it:
-
-```sh
-export JUJU_TEST_DATABASE=sqlite
-export JUJU_TEST_POSTGRESQL_URL='intentionally invalid unused connection string'
-timeout 180s go test -race -p 2 -count=1 -timeout 120s \
-    ./internal/database/postgresql/... ./internal/database/drivererrors \
-    ./internal/database/testconfig ./internal/database/testing \
-    ./internal/database ./core/database/schema ./domain \
-    ./domain/schema/... ./domain/sequence/state
-
-export JUJU_TEST_DATABASE=dqlite
-timeout 180s make run-go-tests \
-    TEST_PACKAGES='./internal/database/postgresql/... ./internal/database/drivererrors ./internal/database/testconfig ./internal/database/testing ./internal/database ./core/database/schema ./domain ./domain/schema/... ./domain/sequence/state' \
-    TEST_ARGS='-race -p 2 -count=1 -timeout 120s'
-```
-
-- Race-compiled `TestDriverSuite` and `TestPostgreSQLSchemaSuite` each
-  passed 20 runs with zero failures under
-  `timeout 45s stress -p 1 -timeout 30s -count 20 -failfast`.
-- Negative runs verified unreachable-endpoint errors and the retained
-  domain-suite PostgreSQL gate, not passing domain coverage.
-- Scoped lint/`txncheck` and full `STATIC_ANALYSIS=1 make pre-check`
-  passed (7m43s). The optional vulnerability scan was disabled.
-- Cancellation readiness observes the blocked advisory lock via
-  `pg_locks`, then cancels and joins; it does not depend on hidden
-  `pg_stat_activity` fields or arbitrary sleeps.
-- Final cleanup left zero `juju-pgtest-*` schemas without sweeping.
-
-Logs: session `e23dc8fe-1c80-49f5-8bb0-059ea237919c`, `files/h2-*-final.log`
-and `h2-doc-go.log`. Stress binaries were removed. This is lower-level H2
-evidence, not H3/H4 or complete-job acceptance.
-
-## H1 history and evidence (2026-11-12)
-
-The initial configuration patch was tested on `bd970f693c`, then
-revalidated above layout `9da8100e16` before H1 commit `6e677c2850`.
-Both runs covered `internal/database/{testconfig,testing}`,
-`internal/testhelpers` and `domain/sequence/state` with race detection,
-SQLite and real dqlite. An invalid unused PostgreSQL URL was retained.
-Race-compiled harness stress passed 20 runs per backend with zero failures;
-lint, `txncheck` and whitespace checks passed.
-
-Fixtures cover selectors/defaults, compiled-backend availability, URL and
-keyword connection forms, retained URLs and environment preservation.
-Missing URL, unavailable dqlite and the then-unimplemented PostgreSQL
-backend failed with expected diagnostics. These were H1 negative checks;
-H2 subsequently added focused PostgreSQL execution.
-
-Evidence: session `0ec926e6-3858-4f43-bc9c-658024127e88`,
-`files/testconfig-*.log` and `restacked-harness-*.log`. No PostgreSQL or
-CI run occurred at H1. The original 2026-11-11 reservation and subsequent
-layout/CI/integration decisions are superseded by the
-[integration plan](integration-plan.md); historical PoC timings remain in
-[Stage 6](../../stages/06-compatibility.md#database-pool-poc).
-
-## Deferred: PostgreSQL test-suite upstreaming
-
-This is not a stock-upstream breakout or a dispatchable standalone fix.
-User decision on 2026-11-10: carry the local changestream shutdown
-cancellation fix with or after the future effort to run the upstream test
-suite on PostgreSQL, rather than factoring it out now.
-
-PoC commit `7e513ceaa8` in `internal/changestream/stream/stream.go` checks
+## Implemented foundation
+
+### PostgreSQL driver and schema plumbing
+
+H2 selectively adapted the PoC pgx driver with
+`github.com/jackc/pgx/v5 v5.11.0`; it did not import PoC runtime selection.
+
+- Connectors default to serializable transactions and UTC. The temporary
+  bridge binds raw `?` and Sqlair parameters as `$N`, preserving quoted
+  text, comments and dollar-quoted bodies. Native numbered parameters also
+  work, but representations cannot be mixed.
+- The bridge treats every unquoted `?` as a placeholder, so it would corrupt
+  a PostgreSQL JSON operator. H2.1 must remove Sqlair rebinding and
+  resolve the raw-SQL boundary before native sqlair acceptance. Invalid
+  empty `IN ()` is deliberately not rewritten; H3.1 fixes callers instead.
+- Wrapped SQLSTATE classification reuses Juju's transaction retry machinery.
+  Serialization failures and deadlocks retry; connection loss and shutdown
+  do not blindly retry an uncertain commit.
+- Schema application takes a transaction advisory lock at READ COMMITTED
+  and applies DDL plus persisted version/hash records atomically. Fresh
+  and identical schemas succeed; changed/newer chains and incremental
+  upgrades fail. SQLite bookkeeping/upgrades and error causes are preserved.
+- The test helper creates a random owned schema, bounds admin/scoped pools
+  to 2/4 connections, closes pools before dropping that schema, and cleans
+  up with a fresh bounded context. It never sweeps stale schemas. Connection
+  diagnostics do not expose the original URL; PoC settings are not read.
+
+PostgreSQL reports both primary-key and unique violations as SQLSTATE
+`23505`. H2 distinguishes them using the default `_pkey` suffix; generated
+schemas must preserve it and reserve it from unique constraints unless
+that classification is deliberately replaced.
+
+### Named sources and strict generation
+
+`ControllerPatchSourcesForVersion` and `ModelPatchSourcesForVersion`
+expose the same sequences used by existing DDL constructors. `PatchSource`
+retains full patch values, SQL paths and registering-Go-file identities,
+such as `model.go#patch-0038`. This avoids the PoC's second file inventory
+and its assumption that every non-file patch is a trigger.
+
+The generator selectively reused the pinned PoC's lexer/splitter and
+exact-diff ideas, not its permissive pass-through, ordering solver or
+transaction-time clock substitution.
+
+- `-dqlite`, `-dest` and non-writing `-check` consume named sources at
+  `version.Current`. Shared post-patch inventories distinguish excluded
+  future files from unregistered inputs. Bound arguments reject rather
+  than being discarded.
+- Implemented translation covers scalar columns, primary/unique keys,
+  literal seed rows, plain indexes, non-key `ADD COLUMN` and table-level
+  FKs whose target key already exists. Self-references, composite keys,
+  plain unique-index targets and supported update/delete actions are
+  covered. Columns/types, names and collisions are checked.
+- Boolean values use declared columns; binary `TEXT` uses the existing
+  storage map. Exact supported clock expressions use statement time.
+  These clock fixtures do not establish real storage/long-transaction
+  acceptance. Mixed-case quoted identifiers remain unsupported.
+- Unknown/malformed SQL and empty/no-op/stale/ambiguous overrides reject.
+  Overrides require exact `Source`, nonempty `Reason` and `Remove-when`;
+  unused overrides fail. Structural changes are not currently allowed.
+- Both namespaces translate/preflight before output is written. Headers
+  retain source position, identity/digest and Juju version. Check mode
+  preserves contents, modes, mtimes and directories. Write mode skips
+  identical files, replaces files atomically and removes only owned stale
+  files; unowned files, symlinks and unsafe paths reject.
+
+**Current generation limit:** controller `0003-changelog.sql` and model
+`0001-changelog.sql` reject `INTEGER PRIMARY KEY` allocation. Both changelog
+schemas use `AUTOINCREMENT`, as do controller `0013-autocert-cache.sql`
+and `0021-user-ssh-keys.sql`. Views, Go-built triggers, check constraints,
+partial/expression indexes and used expressions still need implementation.
+For example, `0004-controller.sql` and `0015-user.sql` contain non-plain
+indexes. Supporting hypothetical SQL forms is not a goal.
+
+The incomplete generator is deliberately not wired into normal generation
+or static checks. Once complete, existing `go generate ./domain/schema`
+trigger directives must run before one PostgreSQL generation step.
+`make rebuild-triggers` already invokes that package. Do not recurse into
+`go generate` or repurpose facade `rebuild-schema`; add non-writing
+freshness checking to `tests/suites/static_analysis/schema.sh` and preserve
+`make rebuild-ddl` / `generate/ddlgen` behavior. The [H3 contract](h3-plan.md)
+owns CLI commands and full acceptance.
+
+### Uncommitted FK checkpoint
+
+The dirty worktree adds deterministic same-patch forward-FK relocation.
+It installs each constraint as soon as its target table and matching key
+exist, including keys supplied by a later plain unique index. Constraints
+are nondeferrable. While a key is pending, only supported table/index
+creation may intervene; unresolved references fail at patch end.
+
+This cannot handle actual cross-patch dependencies or an unrelated seed
+insert before the target table, as occurs in controller `0007-model.sql`.
+It also does not implement runtime `PRAGMA defer_foreign_keys` behavior.
+Preserve the checkpoint, then reconcile unnecessary relocation after the
+separate source-order cleanup; its fixture success is not a reason to
+expand or adopt that design.
+
+## Evidence and limits
+
+These are retained results from the implementation sessions, not new runs
+for this document cleanup. Full-schema PostgreSQL acceptance, H4 coverage,
+CI and the complete-job timing gate remain unvalidated.
+
+| Checkpoint | Evidence | Limits |
+|---|---|---|
+| Current uncommitted FK checkpoint, above `c59a24d92a` | Generator/schema race suites on SQLite and real dqlite; PostgreSQL existing/forward-FK fixtures; scoped lint, formatting and whitespace checks. Fixtures cover immediate failures, rollback, cycles, composite keys, cascades, `SET NULL` and nondeferrable metadata. | No full pre-check or vulnerability scan. Bounded real-dqlite race stress completed 54 runs without failure; two runs remained active at the outer timeout. Not full-schema acceptance. |
+| Current committed tree, checked during the rebase before its message-only rewrite | Focused H1/H2 and generator/schema suites on SQLite/real dqlite; PostgreSQL driver/schema and existing-FK fixtures; generator lint. Assembled-schema audit matched byte-for-byte; trigger regeneration had no drift. | Full pre-check and stress were not repeated for the rebase. |
+| Earlier named-source/strict-generator snapshots | SQLite/real-dqlite race suites; source/version/post-patch and freshness mutation fixtures; full pre-check including lint/schema/txncheck; source-byte and trigger-preservation checks. | Pre-check does not cover subsequent FK changes. Snapshot fingerprints identify the tested files; no complete PostgreSQL schema was generated. |
+| H2 baseline `57f02035c7` | PostgreSQL 16.15 driver/schema tests cover binding/preparation, typed values, constraints, transactions/retries, cancellation, hash compatibility and atomic/concurrent application. Driver/schema race stress each completed 20 runs without failures; full pre-check passed. SQLite/real-dqlite regression suites also passed with an invalid unused PostgreSQL URL. | Lower-level plumbing, not native sqlair, domain-suite or complete-job acceptance. Optional vulnerability scan was disabled. |
+
+Cancellation tests establish advisory-lock readiness through `pg_locks`
+before canceling and joining, rather than relying on sleeps or restricted
+`pg_stat_activity` fields. Negative tests verify explicit connection errors
+and the retained domain-suite gate; they are not passing domain coverage.
+
+Retained evidence locations:
+
+- H3 session `1182cd49-fff3-42a1-b3ef-bf58b866213c`, `files/`:
+  `h3-forward-fk-*-final.log`, `h3-forward-fk-stress.log`,
+  `h3-forward-fk-audit.log`, `h3-rebase-*.log`,
+  `h3b-pre-check-final.log`, `h3b-generator-files.sha256`,
+  `h3-pre-check-no-govulncheck.log` and `h3-sources-files.sha256`.
+- H2 session `e23dc8fe-1c80-49f5-8bb0-059ea237919c`, `files/`:
+  `h2-*-final.log`. H1 configuration evidence is in session
+  `0ec926e6-3858-4f43-bc9c-658024127e88`, `files/testconfig-*.log` and
+  `restacked-harness-*.log`.
+- Source-order audit session `5eb9907f-1835-4e64-98a2-d54e0aa2461d`,
+  `files/schema-dependencies.go` and `schema-dependencies.log`;
+  the separate task record owns its interpretation and follow-up.
+
+## H4 shutdown follow-up
+
+Carry the changestream shutdown cancellation fix with or after PostgreSQL
+suite enablement, not as a new independent stock-backend fix. PoC
+`7e513ceaa8` changes `internal/changestream/stream/stream.go` to check
 `errors.Is(err, context.Canceled)` without first applying `errors.Cause`.
 Its regression covers direct and wrapped cancellation during normal
-shutdown. PostgreSQL produced the real failure; natural SQLite/dqlite
-reproduction has not been established. Preserve that distinction when
-scoping the future PostgreSQL test-suite work. Finding details and local
-validation are in UPSTREAM-FIXES.md under stream shutdown.
+shutdown. PostgreSQL exposed the failure; natural SQLite/dqlite
+reproduction has not been established. Retain that distinction when
+porting it; finding details remain in `UPSTREAM-FIXES.md` under stream
+shutdown.
