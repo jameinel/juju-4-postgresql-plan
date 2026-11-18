@@ -73,12 +73,10 @@ the PostgreSQL PoC is evidence, not a required design or runtime dependency.
   the supporting evidence in the branch record. Retain the claim while
   waiting for input; do not treat a paused session as abandoned. Only release
   or reassign a claim with the owner's or user's explicit authorization.
-- When ready, create a conventional commit with the required co-author
-  trailer. Present the exact branch, destination, and commit before pushing.
-  A push is not PR publication and does not replace review of the PR text.
-- Planning history stays in the shared repository. Follow AGENTS.md's
-  exclusive Git-write window and file-scoped staging/commit rules. Unrelated
-  dirty files are expected, not permission to stage them or abandon the task.
+- When ready, create a conventional code commit on the upstream branch with
+  the required co-author trailer. Present the exact branch, destination, and
+  commit before pushing. A push is not PR publication and does not replace
+  review of the PR text.
 - Prepare the exact PR title, base, head, body, and create action locally.
   Save the description as `upstream/<branch>/pr.md`; keep any replies beside
   it as `reply-<topic>.md`. Do not put new review drafts in the repository root.
@@ -91,7 +89,23 @@ the PostgreSQL PoC is evidence, not a required design or runtime dependency.
   actions in `status.md`. Hand source/merge revisions and PoC reconciliation
   obligations to the coordinator for the shared summaries; do not restack
   the PoC or maintain its stage progress as part of this stock-upstream task.
-  Report the worktree, branch,
-  commit, validation, PR link, and remaining review/CI/QA actions. Do not
-  merge, modify published PR content, or resolve review threads without
-  separate explicit approval.
+  Do not merge, modify published PR content, or resolve review threads
+  without separate explicit approval.
+
+## Finish the breakout
+
+Before the final handoff, make one local commit on the planning branch in
+the shared planning checkout, separate from the upstream code commit.
+Include only this task's planning changes, such as the reservation, branch
+record, and prepared review artifacts. Record progress as you go, but batch
+these edits into the final planning commit rather than committing each step.
+
+Follow `AGENTS.md`: coordinate a short exclusive Git-write window, inspect
+the index before staging, and stage and commit only explicitly named, owned
+files. Use a conventional commit message and the required co-author trailer.
+If the commit is blocked, report what is still uncommitted. Do not push the
+planning commit without explicit approval of the commit, destination, and
+action.
+
+Report the worktree, upstream branch and code commit, planning commit,
+validation, PR link if published, and remaining review/CI/QA actions.
