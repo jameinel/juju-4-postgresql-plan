@@ -115,6 +115,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
+| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | `3affe058-7602-478e-8c64-1de89f410003` (reserved, 2026-11-18) |
 | [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` |
 | [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `020f1b3f`, 2026-11-14) |
 | [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `6e9894b2`, 2026-11-14) |
@@ -454,7 +455,7 @@ landed and unclaimed task rows retain their recorded state.
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | [#23769](https://github.com/juju/juju/pull/23769): current-head human approval and passing required CI; GitHub review gate remains. Forward-port and reconcile the PoC workaround after landing. |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | [#23784](https://github.com/juju/juju/pull/23784): human review, no-CA QA and multi-certificate integration coverage remain; required CI passes. |
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
-| [`lease-migration-fixture-timestamps`](upstream/lease-migration-fixture-timestamps/status.md) | Unclaimed, low-priority test-only follow-up. |
+| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | Reserved, low-priority test-only follow-up. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; trigger-only proposal has an unresolved cross-unit ABA gap. Agree design and deterministic reproduction before dispatch; incident cause remains unproven. |
 | [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | Independent `AGENTS.md` proposal [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194); checks pass, human review pending. |
 | [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; independent future proposal, no longer carried by the placeholder branches. Unclaimed. |
