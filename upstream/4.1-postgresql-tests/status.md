@@ -8,17 +8,17 @@
 Observed 2026-11-18. Owner/session:
 `1182cd49-fff3-42a1-b3ef-bf58b866213c`; branch `4.1-postgresql-tests`,
 worktree `../4.1-postgresql-tests`. Code HEAD:
-`9320d7493592acd722871b4e763099eb638e1a3f`, rebased locally onto upstream
-4.1 `d380e5e4fba4c9918a0774638ffa3138aeece73e`. Last verified GitHub
-branch head: `6e6887c24ec77236796ef0ea96c279ac3b86341c`. The rebased
+`c59a24d92ab167313f4393e0651f5ca76c1efcc4`, based on upstream 4.1
+`d380e5e4fba4c9918a0774638ffa3138aeece73e`. Last verified GitHub branch
+head: `9320d7493592acd722871b4e763099eb638e1a3f`. The locally reworded
 branch has not been pushed.
 
 | Stage | State |
 |---|---|
-| H1: central backend configuration | Rebased locally as `0b482eba90`; original `6e677c2850` was pushed. |
-| H2: PostgreSQL driver/schema plumbing | Rebased locally as `7cf365ce63`; original `57f02035c7` was pushed. |
+| H1: central backend configuration | Reworded locally as `985463ee4d`; pushed as `0b482eba90`. |
+| H2: PostgreSQL driver/schema plumbing | Reworded locally as `a80e0b835b`; pushed as `7cf365ce63`. |
 | H3a: source/PoC audit | Complete; five shared-fix groups block full-schema acceptance. |
-| H3b: generation | Named sources rebased locally as `9e2d9b89ff`; strict generator/check pipeline, typed subset and existing-target foreign keys committed locally in `9320d74935`. |
+| H3b: generation | Named sources reworded locally as `79a21a0148`; strict generator/check pipeline, typed subset and existing-target foreign keys reworded locally as `c59a24d92a`. |
 | H3c: full-schema acceptance | Not implemented. No complete generated PostgreSQL assets or constructors. |
 | H3.1: empty-collection membership | Planned Juju portability commit in PostgreSQL enablement, not a mandatory separate PR; required before affected H4 acceptance. |
 | H2.1 / H4 | Sqlair adoption and shared-suite enablement remain separate gates. |
@@ -32,10 +32,10 @@ H2 and the named-source checkpoint were pushed with approval on 2026-11-14.
 No PR is recorded; further publication requires separate approval.
 
 Local ancestry starts at upstream 4.1
-`d380e5e4fba4c9918a0774638ffa3138aeece73e` -> layout `7a49ebbeec` ->
-H1 -> H2 -> named sources -> strict generator. The original ancestry
-and pushed revisions remain historical evidence below. The rebase did
-not import PoC ancestry or unpublished shared-source fixes.
+`d380e5e4fba4c9918a0774638ffa3138aeece73e` -> layout `468bbf32ae` ->
+H1 -> H2 -> named sources -> strict generator. The earlier ancestry and
+pushed revisions remain historical evidence below. The rebase did not
+import PoC ancestry or unpublished shared-source fixes.
 
 Next actions:
 
@@ -218,6 +218,15 @@ that package (`Makefile:563-567`). Do not invoke `go generate` recursively
 from pgschemagen or repurpose facade `rebuild-schema`. Wire a non-writing
 freshness command into `tests/suites/static_analysis/schema.sh`; leave
 `make rebuild-ddl` / `generate/ddlgen` behavior unchanged.
+
+## H3 commit-message rework (2026-11-18)
+
+The rebased branch was pushed as `9320d7493592acd722871b4e763099eb638e1a3f`.
+Afterward, the five local commit bodies were wrapped to 72 columns without
+changing their wording, authors or trees. The resulting local head is
+`c59a24d92ab167313f4393e0651f5ca76c1efcc4`; it has not been pushed.
+Verified each commit tree and whitespace-normalized message/author against
+the pushed branch. No tests were repeated for this message-only rewrite.
 
 ## H3 rebase onto upstream 4.1 (2026-11-18)
 
