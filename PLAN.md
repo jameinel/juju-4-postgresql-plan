@@ -293,7 +293,9 @@ Next:
    UPSTREAM-INTEGRATION.md. Reconciliation and its validation remain pending.
    Lease-pin #23729 landed on 2026-11-16; compare its final conflict handling
    with the PoC's Stage 5 implementation under the same procedure.
-   Neither landing establishes PoC integration or PostgreSQL validation.
+   Sequence allocation #23731 landed on 2026-11-18; compare its checked
+   upsert and retry handling with the Stage 5 implementation. These
+   landings do not establish PoC integration or PostgreSQL validation.
 4. Continue the approved
    [PostgreSQL test-infrastructure checkpoints](upstream/4.1-postgresql-tests/integration-plan.md).
    Schema layout, central backend configuration and H2 driver/schema

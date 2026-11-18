@@ -470,7 +470,8 @@ Reviewed and not a dqlite defect (recorded so they are not re-examined):
   clauses, and `ON CONFLICT DO UPDATE` with no conflict target
   (`domain/sequence`), are ambiguous or invalid only on PostgreSQL
   (DIALECT.md X3, X4). Fixed as portability on Stage 5; the independent
-  upstream sequence fix is in open PR #23731.
+  upstream sequence fix merged as #23731 on 2026-11-18. Compare its
+  checked upsert and retry handling with the PoC before reconciliation.
 
 ## Upstream review status
 
@@ -505,7 +506,7 @@ does not establish current CI, QA or PoC reconciliation.
 | [`4.1-agentbinary-conflict`](upstream/4.1-agentbinary-conflict/status.md) | U16/X18 | [#23728](https://github.com/juju/juju/pull/23728) |
 | [`4.1-lease-pin-conflict`](upstream/4.1-lease-pin-conflict/status.md) | X18 | [#23729](https://github.com/juju/juju/pull/23729), merged 2026-11-16; PoC reconciliation pending |
 | [`4.1-dbrepl-latest-row`](upstream/4.1-dbrepl-latest-row/status.md) | X16 | [#23730](https://github.com/juju/juju/pull/23730) |
-| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731) |
+| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | X3/X4 | [#23731](https://github.com/juju/juju/pull/23731), merged 2026-11-18; PoC reconciliation pending |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | X7 | [#23751](https://github.com/juju/juju/pull/23751) |
 | [`4.1-cte-membership-subqueries`](upstream/4.1-cte-membership-subqueries/status.md) | X24 | [#23750](https://github.com/juju/juju/pull/23750), merged 2026-11-13; PoC reconciliation pending |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | Agent guidance | [#23755](https://github.com/juju/juju/pull/23755) |
@@ -565,8 +566,9 @@ Notes:
 - U16's merged shared-state implementation replaced the earlier PoC
   cherry-picks in the 2026-11-11 rebase; validation remains incomplete.
   `PinLease` landed in #23729; compare it with the PoC during
-  reconciliation. Sequence allocation remains in independent review;
-  do not start a duplicate implementation.
+  reconciliation. Sequence allocation landed in #23731; compare its final
+  implementation with the PoC before reconciliation, rather than starting
+  a duplicate implementation.
   Developer tooling is published as juju/juju#23838; the five-query
   latest-secret rewrite remains a separate unclaimed task in
   UPSTREAM-PLAN.md.

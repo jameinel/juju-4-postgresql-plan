@@ -4,6 +4,86 @@
 
 ## Current state and next actions
 
+2026-11-18 CI investigation: the
+[documentation build](https://github.com/juju/juju/actions/runs/44349342389/job/134964325711)
+failed importing `drawsvg` 2.5.0 with `NameError: SyncedAnimationConfig`.
+The previous passing documentation job installed drawsvg 2.4.2;
+the pinned ggarch dependency allows `drawsvg>=2.0`. This is a dependency
+change outside this Makefile-only PR. The Read the Docs build also failed,
+but its log was inaccessible, so the cause is unconfirmed.
+The [unit-test job](https://github.com/juju/juju/actions/runs/44349342389/job/134960478649)
+also failed: `controllerpresence/TestNewConnectionTrackerBrokenImmediately`
+observed `connected=true` when expecting false. The aggregate test check
+failed as well. These failures have not been reproduced locally.
+
+2026-11-18 manual QA: the coordinator confirmed that all documented manual
+QA steps passed against local head `57e2ea08c3`. The Snap Store connectivity
+issue recovered; the coordinator shut down the QA container. The
+coordinator updated `pr.md`, including a snap refresh before installing Go.
+The grouped review reply records the completed QA. With coordinator
+approval, pushed follow-up commits `f637dd291e` and `57e2ea08c3`; local,
+origin and PR head were verified at `57e2ea08c3`. Publication of the
+description was separately approved, published and verified against
+`pr.md`. The edited review reply was separately approved, published as
+[a grouped comment](https://github.com/juju/juju/pull/23838#issuecomment-6985180624)
+and verified against `reply-van-cleef.md`. Next: monitor checks and obtain
+human review; the three Codex threads remain unresolved. On the pushed head,
+the GitHub documentation build and Read the Docs checks failed; their
+causes are not yet established. The GitHub Actions run was still in
+progress and its failed-job log was not yet available. Other checks were
+pending, passed or skipped.
+
+2026-11-18 scope clarification: the coordinator decided Go must be
+installed before Make runs. The dependency target must not install Go or
+enforce its version; rely on Go's `go.mod` toolchain selection instead.
+QA now installs the Go snap before invoking Make. The coordinator's initial
+fresh-container run reached the Go snap install but failed with a snapd EOF;
+the daemon log showed shutdown while the request was in flight. This is
+not evidence of a Makefile defect, and a complete run has not yet been
+repeated for the revised behavior. Local head is `57e2ea08c3`, two commits
+ahead of the published `5c6eb270e6`.
+
+The revised target was checked with Go absent, yq snap failure, yq missing
+from PATH after a simulated install, incompatible yq, and real yq success.
+ShellCheck on the expanded recipe and `git diff --check` passed.
+`make pre-check` passed with static analysis skipped. The earlier Go
+version-branch probe applied to an intermediate implementation and does not
+validate the final version-free implementation. The full privileged
+install was not repeated. The PR description and review reply were updated
+locally; neither the push nor publication has been approved.
+
+2026-11-18 review follow-up: coordinator authorized takeover by session
+`07dde829-85a3-4c53-9fd0-e784ccd783db`. PR
+[23838](https://github.com/juju/juju/pull/23838) and origin head remain
+`5c6eb270e6`; local head is `f637dd291e` on
+`4.1-install-dependencies`. The local worktree is clean and one commit
+ahead. No push or review publication has been approved.
+
+The coordinator reviewed all points in the
+[Van Cleef review](https://github.com/juju/juju/pull/23838#pullrequestreview-5934455988):
+retain the effective GOBIN lookup and existing tool-version policy; remove
+the installer recipe tests from static analysis rather than adding the
+suggested edge cases; fix yq installation failure diagnostics; and document
+the expected golangci-lint output format. The missing-yq test suggestion is
+moot after removing the tests. The three prior Codex threads have replies
+and remain unresolved.
+
+On `f637dd291e`, shell stubs verified failed snap installation, successful
+snap installation without yq on PATH and incompatible yq; an existing real
+yq passed the capability probe. The restricted PATH used for the stubs
+also emitted Go-not-found warnings while Make evaluated unrelated variables.
+The static-analysis shell suite, ShellCheck on the expanded recipes, shfmt
+on the changed shell script, and `git diff --check` passed. `make pre-check`
+passed but skipped static analysis. Full static analysis and a fresh
+privileged installation were not repeated. The removed test no longer
+provides automated coverage of yq and golangci-lint compatibility.
+
+The reviewed PR description is prepared in `pr.md` and the grouped response
+in `reply-van-cleef.md`. On the published head, GitHub checks passed or
+were skipped; human review is still required. Next: review the local commit
+and artifacts with the coordinator, and obtain separate approval for each
+push or publication action.
+
 2026-11-16 review follow-up: coordinator authorized takeover by session
 `a7cb8548-f5f6-43de-a460-86cf53db2f6e`. Local, origin and PR head are
 `5c6eb270e6`. The new Codex

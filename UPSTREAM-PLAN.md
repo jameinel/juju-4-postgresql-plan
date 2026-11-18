@@ -150,7 +150,30 @@ sweep. Workers update their branch record, not this dashboard on each
 commit or review. GitHub is authoritative for live PR state. A merged PR
 does not establish functional QA or PoC integration.
 
-### GitHub and coordination snapshot (2026-11-17 22:45 UTC)
+### GitHub and coordination snapshot (2026-11-18 13:34 UTC)
+
+Nineteen queued PRs remain open: seventeen Juju, including the assigned
+Copilot draft, and two SQLair. Heads were rechecked. Review, CI, functional
+QA and PoC reconciliation remain separate gates.
+
+- #23731 merged on 2026-11-18 at head
+  `e63bb20830acd2059ec335e29d4be069d950d748`, merge
+  `31e6c07744f9678b705a85b966210f79d6e92dd7`. Compare the landed sequence
+  allocator with the Stage 5 PoC implementation before reconciliation.
+  The owner-held branch record still describes the pre-merge state.
+- #23838 has one unanswered Van Cleef issue and four suggestions; the
+  Go 1.27 behavior recorded by the owner is relevant to evaluating the
+  issue. Human review and fresh-install QA remain.
+- #23766 remains on hold pending the attachment-invariant and source-repair
+  decision; Jenkins fails. #23805 also has failed Jenkins statuses.
+  Jenkins logs were not investigated. #23759 has failed static analysis;
+  #23806 and #23807 have failed Actions jobs. Do not infer a shared cause.
+- #23723 remains behind #23710 and must reconcile its combined guard with
+  #23724 when the changes meet. SQLair #195's spelling check remains
+  dependent on #194. The assigned Copilot draft #23764 awaits user review;
+  its reported CI is insufficient to establish required validation.
+
+### Historical GitHub and coordination snapshot (2026-11-17 22:45 UTC)
 
 The 19 planned Juju and SQLair PRs remain open, as does the separately
 assigned Copilot draft #23764. No new landing was found.
@@ -446,7 +469,7 @@ landed and unclaimed task rows retain their recorded state.
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | Reservation head pushed to the fork with approval; no CI implementation. |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | Reservation head pushed to the fork with approval; exact initial pending-PR inventory recorded, no combined-fix implementation. |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | Pending; coordinate with the remote-secret review before dispatch. |
-| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | [#23731](https://github.com/juju/juju/pull/23731), observed 2026-11-18: rebased head `e63bb20830` published and reviewer answered. Approval and reported QA predate the rebase; checks were pending at observation. |
+| [`4.1-sequence-upsert-target`](upstream/4.1-sequence-upsert-target/status.md) | [#23731](https://github.com/juju/juju/pull/23731) landed at `e63bb20830`; compare its SQL and retry handling with the PoC before reconciliation. The owner-held record still describes the pre-merge state. |
 | [`4.1-sql-standard-syntax`](upstream/4.1-sql-standard-syntax/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sql-test-literals`](upstream/4.1-sql-test-literals/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-sqlite-integers`](upstream/4.1-sqlite-integers/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -512,9 +535,33 @@ split conflicts by operation and preserve retries, idempotency and errors.
 |---|---|
 | X7 | Published as #23751; follow the linked branch record. |
 | X24 | #23750 landed; compare its final result with the PoC during reconciliation. Do not duplicate. |
-| X3/X4, other upserts | Sequence allocation is implemented in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
+| X3/X4, other upserts | Sequence allocation landed in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
+| Controller presence test flake | Unclaimed test-only follow-up: synchronise the immediate broken-connection test with worker completion. See the evidence below. |
+
+### Controller presence test flake (2026-11-18)
+
+The [#23838 unit-test job](https://github.com/juju/juju/actions/runs/44349342389/job/134960478649)
+failed `TestWorker/TestNewConnectionTrackerBrokenImmediately` in
+`internal/worker/controllerpresence/worker_test.go:291`: `connected` was
+still true. The PR does not change this worker or its tests.
+
+The test initially fills a buffered broken-connection channel, then sends a
+second value. The second send can complete as soon as the worker receives
+the first value, before `worker.go:249` stores `connected=false`. Its first
+assertion therefore has no completion barrier. The later unit-presence mock
+signal occurs after that store. The real `api.Connection.Broken` contract
+uses a closed channel, rather than values sent to a buffered channel.
+
+Contribute a separate focused test fix: retain coverage of a connection
+breaking immediately after `IsBroken`, use a realistic closed channel and
+wait for an observable worker action after the state update before asserting
+the disconnected state. Preserve the presence-cleanup assertions. Verify
+the normal and immediate broken-connection cases with race-enabled stress.
+The CI failure is observed; local `go test -race -count=100` and
+`-count=1000 -cpu=1,2,4` runs passed and did not reproduce it. This evidence
+identifies a test ordering defect, not a confirmed production-worker bug.
 
 D55 audit additions (2026-11-06). Each construct below remained in upstream
 `4.1` at `148e09f015` and is masked in the PoC by a Stage 4 override,

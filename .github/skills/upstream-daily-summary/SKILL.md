@@ -71,6 +71,7 @@ execution a new requirement for stock 4.1 work.
    claiming a root cause that the evidence does not establish. Check the
    aggregate job's dependencies or logs before attributing its failure.
    Skipped checks are not passes; pending or unavailable results are unknown.
+   Report failures in Jenkins, but do not grab their logs as it is behind auth.
 5. Ignore the macOS client job as a task to investigate. If its cancellation
    alone causes the aggregate check to fail, say so once and note that GitHub
    may still block merging. Do not ignore other failures or assume an
