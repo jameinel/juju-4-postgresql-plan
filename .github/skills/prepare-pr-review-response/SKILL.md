@@ -131,15 +131,24 @@ where practical without harming readability.
 
 ## Review and publication gates
 
-- Show the user the follow-up commit and exact push destination before
-  pushing. Verify the current PR head and remote branch first; stop on
-  unexpected divergence rather than overwriting another person's work.
-- Prepare and show the exact proposed PR body, destination, and edit action,
-  and the exact review response, destination, and comment or reply action.
-  Obtain explicit human approval for each publication action and its exact
-  content before publishing. A request to address feedback, tool permission,
-  approval of a code patch, or a push is not approval to publish text. If
-  content or destination changes after approval, request approval again.
+- Before pushing a follow-up commit, present the commit and exact push
+  destination together with the exact proposed PR body and each review
+  response, their destinations, and the intended edit or reply actions.
+  Identify any artifact that needs no publication. Review the text as
+  prospective: do not claim the commit has already been pushed.
+- Obtain explicit human approval for the push and for each needed publication
+  action and its exact content before taking any of those actions. The user
+  may approve the actions together, but approval of one does not authorize
+  another. A request to address feedback, tool permission, or approval of a
+  code patch is not approval to push or publish text. If content or
+  destination changes after approval, request approval again.
+- Verify the current PR head and remote branch before pushing; stop on
+  unexpected divergence rather than overwriting another person's work. Once
+  all needed actions are approved, push and publish the approved updates
+  promptly in sequence, verifying each. These actions are not atomic: if one
+  fails, stop and report what succeeded and what remains inconsistent.
+  When no push is needed, obtain approval for each applicable publication
+  action before publishing it.
 - For an approved PR body edit, use `gh api -X PATCH` on
   `repos/OWNER/REPO/issues/NUMBER` with `-F body=@FILE` directly; do not use
   `gh pr edit`. Verify the published body afterward.
