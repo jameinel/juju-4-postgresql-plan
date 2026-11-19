@@ -6,22 +6,42 @@
 
 ## Current state
 
+Owner/session: `298b7b55-c2d5-4ee7-ba8c-573f1ced04fc`, authorized
+takeover and exclusive reservation window confirmed by the user on
+2026-11-18. Branch/worktree: `4.1-schema-dependency-order`,
+`../4.1-schema-dependency-order`. Base:
+`d380e5e4fba4c9918a0774638ffa3138aeece73e` (upstream 4.1 checked
+2026-11-18); code head:
+`c8282cfab478973d6d92727b2b19c3980f68f84b`. Implemented and locally
+validated; not pushed or published. PR: none.
+
+Next: review the code and [prepared PR text](pr.md), obtain separate
+approval to push the code commit, and obtain approval of the exact PR
+create action. Live bootstrap and 4.0 migration QA and CI remain pending.
+Reconcile source moves with the schema-layout owner and independently
+reviewed changes when they meet; the PostgreSQL harness must consume the
+result separately. Do not treat this branch as their integration.
+
+Release-policy check, 2026-11-18: upstream `4.1` identifies as
+`4.1-beta3`; GitHub lists `v4.1-beta1` as its only 4.1 tag and both
+post-patch registries are empty. Merged juju/juju#23682 explicitly
+records that earlier 4.1 beta controllers are unsupported for in-place
+upgrade across base-schema hash changes; juju/juju#23690 records the
+same limitation for model databases. Reordering also changes the hash
+chain, so it must not be presented as an in-place beta upgrade. Preserve
+historical release DDL and validate supported migration paths separately.
+
 Prepared 2026-11-18 by session
 `5eb9907f-1835-4e64-98a2-d54e0aa2461d`, with the user's authorization
-to split source ordering into an independent UPSTREAM task. Reservation
-covers task preparation; implementation has not started. The user authorized
-handoff to a separate thread on 2026-11-18. The receiving session may take
-over this reserved branch/worktree and should record its session ID here
-and in the dashboard before editing; no further permission from the
-preparing session is required.
+to split source ordering into an independent UPSTREAM task. The user
+authorized handoff to this session on 2026-11-18.
 
-Verified upstream 4.1 base:
+At preparation, verified upstream 4.1 base:
 `d380e5e4fba4c9918a0774638ffa3138aeece73e`, checked through GitHub on
 2026-11-18. Created branch/worktree: `4.1-schema-dependency-order`,
-`../4.1-schema-dependency-order`. HEAD equals that base and the worktree is
-clean, with `_deps -> ../../_deps` sharing the existing dependencies.
-No cleanup commit, push or PR exists for this task. Task preparation is
-recorded in the local planning checkout; nothing has been published.
+`../4.1-schema-dependency-order`, with `_deps -> ../../_deps` sharing
+the existing dependencies. The initially clean worktree then had no cleanup
+commit, push or PR.
 
 The existing dirty `4.1-postgresql-tests` worktree is unchanged. Its
 same-patch foreign-key relocation checkpoint is not part of this task.
@@ -141,7 +161,59 @@ and retire unnecessary relocation code separately. Its remaining H3
 identity/clock/trigger work and other shared-source blockers are unchanged.
 Do not modify the separately owned CI or combined-fix integration branches.
 
-## Implementation and acceptance
+## Implementation and validation (2026-11-18)
+
+The code commit splits early user, architecture, infrastructure and
+workload definitions into dedicated source files, moves other table,
+index and view definitions after their prerequisites, and reorders
+definitions within files. It does not change SQL predicates or stored
+types. Generated changelog and other triggers remain after the base DDL.
+The source-order guard replays tables and indexes with foreign keys
+enabled, checks view dependencies with SQLite's authorizer, and prepares
+isolated triggers against all three write operations. Its fixtures cover
+same-patch forward tables, keys, views and triggers, key collation,
+composite keys and self-references. The guard itself uses SQLite even in
+the dqlite-tagged test build.
+
+- SQLite and real dqlite: race-enabled schema, schema-core, generator,
+  model-import, export and recovery suites passed at the code head. The
+  real-dqlite run used `make run-go-tests` and the shared musl/dqlite
+  dependencies. Schema fresh creation, reapplication, trigger consumers,
+  import/export round trips and recovery tests were included.
+- A SQLite before/after comparison against `d380e5e4fb` matched 297
+  controller schema objects and 95 tables, and 747 model schema objects
+  and 251 tables, including seed rows. The comparison normalizes one
+  trailing space removed from a moved `v_secret_permission` comment;
+  that is the only observed schema-text difference. Its read-only helper
+  is retained in this session's `files/compare-schema.go`.
+- `make rebuild-export` produced no generated diff. Scoped
+  `golangci-lint`, repository `txncheck`, `gci` and `git diff --check`
+  passed.
+- Race-enabled SQLite guard stress completed 15 runs with no failures
+  before the intentional 21-second outer timeout (exit 124). This is
+  bounded stress evidence, not an indefinitely passing run.
+- Two focused dqlite invocations with a compound `TEST_FILTER` failed in
+  the make recipe's shell quoting, before tests ran. The full dqlite
+  schema suite was run successfully instead.
+- Both cumulative post-patch tests skip because the registries are empty;
+  that is not cumulative-upgrade evidence. Earlier beta databases cannot
+  upgrade in place across changed hashes. Live 4.0 migration/bootstrap,
+  PostgreSQL execution and the full repository pre-check were not run.
+
+Commands for the final broad suites:
+
+```sh
+go test -race -p 2 -count=1 -timeout 120s \
+  ./domain/schema/... ./core/database/schema \
+  ./generate/triggergen ./generate/ddlgen \
+  ./domain/modelimport/... ./domain/export/... ./domain/recovery/...
+
+timeout 600s make run-go-tests \
+  TEST_PACKAGES='./domain/schema/... ./core/database/schema ./generate/triggergen ./generate/ddlgen ./domain/modelimport/... ./domain/export/... ./domain/recovery/...' \
+  TEST_ARGS='-race -p 2 -count=1 -timeout 120s'
+```
+
+## Original implementation and acceptance contract
 
 1. Recheck upstream, reservations and applicable nested source guidance;
    confirm release-policy permission and record the before-state.

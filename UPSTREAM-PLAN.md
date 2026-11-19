@@ -133,7 +133,7 @@ next actions belong in the branch record, not this table.
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
 | [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `a7cb8548-f5f6-43de-a460-86cf53db2f6e` (authorized takeover, 2026-11-16) |
 | [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (authorized H3 start, 2026-11-14; H3a audit complete, full-schema gates blocked on shared fixes) |
-| [`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md) | Reserved for the user's separate thread (handoff authorized 2026-11-18); prepared by `5eb9907f-1835-4e64-98a2-d54e0aa2461d`, implementation not started. The receiving session should record its ID before editing. |
+| [`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md) | `298b7b55-c2d5-4ee7-ba8c-573f1ced04fc` (authorized takeover, 2026-11-18); prepared by `5eb9907f-1835-4e64-98a2-d54e0aa2461d`. |
 | [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no combined fixes) |
