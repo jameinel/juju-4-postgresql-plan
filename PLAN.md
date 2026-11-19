@@ -245,27 +245,24 @@ without coordination.
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. Static-analysis cleanup is complete at `09=a1a9610167`. No new skips. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
-| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Run 5 bootstrapped PostgreSQL at `f3340c6710`; full D54 acceptance remains open on the consumer token mismatch and teardown/isolation checks. Four review checkpoints await redistribution; comparison not started |
+| 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Scoped D54 run 6 passed on PostgreSQL and dqlite at `a1a9610167`, including normal teardown and namespace isolation; disposable cleanup complete. Token design investigation stays separate. Four review checkpoints await redistribution; comparison not started |
 | 10 | [Juju controller HA, shared PG primary](stages/10-ha.md) | `pg-poc/10-ha` | not started; follows first comparison |
 | 11 | [Future work](stages/11-future-work.md) | n/a | not planned |
 
 Next:
 
-1. Continue [09-token-resume](stages/09-bootstrap.md#09-token-resume-evaluate-the-hooksettings-version-mismatch)
-   from retained evidence. Run 5 verified PostgreSQL bootstrap, persistence,
-   secrets and restart, but one original dqlite consumer remained waiting
-   for its token. The ABA/read-skew explanation is not a proven incident
-   cause. Controller debugging is deferred; new live experiments require
-   separate approval. Agree the independent
-   [hook-context snapshot design and deterministic regression](upstream/relation-hook-context-snapshot/status.md)
-   before implementation. Correct the evaluator to require every expected
-   consumer to be present, active/idle and reporting `Token is foobar`
-   before another D54 acceptance run.
-   Both PoC controllers were destroyed. Workload schemas are absent, but
-   PostgreSQL controller/controller-model schemas remain; cleanup requires
-   explicit target approval. Automatic controller-wide cleanup is future
-   work, not an acceptance gate. Obtain separate approval for teardown/
-   isolation checks and complete them before comparison.
+1. Agree the workload, scale, repetitions and acceptance thresholds for the
+   [comparison contract](BENCHMARKS.md) before running performance work.
+   [D54 run 6](stages/09-bootstrap.md#run-6-approved-remainder-of-d54-2026-11-18)
+   passed scoped correctness on PostgreSQL and dqlite at `09=a1a9610167`
+   on 2026-11-18/19, including persistence, multi-unit secrets, restart,
+   normal model teardown and namespace isolation. All approved disposable
+   resources were removed; no historical schemas were targeted.
+   The user made the separately investigated consumer-token mismatch
+   nonblocking. Both consumers were healthy in this run, but that does not
+   resolve the independent
+   [hook-context snapshot design](upstream/relation-hook-context-snapshot/status.md)
+   investigation. No token fix or performance comparison was performed.
 2. Redistribute the four Stage 9 review checkpoints into their owning
    layers. The Stage 6 repair batches,
    resource-list assertion repair, nullable-BOOLEAN fix and catalog-query
@@ -321,8 +318,8 @@ in place, and the database-pool experiment branch is unchanged.
 See the [reconciliation record](UPSTREAM-FIXES.md#poc-reconciliation-onto-d380e5e4fb-2026-11-18)
 and [Stage 6 evidence](stages/06-compatibility.md#upstream-rebase-2026-11-18).
 Full configured static analysis passed at `09=a1a9610167`; optional
-`govulncheck` was unavailable and did not run. D54 functional acceptance
-remains open.
+`govulncheck` was unavailable and did not run. Scoped D54 correctness passed
+on both backends in run 6; performance comparison remains unrun.
 
 Previous local tips (2026-11-11, base `bd970f693c`):
 `00=b5e5c7f644`, `01=cc4e33a336`, `02=11c1c182dd`, `03=6ef34e58cd`,

@@ -32,9 +32,13 @@ is diagnostic context, not a command to repeat blindly.
   controller. Use the explicit built client path for PoC controllers.
 - `juju_4` is a reference snap, not proof that the modified tree still
   works with dqlite. Benchmark baselines must identify an exact revision.
-- Build with `make juju jujuagentd`; `bootstrap --build-agent` runs
-  `make jujuagentd` in the code tree. `make install` includes schema
-  regeneration; `make go-build` does not.
+- Build from the intended worktree with `export GOBIN="$(mktemp -d)"`
+  followed by `make go-install`. Put that directory first on `PATH` and
+  invoke `"$GOBIN/juju"` for bootstrap without `--build-agent`; it packages
+  the adjacent, matching agent and hook tools. `--build-agent` instead
+  rebuilds in the current Go module, which can select the wrong checkout.
+  Verify the running backend and uploaded agent hash before workloads.
+  `make install` includes schema regeneration; `make go-install` does not.
 - Agent sessions see `~/.local/bin`, not `~/go/bin`, on PATH. The lint
   tools (`golangci-lint`, `gci`, `govulncheck`, `go-licenses`) were installed
   in `~/.local/bin`; `shellcheck` is in `/usr/bin`. Use the Go snap's

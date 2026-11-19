@@ -1,7 +1,20 @@
 # Stage 09: functional single controller and first comparison
 
 Branch `pg-poc/09-bootstrap`, on `pg-poc/08-dbaccessor`.
-Status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
+Current status (2026-11-19): [run 6](#run-6-approved-remainder-of-d54-2026-11-18)
+passed scoped D54 correctness on PostgreSQL and real dqlite at
+`a1a9610167`, including normal model teardown and namespace isolation.
+Approved disposable cleanup is complete. Performance was not measured.
+
+Approved scope (2026-11-18): the user made the consumer-token mismatch
+nonblocking while its upstream design is investigated separately, and
+approved [run 6](#run-6-approved-remainder-of-d54-2026-11-18) on fresh
+disposable PostgreSQL/dqlite controllers, including disposable-resource
+cleanup. Persistence, multi-unit secrets, restart, normal model teardown
+and schema isolation remain gates. Old controller schemas are not cleanup
+targets. Performance comparison is not part of this approval.
+
+Historical status: 09-functional started 2026-10-28 (scenario fixed in D54). Run 1
 failed on U15/U16 (integrated). Runs 2 and 3 (2026-11-05) each found a
 PostgreSQL-only query defect on the login and uniter paths (fixed on
 Stage 5). Run 4 at `09=75223c9543` created the PostgreSQL schemas but
@@ -23,7 +36,7 @@ destroyed both PoC controllers. Read-only PostgreSQL validation on
 2026-11-12 found all four workload schemas removed, but the controller and
 controller-model schemas still present. No manual cleanup was performed.
 See [post-destroy validation](#post-destroy-postgresql-validation-2026-11-12-utc).
-The next evaluation is [09-token-resume](#09-token-resume-evaluate-the-hooksettings-version-mismatch).
+The token investigation remains separate from the approved run-6 evaluation.
 See the run log below. Read D38–D40 and [BENCHMARKS.md](../BENCHMARKS.md).
 
 ## Prerequisites
@@ -38,8 +51,9 @@ is deferred, not an implicit smoke-test requirement.
 Before dispatch, agree a pinned charm/workload, readiness/completion
 signals, bounded waits, controller/model names and cleanup. Include:
 
-1. Build with `make juju jujuagentd` at the recorded revision. Bootstrap
-   with the explicit built client and `--build-agent`. Supply
+1. Run `make go-install` at the recorded revision with a temporary
+   `GOBIN`. Bootstrap with that directory's explicit client and adjacent
+   agent/hook tools, without `--build-agent`. Supply
    `db-backend=postgresql`, `db-url` and any agreed `db-ca-cert` through a
    private bootstrap config file outside both repositories (mode 0600),
    rather than putting credentials in recorded commands or process args.
@@ -70,6 +84,12 @@ evidence. Any new live experiments require separate approval. Controller
 debugging is deferred at the user's request. The observations below apply to
 `pg-poc/09-bootstrap` at `f3340c67107829347ee750f7e40e806e563411e9`.
 No production code was changed during the evaluation or investigation.
+
+On 2026-11-18 the user explicitly removed this finding as a blocker for
+the remaining D54 checks and approved a fresh disposable run and cleanup.
+The investigation criteria below remain relevant to the upstream design,
+not prerequisites for run 6. That approval does not authorize token
+debugging, changes to the original evidence or cleanup of old schemas.
 
 The acceptance signal is the token visible to every expected consumer,
 not only an active remote endpoint, an idle agent or an acknowledged
@@ -125,10 +145,146 @@ Next steps, in order:
    tests and bounded stress for changed concurrent code; validate real
    dqlite and PostgreSQL if the persistence layer changes.
 
-Stop conditions: no speculative production fix or new controller debugging.
-Full D54 acceptance remains open until both consumers converge correctly
-and separately authorized teardown/schema-isolation checks are completed.
-Publishing the research or code stack does not authorize these operations.
+Stop conditions: no speculative production fix or new controller debugging
+for this separate token investigation. Its acceptance criteria are not
+gates for the scoped run 6. Publishing the research or code stack does not
+authorize new live experiments.
+
+### Run 6: approved remainder of D54 (2026-11-18)
+
+Status: **scoped D54 passed; disposable cleanup complete** on 2026-11-19,
+at clean source `a1a9610167763bd96f9e7f2f442457300f469343`.
+The user approved a fresh PostgreSQL/dqlite run and disposable cleanup,
+excluding the independently investigated token mismatch as an acceptance
+blocker. A waiting sink is allowed only for the recorded token-delivery
+condition; both expected consumers must still exist and their agents must
+be idle. Missing units, hook errors and unrelated unhealthy states fail.
+Both sinks reported active/idle and `Token is foobar` at the final workload
+checks on both backends. The exception was not needed for those checks;
+this run does not resolve or supersede the earlier upstream finding.
+
+The run used private client state and binaries under
+`/home/jameinel/.copilot/session-state/792fd8dc-d510-4485-8c00-5dc99c79a1a4/files/d54-run6/`.
+At the user's request, the final build used `make go-install` from the PoC
+worktree with `GOMAXPROCS=2`, `GOFLAGS=-p=2` and temporary
+`GOBIN=.../d54-run6/bin.nEPJ1P`. Both controllers were bootstrapped using
+that directory's client and adjacent agent/hook tools, without
+`--build-agent`. Neither the shared installed binaries nor source changed.
+The installed agent and both uploaded agents had identical SHA256:
+`195607013dc52f0ca95009790e809dcaf67787acc1f485d8d6edfaad124ea9f9`.
+The client SHA256 was
+`09b11cdd4455e0b8bc492d88dcc7131decfd974f5ef943cf00018e83f883154b`.
+Both agents reported `4.1-beta3.1`.
+
+Both bootstraps used Ubuntu 24.04, two cores, 4 GB RAM, a 10 GB root disk,
+and the same downloaded `juju-controller` revision-482 charm file
+(deployed locally; PostgreSQL status displayed local revision 0).
+Model A ran Ubuntu revision 79 on Ubuntu 24.04 and dummy-source revision 6
+on Ubuntu 22.04. Model B ran two dummy-sink revision-7 units on Ubuntu
+22.04. All workload charms used `latest/stable`.
+
+The disposable targets were `pgpoc-pg-r6`, `pgpoc-dqlite-r6` and dedicated
+PostgreSQL hosting model `lxd36-pgtest:pgpoc-d54-r6-db`. The hosting script
+used PostgreSQL 16.15 and `dev-controller` durability (`fsync` and
+`full_page_writes` enabled), not the shared unit-test profile. It ran on
+`juju-e40d6b-0` at `10.12.45.227`. All convergence waits were bounded at
+600 seconds. Historical controller namespaces and the shared `pgtest`
+server were outside the write/cleanup scope.
+
+| Backend | Controller UUID | Controller-model UUID | Controller instance |
+|---|---|---|---|
+| PostgreSQL | `9af5a991-b2c2-40e9-85b5-8f6fce24388f` | `9fe680f5-b1ec-48bc-887c-c7f2b437938f` | `juju-37938f-0` |
+| dqlite | `0efa5dab-d3cd-4cf4-86c3-3324141925b2` | `e793e1fa-10b0-4411-8629-62326c810206` | `juju-810206-0` |
+
+| Model | PostgreSQL UUID | dqlite UUID |
+|---|---|---|
+| `model-secrets-offer` | `2cbd0614-cf27-494f-8646-1505a5b508a1` | `45cd31b4-07cb-4f38-81f6-5bb98887ccc0` |
+| `model-secrets-consume` | `8168a4a9-1871-48c8-8f72-9451a1ddfdfb` | `823a0084-4400-46fd-8924-06113b199502` |
+
+Passed on each backend:
+
+1. Actual agent config selected `postgresql` or `dqlite`, respectively.
+   PostgreSQL created its real namespaces; dqlite had Raft segments and
+   snapshots. All four expected workload units converged to active/idle.
+2. A real Ubuntu exec wrote and read `/tmp/d54-marker`.
+3. Both consumers read an application-owned secret (`foo=bar`) by URI
+   and label. Stable, secret-specific hook baselines were zero; rotation
+   to `bar2` raised each unit's count to one.
+4. Both consumers retained cached `bar`, could peek `bar2`, and stayed on
+   `bar` after peeking. Refreshing only unit 0 left unit 1 behind.
+5. Restarting the controller agent preserved the marker, controller/model
+   UUIDs, and mixed tracked revisions. Unit 1 could still peek and then
+   refresh. PostgreSQL retained 61 controller patches and 158 patches in
+   each model namespace.
+6. Suspension denied both consumers; resume restored both; revocation
+   denied both again. Each denial had a nonzero task result and
+   `permission denied`, rather than an arbitrary exec failure.
+7. Normal relation, SAAS, offer and application removal completed without
+   force. Both workload models became empty, including machine removal,
+   and were then destroyed normally, consumer first.
+8. PostgreSQL's exact schema set changed from four to three to two:
+   only the removed model's schema disappeared at each step. The other
+   model and controller remained available. Read-only queries through the
+   native dqlite REPL showed `namespace_list` changing from three model
+   namespaces to two to one, preserving the controller-model UUID.
+
+Cleanup also completed without force. Both controllers were destroyed.
+As expected, PostgreSQL retained its controller and controller-model
+schemas; automatic controller-wide schema cleanup remains outside the
+product requirement. After verifying no run-owned instances remained,
+the approved cleanup tool dropped exactly those two residual schemas,
+selected by this run's controller UUID. The dedicated database then had
+no Juju/test schemas or other sessions, with `login_hook` and `public`
+unchanged. The hosting model and all its storage were destroyed.
+
+The final LXD inventory exactly matched the original four instances:
+`apt-cache`, `juju-2569cc-0`, `juju-2569cc-1` and `juju-a4d64a-0`.
+Neither run controller remained registered, and the hosting model was
+absent. Run-private client credentials, database URL/config and temporary
+binaries were removed; evaluator and non-credential evidence remain.
+Read-only inventories of the default shared database at `10.12.45.201`
+were empty before and after the run. This does not locate or establish the
+status of schemas on any other historical database target; none was
+selected for cleanup.
+
+Setup/evaluator corrections, not PoC runtime failures:
+
+- The first `--build-agent` invocation ran from the main checkout and
+  shipped stock dqlite agents. Backend verification caught this before
+  any PostgreSQL acceptance claim. That invalid controller and its
+  workloads were normally destroyed. The temporary `make go-install`
+  workflow replaced it; matching uploaded hashes and backend config
+  were verified before the accepted runs.
+- The private client reused the existing localhost credential without
+  deleting or replacing shared LXD trust. Automatic credential discovery
+  still logged a duplicate `juju` identity warning, but imported
+  credentials allowed both bootstraps to succeed.
+- The evaluator was corrected for omitted zero connection counts in
+  status JSON and `remove-offer`'s selected-model requirement. Only
+  private client state was switched; shared model selection was not.
+  Recorded readiness snapshots were tied to the exact asserted response.
+
+An initial credential-import parse error exposed the existing LXD client
+private key in command diagnostics. The user was informed. Shared trust
+was not rotated because other controllers may depend on it; coordinated
+credential rotation remains an operational follow-up, not a PoC fix.
+Temporary export/import files and the run-private credential copy were
+removed. No credential material is recorded in this plan.
+
+Evidence uses prefix `/tmp/pg-poc-a1a9-d54-run6-`, including:
+
+- `go-install.log`, `pg-bootstrap-prebuilt.log`, `dqlite-bootstrap.log`.
+- `pg-secrets.log`, `pg-restart-access.log`,
+  `dqlite-secrets.log`, `dqlite-restart-access.log`.
+- `pg-teardown-apps-final.log`, `pg-after-remove-{consume,offer}.log`,
+  `dqlite-teardown-apps.log`,
+  `dqlite-after-remove-{consume,offer}-namespaces.log`.
+- `pg-residual-cleanup.log`, `pg-empty-final.log`, `server-destroy.log`,
+  `final-lxd-inventory.log`, `retained-{before,after}.log`.
+
+The run-local evaluator is `evaluate.sh` under the session directory
+above. This establishes scoped correctness, not performance or resolution
+of the separately investigated hook-context design.
 
 ## 09-compare: three cases
 
