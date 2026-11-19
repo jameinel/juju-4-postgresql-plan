@@ -14,17 +14,18 @@ takeover and exclusive reservation window confirmed by the user on
 2026-11-18); code head:
 `c8282cfab478973d6d92727b2b19c3980f68f84b`. Implemented and locally
 validated. Pushed to `jameinel/juju:4.1-schema-dependency-order` with
-user approval and the remote head verified on 2026-11-18. PR: none.
+user approval and the remote head verified on 2026-11-18. Published
+[juju/juju#23890](https://github.com/juju/juju/pull/23890) with user
+approval; its base, head and PR body were verified on 2026-11-18.
 
 The user accepted the live schema-comparison QA as passed on 2026-11-18:
 the controller and model definitions matched apart from the documented
 comment whitespace. Workload deployment and normal teardown were not
 established by that run.
 
-Next: review the code and [prepared PR text](pr.md), and obtain approval
-of the exact PR create action. CI remains pending. The live QA
-provisioning failure below remains unexplained, but is not a blocker to
-the user's acceptance of the schema comparison.
+Next: monitor PR review and CI. The live QA provisioning failure below
+remains unexplained, but is not a blocker to the user's acceptance of the
+schema comparison.
 Reconcile source moves with the schema-layout owner and independently
 reviewed changes when they meet; the PostgreSQL harness must consume the
 result separately. Do not treat this branch as their integration.
