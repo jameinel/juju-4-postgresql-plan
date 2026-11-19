@@ -1,5 +1,3 @@
-# test(controllerpresence): synchronize broken connection tests
-
 The immediate broken-connection test can assert that the connection is
 disconnected before the worker records that state. Its second send only
 proves that the worker received the first notification, not that it
@@ -8,7 +6,9 @@ processed it.
 Model the connection's broken notification as a closed channel and wait
 for unit-presence cleanup before asserting the disconnected state. Keep
 coverage of a break immediately after the initial `IsBroken` check and
-the normal later-break path.
+the normal later-break path. The cleanup callback is reached after the
+worker records the disconnected state. In the immediate-break case, the
+mock closes the channel as it returns the initial healthy result.
 
 ## Checklist
 
@@ -72,3 +72,7 @@ git apply -R /tmp/juju-controller-presence-delay.patch
 ## Documentation changes
 
 None; this changes tests only.
+
+## Links
+
+~None.~

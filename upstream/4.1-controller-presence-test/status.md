@@ -4,19 +4,44 @@
 
 ## Current state and next actions
 
-- Owner/session: `df17884f-b667-42da-a8d1-e4b4f898678d`; reservation
-  authorized by the coordinator on 2026-11-18.
+- Owner/session: reservation originally assigned to
+  `df17884f-b667-42da-a8d1-e4b4f898678d`. The coordinator authorized
+  session `52899ed5-0213-4e1e-b5fd-de434c656882` to work on this branch
+  and its records on 2026-11-19.
 - Branch/worktree: `4.1-controller-presence-test` at
   `.worktrees/4.1-controller-presence-test` in the Juju checkout.
 - Upstream 4.1 base observed 2026-11-18: `d380e5e4fba4c9918a0774638ffa3138aeece73e`.
-- Head: `bca36e3c78e11544af3188b407d9d6ee7f9ea021` (2026-11-18).
-  Pushed with approval to `jameinel/juju:4.1-controller-presence-test`;
-  remote head verified at the same commit.
+- Local, remote and PR head: `66aef8c256bf5af9e7b29ac67aff0791bca75772`
+  (2026-11-19). The follow-up was pushed with approval and verified.
 - PR: [juju/juju#23885](https://github.com/juju/juju/pull/23885), published
   with approval against upstream 4.1. GitHub confirmed the head and exact
   approved body on 2026-11-18 at 18:18 UTC.
-- Blockers: none. Next: await review and CI; checks were queued or pending
-  at the observation above.
+- Review: Van Cleef requested an explanatory comment and suggested
+  extracting shared mock setup. The coordinator agreed to add the comment
+  and retain the explicit setup. Published and verified the approved
+  `pr.md` body and
+  [review reply](https://github.com/juju/juju/pull/23885#issuecomment-7024422314).
+- Checks observed 2026-11-19: checks on the new head are queued or in
+  progress, with several skipped; human review is required. On the prior
+  head executed checks succeeded except Read the Docs. Its linked build
+  returned 404 without access, so the failure cause is unknown.
+- Next: await review and CI; investigate the earlier documentation failure
+  if it recurs and access is available.
+
+## Review follow-up validation (2026-11-19)
+
+At local head `66aef8c256bf5af9e7b29ac67aff0791bca75772`, added the
+comment describing the immediate-break window without changing behavior.
+
+- `go test -race -count=1 -timeout=120s
+  ./internal/worker/controllerpresence`: passed.
+- Race-enabled test binary and `timeout 120s stress -p 4 -count 100
+  -timeout 30s -failfast ... -test.run='TestWorker/TestNewConnectionTrackerBroken($|Immediately$)'
+  -test.timeout=25s`: 100 runs, zero failures.
+- `gci` on the touched file, `git diff --check`, scoped `golangci-lint`,
+  and compiled `txncheck "$PWD"`: passed.
+- Full local pre-check was not run for this comment-only follow-up;
+  GitHub's successful static-analysis check applies to the earlier head.
 
 ## Scope and acceptance
 
