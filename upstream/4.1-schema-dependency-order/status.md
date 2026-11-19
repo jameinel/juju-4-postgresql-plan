@@ -13,11 +13,18 @@ takeover and exclusive reservation window confirmed by the user on
 `d380e5e4fba4c9918a0774638ffa3138aeece73e` (upstream 4.1 checked
 2026-11-18); code head:
 `c8282cfab478973d6d92727b2b19c3980f68f84b`. Implemented and locally
-validated; not pushed or published. PR: none.
+validated. Pushed to `jameinel/juju:4.1-schema-dependency-order` with
+user approval and the remote head verified on 2026-11-18. PR: none.
 
-Next: review the code and [prepared PR text](pr.md), obtain separate
-approval to push the code commit, and obtain approval of the exact PR
-create action. Live bootstrap and 4.0 migration QA and CI remain pending.
+The user accepted the live schema-comparison QA as passed on 2026-11-18:
+the controller and model definitions matched apart from the documented
+comment whitespace. Workload deployment and normal teardown were not
+established by that run.
+
+Next: review the code and [prepared PR text](pr.md), and obtain approval
+of the exact PR create action. CI remains pending. The live QA
+provisioning failure below remains unexplained, but is not a blocker to
+the user's acceptance of the schema comparison.
 Reconcile source moves with the schema-layout owner and independently
 reviewed changes when they meet; the PostgreSQL harness must consume the
 result separately. Do not treat this branch as their integration.
@@ -197,8 +204,30 @@ the dqlite-tagged test build.
   schema suite was run successfully instead.
 - Both cumulative post-patch tests skip because the registries are empty;
   that is not cumulative-upgrade evidence. Earlier beta databases cannot
-  upgrade in place across changed hashes. Live 4.0 migration/bootstrap,
-  PostgreSQL execution and the full repository pre-check were not run.
+  upgrade in place across changed hashes. Live 4.0 migration, PostgreSQL
+  execution and the full repository pre-check were not run.
+- The user reported running the live before/after 4.1 QA and added the
+  observed dqlite schema diff to [the PR draft](pr.md). The reported diff
+  shows the removed trailing space in the `v_secret_permission` comment;
+  this session verified the captured diff in `/tmp/tmp.pWYfR7qIxu` but
+  did not independently perform the bootstraps. The user accepted this
+  schema-comparison QA as passed on 2026-11-18.
+- Live teardown investigation, 2026-11-18: `schema-order-after` became
+  stuck destroying; its `qa` model's machine 0 was down while LXD instance
+  `juju-2482d2-0` remained running. Provisioner logs showed two overlapping
+  attempts to start that machine, followed by repeated instance-exists
+  errors. Its agent then failed to authenticate and exited. The model had
+  three unforced machine-removal jobs for the same dying instance;
+  removal retried while waiting for the instance to become dead. The
+  connection between the overlapping provisioning and authentication
+  failure is not established, nor is any relationship to schema ordering.
+  The expected successful workload deployment and normal teardown are
+  therefore not established by this QA run.
+- With user approval, deleted the QA machine container and then forced
+  destruction of `schema-order-after`. Verified both its machine and
+  controller LXD instances and their identified profiles are absent, and
+  the controller is no longer registered locally. The source worktrees,
+  binaries and schema captures in `/tmp/tmp.pWYfR7qIxu` were left intact.
 
 Commands for the final broad suites:
 

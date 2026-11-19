@@ -2,16 +2,16 @@ SQLite accepts schema definitions that refer to tables or views created
 later. This makes the source order misleading and prevents consumers that
 require referenced objects to exist from applying the definitions in order.
 
-Order the controller and model schema definitions so foreign-key targets
+This orders the controller and model schema definitions so foreign-key targets
 and their keys exist before the referencing table, and view sources exist
 before the view. Split out shared prerequisites where whole-file ordering
 cannot satisfy the dependency graph. Preserve the existing definitions,
 seed data and generated triggers.
 
-Add a schema-order guard that checks table keys, view dependencies and
-trigger dependencies, including references within a single patch. It uses
-SQLite's schema metadata and resolver, not PostgreSQL-specific SQL or
-runtime dependencies.
+This also adds a schema-order guard that checks table keys, view dependencies
+and trigger dependencies, including references within a single patch. It uses
+SQLite's schema metadata and resolver, not PostgreSQL-specific SQL or runtime
+dependencies.
 
 This changes the 4.1 beta base-schema hash chain. Earlier 4.1 beta
 databases cannot upgrade in place across the change. Released 4.0 models
@@ -22,72 +22,117 @@ continue to reach 4.1 through migration; historical release DDL is unchanged.
 - [x] Code style: imports ordered, good names, simple structure, etc
 - [x] Comments saying why design decisions were made
 - [x] Go unit tests, with comments saying what you're testing
-- [ ] ~Integration tests~ (functional bootstrap and migration QA below)
+- [ ] ~Integration tests~ (live schema comparison below)
 - [ ] ~doc.go added or updated~ (no package API change)
 
 ## QA steps
 
-Use an initialized LXD installation and a separate Juju 4.0 client. Run
-from this checkout with an available Go toolchain and the normal Juju
-build dependencies. The two clients must share their Juju client data so
-the destination client can find the source controller.
-
-Build and check the clients:
+Use Bash, an initialized LXD installation, Go and Juju's normal build
+dependencies, including the dqlite and musl dependencies in `_deps`.
+Start from a checkout containing this PR commit and its upstream 4.1
+base. Create separate checkouts and binary directories:
 
 ```sh
-make install
-export J41="$(go env GOPATH)/bin/juju"
-export J40=/snap/bin/juju
-"$J41" version
-"$J40" version
+export ORIGINAL="$PWD"
+export DEPS="$PWD/_deps"
+export QA_ROOT="$(mktemp -d)"
+git --no-pager worktree add --detach "$QA_ROOT/before" d380e5e4fba4c9918a0774638ffa3138aeece73e
+git --no-pager worktree add --detach "$QA_ROOT/after" c8282cfab478973d6d92727b2b19c3980f68f84b
+ln -s "$DEPS" "$QA_ROOT/before/_deps"
+ln -s "$DEPS" "$QA_ROOT/after/_deps"
 ```
 
-Expect the first client to report 4.1 and the second to report 4.0. Use a
-different `J40` path if the 4.0 client is installed elsewhere.
-
-Bootstrap a fresh 4.1 controller from the build:
+Select upstream 4.1 first:
 
 ```sh
-"$J41" bootstrap lxd schema-order-41 --build-agent
-"$J41" add-model -c schema-order-41 fresh
-"$J41" deploy -m schema-order-41:fresh ubuntu-lite
-"$J41" status -m schema-order-41:fresh
+export SOURCE="$QA_ROOT/before"
+export CONTROLLER=schema-order-before
 ```
 
-Expect bootstrap and model creation to succeed and `ubuntu-lite/0` to
-reach active status. Check the controller and model logs for schema,
-foreign-key or trigger errors:
+Build and run these operations:
 
 ```sh
-"$J41" debug-log -m schema-order-41:controller --replay --no-tail --level WARNING
-"$J41" debug-log -m schema-order-41:fresh --replay --no-tail --level WARNING
+cd "$SOURCE"
+export GOBIN="$QA_ROOT/$CONTROLLER-bin"
+mkdir -p "$GOBIN"
+make go-install
+"$GOBIN/juju" bootstrap lxd "$CONTROLLER" --debug
+"$GOBIN/juju" add-model -c "$CONTROLLER" qa
+"$GOBIN/juju" deploy -m "$CONTROLLER:qa" ubuntu-lite
+"$GOBIN/juju" status -m "$CONTROLLER:qa"
 ```
 
-Create a model on a 4.0 controller and migrate it to the new controller:
+Bootstrap must report `No packaged binary found, preparing local Juju
+agent binary` and identify `$GOBIN/jujuagentd` as the agent to upload.
+If it selects a packaged agent instead, stop: that controller would not
+test the intended build. Expect bootstrap and model creation to succeed
+and `ubuntu-lite/0` to reach active status.
+
+Capture the actual dqlite schema from the global controller database and
+the `qa` model database:
 
 ```sh
-"$J40" bootstrap lxd schema-order-40
-"$J40" add-model -c schema-order-40 moveme
-"$J40" deploy -m schema-order-40:moveme ubuntu-lite
-"$J40" status -m schema-order-40:moveme
+"$GOBIN/juju" ssh -m "$CONTROLLER:controller" 0 bash > "$QA_ROOT/$CONTROLLER.schema" <<'REMOTE'
+. /etc/profile.d/juju-introspection.sh
+juju_db_repl <<'SQL'
+SELECT 'CONTROLLER DATABASE' AS database_name;
+SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT GLOB 'sqlite_stat*' ORDER BY type, name;
+.switch model-qa
+SELECT 'MODEL DATABASE' AS database_name;
+SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT GLOB 'sqlite_stat*' ORDER BY type, name;
+.exit
+SQL
+REMOTE
 ```
 
-Wait for `ubuntu-lite/0` to become active, then migrate and exercise a
-new write on the destination:
+Check that the capture contains both sections: the controller section
+includes `v_model_all`, and the model section includes `v_model_metrics`.
+Check the REPL output for errors.
+
+Select the patched checkout and repeat the same build, bootstrap, model,
+deployment and capture operations:
 
 ```sh
-"$J41" migrate schema-order-40:moveme schema-order-41
-"$J41" add-unit -m schema-order-41:moveme ubuntu-lite
-"$J41" status -m schema-order-41:moveme
-"$J41" debug-log -m schema-order-41:moveme --replay --no-tail --level WARNING
+export SOURCE="$QA_ROOT/after"
+export CONTROLLER=schema-order-after
 ```
 
-Expect migration to finish, both units to become active and no schema,
-foreign-key or trigger errors in the model log. Remove the QA controllers:
+Expect the same functional results. Compare the schema captures:
 
 ```sh
-"$J41" destroy-controller schema-order-41 --destroy-all-models --no-prompt
-"$J40" destroy-controller schema-order-40 --destroy-all-models --no-prompt
+diff -u "$QA_ROOT/schema-order-before.schema" "$QA_ROOT/schema-order-after.schema"
+```
+
+Expected diff:
+
+```diff
+--- schema-order-before.schema	2026-11-18 21:57:24.241065869 -0500
++++ schema-order-after.schema	2026-11-18 21:58:53.346070621 -0500
+@@ -8400,7 +8400,7 @@
+     END) AS subject_id,
+     -- scope_id is the natural id of the scope entity (uuid for model)
+     -- relations are not processed here - their scope_id is the relation key
+-    -- which needs to be composed in code. 
++    -- which needs to be composed in code.
+     (CASE
+         WHEN sp.scope_type_id = 0 THEN scu.name
+         WHEN sp.scope_type_id = 1 THEN sca.name
+```
+
+The definitions should match apart from the removed trailing space in a
+moved `v_secret_permission` comment. The query sorts objects by type and name,
+so creation order is not part of the comparison. It excludes SQLite statistics
+tables and does not compare runtime data or patch hashes.  Investigate any
+other schema difference.
+
+Remove the QA controllers and clean source worktrees:
+
+```sh
+"$GOBIN/juju" destroy-controller schema-order-after --destroy-all-models --no-prompt
+"$GOBIN/juju" destroy-controller schema-order-before --destroy-all-models --no-prompt
+cd "$ORIGINAL"
+git --no-pager worktree remove "$QA_ROOT/before"
+git --no-pager worktree remove "$QA_ROOT/after"
 ```
 
 ## Documentation changes
