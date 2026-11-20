@@ -30,7 +30,8 @@ parent. Patch discovery sorts unchanged filenames and hashes patch contents,
 not paths. On 2026-11-20 a cross-branch dump of the assembled patch statements,
 including triggers, was byte-identical: 63 controller and 158 model patches.
 The hash implementation is unchanged between the two commits. The PR draft
-includes reproducible steps for this comparison. `go generate
+uses simpler Git tree comparisons and export regeneration for reviewer QA;
+those checks alone do not compare assembled patch sequences. `go generate
 ./domain/schema/...` and `make rebuild-export`
 produced no generated changes. SQLFluff 3.0.7 passed the CI glob; `gci`,
 scoped `golangci-lint`, repository `txncheck` and `git diff --check` passed.

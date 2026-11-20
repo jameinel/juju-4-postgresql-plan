@@ -54,98 +54,41 @@ combined PR so the files are renamed once in the final diff?
 
 ## QA steps
 
-Compare the complete assembled patch sequences against the ordering commit.
-From a checkout containing both commits, with Go installed:
+From a checkout containing both commits, compare the controller and model
+asset trees with the ordering commit:
 
 ```sh
 set -e
-export QA_ROOT="$(mktemp -d)"
-git --no-pager worktree add --detach "$QA_ROOT/order" b622931495f0fb3a2242418c82e2fcb152183354
-git --no-pager worktree add --detach "$QA_ROOT/layout" 9c8f98cd16289cb0e17b9be9ac587d59a683b285
-cat > "$QA_ROOT/patches.go" <<'EOF'
-package main
-
-import (
-	"encoding/json"
-	"log"
-	"os"
-
-	coreschema "github.com/juju/juju/core/database/schema"
-	"github.com/juju/juju/domain/schema"
-)
-
-func statements(s *coreschema.Schema) []string {
-	patches := s.Patches()
-	result := make([]string, len(patches))
-	for i, patch := range patches {
-		result[i] = coreschema.Stmt(patch)
-	}
-	return result
-}
-
-func main() {
-	output := struct {
-		Controller []string `json:"controller"`
-		Model      []string `json:"model"`
-	}{statements(schema.ControllerDDL()), statements(schema.ModelDDL())}
-	if err := json.NewEncoder(os.Stdout).Encode(output); err != nil {
-		log.Fatal(err)
-	}
-}
-EOF
-(cd "$QA_ROOT/order" && go run "$QA_ROOT/patches.go") > "$QA_ROOT/order.json"
-(cd "$QA_ROOT/layout" && go run "$QA_ROOT/patches.go") > "$QA_ROOT/layout.json"
-cmp "$QA_ROOT/order.json" "$QA_ROOT/layout.json"
-git --no-pager diff --exit-code b622931495f0fb3a2242418c82e2fcb152183354 9c8f98cd16289cb0e17b9be9ac587d59a683b285 -- core/database/schema
+ORDER=b622931495f0fb3a2242418c82e2fcb152183354
+LAYOUT=9c8f98cd16289cb0e17b9be9ac587d59a683b285
+test "$(git --no-pager rev-parse "$ORDER:domain/schema/controller")" = \
+     "$(git --no-pager rev-parse "$LAYOUT:domain/schema/dqlite/controller")"
+test "$(git --no-pager rev-parse "$ORDER:domain/schema/model")" = \
+     "$(git --no-pager rev-parse "$LAYOUT:domain/schema/dqlite/model")"
+git --no-pager diff --exit-code "$ORDER" "$LAYOUT" -- core/database/schema
+git --no-pager diff "$ORDER" "$LAYOUT" -- \
+    domain/schema/controller.go domain/schema/model.go
 ```
 
-Expect both comparisons to produce no output. The JSON arrays preserve patch
-boundaries and order, including generated triggers; the second comparison
-checks that the hash implementation is unchanged. Together they establish
-that the patch hash chains are unchanged. Remove the temporary worktrees and
-comparison files:
+Expect the tree and hash-implementation comparisons to succeed without
+output. The trees include filenames, SQL contents and trigger sources.
+Inspect the final diff and confirm schema assembly changes only asset paths.
 
-```sh
-git --no-pager worktree remove "$QA_ROOT/order"
-git --no-pager worktree remove "$QA_ROOT/layout"
-rm "$QA_ROOT/patches.go" "$QA_ROOT/order.json" "$QA_ROOT/layout.json"
-rmdir "$QA_ROOT"
-```
-
-Check generation writes only to the relocated asset tree. With the normal Go
-build prerequisites installed, run from the layout checkout:
+With the normal Go build prerequisites installed, regenerate triggers and the
+exported schema from a clean layout checkout:
 
 ```sh
 go generate ./domain/schema/...
-git --no-pager diff --exit-code -- domain/schema/dqlite
+make rebuild-export
+git --no-pager diff --exit-code
 test ! -d domain/schema/controller
 test ! -d domain/schema/model
 ```
 
 Expect no generated-content changes and no recreated old directories.
-
-To exercise controller and model schema creation through the product, use a
-working local LXD cloud and a dedicated disposable controller. Build from the
-reviewed checkout:
-
-```sh
-make install
-export PATH="$(go env GOPATH)/bin:$PATH"
-juju bootstrap localhost schema-layout-qa --build-agent
-juju add-model schema-layout-model
-juju model-config logging-config='<root>=INFO'
-juju model-config logging-config
-juju status
-```
-
-Expect bootstrap and model creation to succeed, `<root>=INFO` to be returned,
-and status to show the new model without missing-table or trigger errors.
-Clean up the dedicated QA controller:
-
-```sh
-juju destroy-controller schema-layout-qa --destroy-all-models \
-    --destroy-storage -y
-```
+`make rebuild-export` applies the schema to generate export code; it does not
+by itself compare patch hashes. For a live database comparison, use the QA
+steps in #23890.
 
 ## Documentation changes
 
