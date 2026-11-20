@@ -31,10 +31,14 @@ The ordering changes the 4.1 beta base-schema hash chain. Earlier 4.1 beta
 databases cannot upgrade in place across the change. Released 4.0 models
 continue to reach 4.1 through migration; historical release DDL is unchanged.
 
-This draft contains both commits from #23890 and the layout follow-up, so the
-combined diff shows the renames together. #23890 is the primary proposal.
-Should the changes be reviewed and landed separately, or would reviewers
-prefer this combined PR so the files are renamed once in the final diff?
+This draft is built on #23890: it includes that PR's ordering commit and a
+separate layout commit. The intended sequence is to land #23890 first, then
+review and land the layout follow-up. Until then, this PR targets `4.1` and
+shows the combined diff for comparison. If #23890 is squash-merged, this
+branch may need rebasing onto the resulting commit.
+
+Would reviewers prefer the separate ordering and layout PRs, or a single
+combined PR so the files are renamed once in the final diff?
 
 ## Checklist
 
@@ -88,7 +92,7 @@ for the relocation. No CLI/API workflow changes.
 
 ## Links
 
-Alternative ordering-only proposal: #23890. Its QA steps also describe a
+Prerequisite ordering PR: #23890. Its QA steps also describe a
 before-and-after comparison of the controller and model database schemas.
 
 ~Issue: no issue reference.~

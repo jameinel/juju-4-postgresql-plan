@@ -20,8 +20,10 @@ The [PR draft](pr.md) targets upstream `4.1` while
 [schema dependency ordering](../4.1-schema-dependency-order/status.md)
 remains open, so reviewers can compare the combined ordering and layout
 diff with the primary ordering-only proposal. It is not a request to merge
-both PRs as independent changes. Native GitHub stack registration cannot
-represent these cross-fork heads.
+both PRs as independent changes. The intended sequence is for ordering to
+land first, followed by layout; a squash merge may require rebasing layout
+onto the resulting commit. Native GitHub stack registration cannot represent
+these cross-fork heads.
 
 At this tree all 104 moved assets are exact Git renames of the ordering
 parent. Patch discovery sorts unchanged filenames and hashes patch contents,
