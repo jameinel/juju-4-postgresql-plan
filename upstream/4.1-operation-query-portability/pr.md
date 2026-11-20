@@ -34,17 +34,22 @@ Use a controller built from this branch and an LXD cloud. Create a model and
 deploy a machine charm:
 
 ```sh
-make install
-juju bootstrap lxd qa-operations --build-agent
+export GOBIN=$(mktemp -d)
+make go-install
+PATH="$GOBIN:$PATH"
+juju bootstrap lxd qa-operations
 juju add-model qa-operations
 juju model-config max-action-results-age=0 max-action-results-size=100M
 juju deploy ubuntu
-juju wait-for application ubuntu
 ```
+
+Wait for `juju status` to show `ubuntu/0` as active and idle before continuing.
 
 Create a large completed operation and a smaller one, then check filtering.
 Both operations should appear in the unit and application listings. The
-machine listing should not include these unit-targeted operations.
+machine listing should not include these unit-targeted operations. The
+redirection discards the local CLI output; Juju still stores the remote task
+output for pruning.
 
 ```sh
 juju exec --unit ubuntu/0 -- 'head -c 3145728 /dev/zero | base64' > /dev/null
@@ -61,6 +66,7 @@ pruning is approximate, do not expect an exact byte threshold.
 
 ```sh
 juju model-config max-action-results-size=1M
+sleep 5
 juju operations --units ubuntu/0
 ```
 
