@@ -102,6 +102,37 @@ silently rewrite the PoC stack to mirror a revised upstream design; use the
 existing ownership and reconciliation procedure. Ask when a task's prescribed
 approach conflicts with the root-cause goal rather than widening its scope.
 
+### PoC schema alignment (2026-11-20)
+
+Adopt the current upstream breakout decisions in the PoC: explicit
+dependency-valid SQLite/dqlite source order, followed by the mechanical move
+under `domain/schema/dqlite/`, with PostgreSQL assets beside it under
+`domain/schema/postgresql/`. The actual branch names are
+[`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md)
+and [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md).
+The locally verified reference heads are `b622931495` and `9c8f98cd16`;
+layout is now stacked on ordering. Their records describe publication and
+review, not completed PoC integration.
+
+The PoC already has the directory move, but still uses the old source
+filenames/order and PostgreSQL dependency relocation. Amend D10: split and
+order the shared definitions at source, then make `pgschemagen` preserve
+that order and reject unresolved dependencies instead of repairing them.
+Patch-level grouping cycles do not imply cycles in the underlying object
+graph. Keep genuine dialect translation, exact-match overrides and the
+existing changelog visibility contract.
+
+The bounded [`02-04-schema-alignment` task](stages/02-schema-move.md#02-04-schema-alignment)
+owns the implementation and acceptance contract across Stages 2 and 4,
+including replay of later schema fixes and overrides. On 2026-11-20 the
+user selected planning and task definition only; implementation/restacking
+requires a subsequent dispatch. Do not change the current upstream base,
+PoC tips, databases or independently owned upstream branches in this
+planning session. Source ordering changes hashes; layout alone must not.
+Use fresh approved disposable databases for implementation validation,
+preserve historical evidence, and claim alignment only at a verified final
+PoC tip.
+
 ## Milestones
 
 | Milestone | Completion | Main stages |
@@ -238,9 +269,9 @@ without coordination.
 | - | Plan documents | plan repository `main` | in review |
 | 00 | [Base fixes](stages/00-base-fixes.md) | `pg-poc/00-base-fixes` | done, in review |
 | 01 | [PostgreSQL provisioning script](stages/01-provision.md) | `pg-poc/01-provision` | in review (also carries the D52 cleanup tool) |
-| 02 | [Move schema to `domain/schema/dqlite`](stages/02-schema-move.md) | `pg-poc/02-schema-move` | in review |
+| 02 | [Source ordering and schema layout](stages/02-schema-move.md) | `pg-poc/02-schema-move` | Original move in review; `02-04-schema-alignment` defined, not implemented |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
-| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; 04-current-timestamp (D56) implemented and restacked |
+| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; D56 implemented and restacked; strict source-ordered generation pending `02-04-schema-alignment` |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
 | 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. Static-analysis cleanup is complete at `09=a1a9610167`. No new skips. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
@@ -251,7 +282,13 @@ without coordination.
 
 Next:
 
-1. Agree the workload, scale, repetitions and acceptance thresholds for the
+1. Dispatch [`02-04-schema-alignment`](stages/02-schema-move.md#02-04-schema-alignment)
+   when implementation is authorized. Reconcile source ordering/layout,
+   preserve later PoC corrections and retire generator dependency
+   relocation; do not import the separately owned PostgreSQL harness.
+   Its acceptance gates are new work, not established by the previous
+   schema or D54 results.
+2. Agree the workload, scale, repetitions and acceptance thresholds for the
    [comparison contract](BENCHMARKS.md) before running performance work.
    [D54 run 6](stages/09-bootstrap.md#run-6-approved-remainder-of-d54-2026-11-18)
    passed scoped correctness on PostgreSQL and dqlite at `09=a1a9610167`
@@ -263,7 +300,7 @@ Next:
    resolve the independent
    [hook-context snapshot design](upstream/relation-hook-context-snapshot/status.md)
    investigation. No token fix or performance comparison was performed.
-2. Redistribute the four Stage 9 review checkpoints into their owning
+3. Redistribute the four Stage 9 review checkpoints into their owning
    layers. The Stage 6 repair batches,
    resource-list assertion repair, nullable-BOOLEAN fix and catalog-query
    fix are integrated. The charm-removal timestamp fixture passes on all
@@ -280,7 +317,7 @@ Next:
    [repair handoff](handoffs/2026-11-10-stage-6-parallel-repairs.md)
    and revision-specific evidence. Follow changed-layer validation after
    redistribution, then obtain approval before republishing the local stack.
-3. Continue the Stage 5 upstream breakouts scoped in
+4. Continue the Stage 5 upstream breakouts scoped in
    [UPSTREAM-PLAN.md](UPSTREAM-PLAN.md#branch-summaries),
    respecting current claims and the D55 review. Storage #23766 has a
    user-requested merge hold pending attachment-invariant investigation and
@@ -295,7 +332,7 @@ Next:
    Record the new sequence/export fixture adaptations with the existing
    H4 shared-suite enablement scope; neither is a new stock-backend bug.
    No owner-held upstream branch was changed or republished.
-4. Continue the approved
+5. Continue the approved
    [PostgreSQL test-infrastructure checkpoints](upstream/4.1-postgresql-tests/integration-plan.md).
    Schema layout, central backend configuration and H2 driver/schema
    plumbing are published on the fork; focused H2 PostgreSQL acceptance
@@ -495,8 +532,11 @@ highest stage branch that exists, currently `pg-poc/09-bootstrap`.
 - To read another stage without switching, use
   `git show pg-poc/NN-<slug>:<path>` or `git diff pg-poc/NN-<slug> -- <path>`.
 - `pg-poc/00-base-fixes` holds only fixes for pre-existing problems that
-  are unrelated to the PoC. Stage 2 stays purely mechanical so it can be
-  reviewed, and possibly proposed upstream, on its own.
+  are unrelated to the PoC. Stage 2 keeps source dependency ordering and
+  the mechanical layout move in separate commits, in that order, matching
+  the upstream breakout. The move-only commit must preserve its parent's
+  patch contents, assembled order and hashes. PostgreSQL generation and
+  overrides remain separate on Stage 4.
 
 ## Environment and safety
 

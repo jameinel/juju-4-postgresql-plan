@@ -2,6 +2,38 @@
 
 Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
 
+## Source-order alignment target (2026-11-20)
+
+[`02-04-schema-alignment`](02-schema-move.md#02-04-schema-alignment)
+defines the bounded integration task and acceptance gates. Planning only
+is authorized so far. The current generator still implements the historical
+relocation pass below; strict generation is not implemented or verified.
+
+After the shared source-order cleanup and mechanical layout move are
+reconciled, translate the complete assembled patches in source order,
+apply exact-match dialect overrides, and validate dependencies without
+relocating statements. Preserve base SQL filenames and numbering gaps in
+PostgreSQL output rather than replacing them with patch indexes. Remap
+overrides by moved definition when source patches split, regenerate their
+raw `-auto.sql` baselines, and retain one generated output per patch.
+Keep deterministic Go-built trigger identities and the existing registry.
+
+Reject forward/dangling FK targets and keys, view sources, trigger/function
+dependencies and multi-object cycles with identifying diagnostics,
+including within one patch. Valid self-references remain supported.
+Preserve D12 translation, D13 changelog visibility and genuine dialect
+differences; the alignment is not permission to remove unrelated temporary
+shared-defect overrides, add upgrade support or adopt the independently
+owned PostgreSQL harness.
+
+The numbered steps, relocation tests and old override filenames below
+describe the existing implementation and its evidence. D10/D15 and the
+linked task supersede their ordering/naming contracts for the next
+implementation. Update the live override inventory after reconciliation;
+do not rewrite historical results as if they used the new layout.
+
+## Existing implementation and evidence
+
 - Goal: generate `domain/schema/postgresql/` from the dqlite patches with a
   reusable tool.
 - Steps:
@@ -54,6 +86,8 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
   - The translator, trigger functions, ordering, checked-in diff overrides,
     freshness checks, embedding and backend selectors already exist.
     Work here should be a named correction, not a new implementation.
+    `02-04-schema-alignment` is the named replacement of relocation with
+    strict source-order validation; other contracts remain unchanged.
   - `ControllerDDL()` / `ModelDDL()` remain dqlite. Stage 8 must select
     backend-aware DDL for runtime callers. On the current top, D11's
     dialect interface lives in `core/database/dialect`; the historical
