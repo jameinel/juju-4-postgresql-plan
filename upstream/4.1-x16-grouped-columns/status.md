@@ -4,17 +4,35 @@
 
 ## Current state and next actions
 
-Migrated from existing planning records on 2026-11-11; no new GitHub
-or validation check was performed for this migration. Evidence below
-retains its original dates and revisions; it does not validate later heads.
-
 - Owner/session: `48eb9888-f082-47eb-a43f-75ac280c4a3e`.
 - Branch: `4.1-x16-grouped-columns`.
 - Worktree: `.worktrees/4.1-x16-grouped-columns` under the primary checkout.
 - Base: `148e09f015fe59237f382b9df1a468c15ee7fa42`.
 - Recorded phase: published.
 
-[#23784](https://github.com/juju/juju/pull/23784), head `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`; human review required and CI running. User authorized reassignment from session `4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA certificates in both consumers; `0973ebb4af` adds joined-credential regression coverage. Review follow-up `c3161fb4ff` retains clouds with no CA certificate rows, distinguishes absent and stored empty certificates, and updates the duplication comment. Van Cleef's feedback was [answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624); shared-row refactoring and PostgreSQL test infrastructure are deferred. Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default pre-check skipped static analysis. The user previously reported successful live Kubernetes backend certificate and secret-count checks and reached cleanup; removal details were not independently verified. New no-CA functional QA and PostgreSQL execution were not run. The published PR description contains the updated QA; `pr.md` predates the follow-up. Follow up on multi-certificate integration CI. Do not rebase implicitly.
+As of 2026-11-20, [#23784](https://github.com/juju/juju/pull/23784) is
+open at `c3161fb4ff81a08626ce2a6a1ef99f4645ee5c2a`, base `juju/juju:4.1`.
+GitHub reports review required; completed checks succeeded or were skipped.
+Human review and multi-certificate integration coverage running in CI remain.
+Do not rebase implicitly.
+
+The user previously reported successful live Kubernetes backend certificate
+and secret-count checks and reached cleanup; removal details were not
+independently verified. The user decided not to require manual no-CA QA:
+absent and empty certificate rows are covered by state regression tests.
+The [PR description](pr.md) removes that manual QA section; the approved edit
+was published and verified on 2026-11-20. PostgreSQL execution was not run and
+is optional diagnostic evidence, not an upstream acceptance requirement.
+
+User authorized reassignment from session
+`4d032417-af51-4f77-b950-bf70dd707e46`. Commit `c3f75cf032` preserves all CA
+certificates in both consumers; `0973ebb4af` adds joined-credential coverage.
+Follow-up `c3161fb4ff` retains clouds with no CA certificate rows and
+distinguishes absent from stored empty certificates. Van Cleef's feedback was
+[answered](https://github.com/juju/juju/pull/23784#issuecomment-6783412624);
+shared-row refactoring and PostgreSQL test infrastructure are deferred.
+Affected SQLite/dqlite race suites, scoped lint and txncheck passed; default
+pre-check skipped static analysis. This is recorded evidence, not a new run.
 
 ## Review artifacts
 

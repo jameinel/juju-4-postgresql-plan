@@ -1,18 +1,18 @@
 # fix(secretbackend): preserve cloud certificates in portable queries
 
-Sorry for the complex QA steps: exercising this change requires a Kubernetes
-model, a reachable API endpoint, and a cloud with multiple CA certificates.
-
 Secret backend queries select ungrouped columns alongside aggregates or use
 GROUP BY to collapse join rows. These queries depend on permissive SQLite
 semantics, and a cloud can have more than one CA certificate for a model.
 The backend configuration previously retained only an unspecified certificate.
+Clouds without CA certificate rows were excluded from Kubernetes backend
+lookups altogether, although cloud CA certificates are optional.
 
 Group every non-aggregate projection in the counting queries and use DISTINCT
 for the non-aggregate Kubernetes lookups. Preserve all cloud CA certificates
 in both backend consumers, deduplicating repeated join rows and returning a
-stable certificate order. Secret counts still count distinct secrets rather
-than revisions.
+stable certificate order. Use left joins so clouds without certificates are
+retained, distinguishing absent rows from stored empty strings. Secret counts
+still count distinct secrets rather than revisions.
 
 ## Checklist
 
@@ -205,6 +205,7 @@ Kubernetes backend for this model. The revision listing must show revisions
 1 and 2. Both `jq` checks must return `true`: the count is two secrets, not
 three revisions, and both certificates appear exactly once. The backend
 commands must succeed without a query error.
+
 Verify removal of the second user secret from Kubernetes. This exercises the
 removal service's separate backend lookup and its use of the certificate
 bundle. The listing comparison above directly checks that both certificates

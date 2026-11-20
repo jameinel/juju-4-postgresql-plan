@@ -129,19 +129,19 @@ next actions belong in the branch record, not this table.
 |---|---|
 | [`4.1-boolean-and-aggregate-literals`](upstream/4.1-boolean-and-aggregate-literals/status.md) | `9c43947c-a0e6-40c2-a3dc-af93e0bbe9a8` (authorized takeover, 2026-11-12) |
 | [`4.1-cmr-ingress-order`](upstream/4.1-cmr-ingress-order/status.md) | `a738cfe3-142f-4810-a9ec-22d6556fb5ec` (authorized takeover, 2026-11-16) |
-| [`4.1-controller-presence-test`](upstream/4.1-controller-presence-test/status.md) | `df17884f-b667-42da-a8d1-e4b4f898678d` (reserved, 2026-11-18) |
+| [`4.1-controller-presence-test`](upstream/4.1-controller-presence-test/status.md) | `df17884f-b667-42da-a8d1-e4b4f898678d` (reservation); authorized follow-up `52899ed5-0213-4e1e-b5fd-de434c656882` |
 | [`4.1-controllerupgrader-stream-result`](upstream/4.1-controllerupgrader-stream-result/status.md) | `533e88e8-ff4b-44c8-82d0-d01fac7ff80b`; authorized review follow-up `17daff25-b14a-4ac3-a5f7-bcf4c44ab416` |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `a7cb8548-f5f6-43de-a460-86cf53db2f6e` (authorized takeover, 2026-11-16) |
-| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (authorized H3 start, 2026-11-14; H3a audit complete, full-schema gates blocked on shared fixes) |
-| [`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md) | `298b7b55-c2d5-4ee7-ba8c-573f1ced04fc` (authorized takeover, 2026-11-18); prepared by `5eb9907f-1835-4e64-98a2-d54e0aa2461d`. |
-| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | `07dde829-85a3-4c53-9fd0-e784ccd783db` (authorized takeover, 2026-11-18) |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | `1182cd49-fff3-42a1-b3ef-bf58b866213c` (H3); authorized rebuild `b3089f76-ea48-49bf-89e5-dc39370b855e` |
+| [`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md) | `298b7b55-c2d5-4ee7-ba8c-573f1ced04fc`; authorized review follow-up `da709086-878a-463e-988a-dd325a2f386f` |
+| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | `da709086-878a-463e-988a-dd325a2f386f` (authorized takeover, 2026-11-19) |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no CI implementation) |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | `0ec926e6-3858-4f43-bc9c-658024127e88` (reserved, no combined fixes) |
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | `dbd7747e-8c2d-4b78-8994-1cd20589b8ab` (authorized takeover, 2026-11-12) |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | `fc0b395c-35d9-4277-ba1d-3bc4779db286` |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | `750b409e-35d5-4196-9b64-56ee36a49f56` |
 | [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | `48eb9888-f082-47eb-a43f-75ac280c4a3e` |
-| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | `3affe058-7602-478e-8c64-1de89f410003` (reserved, 2026-11-18) |
+| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | `3affe058-7602-478e-8c64-1de89f410003` (reservation); authorized review owner `97f3867c-9eb3-49b2-b87e-97947334c78b` |
 | [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` |
 | [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `020f1b3f`, 2026-11-14) |
 | [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | `7bbea3b5-54ae-4766-8d29-6c2f341eda69` (authorized takeover from `6e9894b2`, 2026-11-14) |
@@ -176,7 +176,75 @@ sweep. Workers update their branch record, not this dashboard on each
 commit or review. GitHub is authoritative for live PR state. A merged PR
 does not establish functional QA or PoC integration.
 
-### GitHub and coordination snapshot (2026-11-18 13:34 UTC)
+### GitHub and coordination snapshot (2026-11-20 14:22 UTC)
+
+Twenty-two queued PRs remain open: twenty Juju, including the assigned
+Copilot draft, and two SQLair. None is merge-ready; ten have work the user
+can advance and twelve await others or prerequisites. Review, CI, functional
+QA and PoC reconciliation remain separate gates.
+
+- #23683 merged on 2026-11-19 as
+  `59dcd6d951814fa098a11ca3be103314bb6894e8`, final head
+  `f50dfe4257d1627711ab6f65ce013b4504f3af5c`. Compare its U7 view and
+  import changes with the PoC equivalent before claiming reconciliation.
+  The owner-uncertain branch record still shows the pre-merge state.
+- #23890 is at `b622931495`: Van Cleef's SQL issue and single-connection
+  suggestion were addressed and answered; SQL CI and reported live schema
+  comparison passed. Human review remains; Jenkins succeeded after an
+  earlier pending observation.
+  Draft #23907 is at `9c8f98cd16`, stacked on #23890 for comparison.
+  Land ordering first, then reconcile the layout branch with the landed
+  base; skipped draft checks are not passes.
+- #23885's bot suggestions were answered; human review remains. Its Read
+  the Docs status has recovered. #23884's lease-expiry suggestion was
+  answered and deferred to separate work; human review and a failed Read
+  the Docs status remain. Preserve its active owner's record.
+- #23838's documentation and aggregate Actions checks and Read the Docs
+  status fail. #23766 remains on hold pending its attachment invariant
+  and repair decision; Jenkins fails. #23805 has approvals and reported
+  QA but failed Jenkins statuses and an unanswered ordering-contract
+  question. Jenkins and Read the Docs logs were not inspected.
+- SQLair [#195](https://github.com/canonical/sqlair/pull/195) has two
+  current-head approvals; its failed spelling check depends on
+  [#194](https://github.com/canonical/sqlair/pull/194). Rerun after the
+  prerequisite lands.
+
+### Historical GitHub and coordination snapshot (2026-11-19 13:31 UTC)
+
+Twenty-two queued PRs remain open: twenty Juju, including the assigned
+Copilot draft, and two SQLair. One is ready for explicit merge authorization,
+thirteen need user action, and eight wait on others or a prerequisite.
+Review, CI, functional QA and PoC reconciliation remain separate gates.
+
+- #23683 has Simon's and tugudd's approval on `f50dfe4257`; tugudd
+  reported QA passed. Required checks pass, and GitHub reports mergeable
+  and clean. Tugudd also noted related earlier #23090; the current PR
+  describes the remaining bulk-import and view-guard scope. Merge requires
+  explicit authorization, and beta schema compatibility remains relevant.
+- #23890, #23885 and #23884 were published after the previous snapshot.
+  Van Cleef's new feedback needs evaluation: #23890 has one issue and
+  one suggestion; #23885 has two suggestions; #23884 has one suggestion
+  concerning a separate production lease-expiry question. #23890's SQL
+  lint job failed; #23885 and #23884 have failed Read the Docs statuses.
+- #23838 is at `57e2ea08c3`; the review feedback was answered and the
+  user reported the documented manual QA passed. Its documentation build
+  and aggregate failed, as did Read the Docs. The owner recorded a drawsvg
+  import failure in an earlier documentation attempt; the cause of the
+  separate Read the Docs failure is unconfirmed.
+- #23764 remains a draft with the user's review requested; the user
+  commented on the retry workaround. #23766 retains its attachment-invariant
+  merge hold and failed Jenkins status. #23805 has current-head approval
+  and reported QA but failed Jenkins statuses. Jenkins logs and Read the
+  Docs failures were not investigated.
+- SQLair [#195](https://github.com/canonical/sqlair/pull/195) has two
+  current-head approvals; its spelling check still fails and depends on
+  [#194](https://github.com/canonical/sqlair/pull/194). Do not treat
+  either the approvals or the prerequisite's checks as a pass on #195.
+
+The active owners' records and existing local planning changes were
+preserved. The dirty PoC plan was not updated by this sweep.
+
+### Historical GitHub and coordination snapshot (2026-11-18 13:34 UTC)
 
 Nineteen queued PRs remain open: seventeen Juju, including the assigned
 Copilot draft, and two SQLair. Heads were rechecked. Review, CI, functional
@@ -478,7 +546,7 @@ The five landed-batch rows also record local PoC reconciliation on
 | [`4.1-dbrepl-output`](upstream/4.1-dbrepl-output/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-dqlite-nullable-boolean`](upstream/4.1-dqlite-nullable-boolean/status.md) | [#23759](https://github.com/juju/juju/pull/23759) is at `39b1dc3cd8`, based on refreshed 4.1 after the merged keymanager fix; investigate failed CI and await review. Temporary casts have a dependency-fix removal condition. |
 | [`4.1-drop-iif`](upstream/4.1-drop-iif/status.md) | [#23751](https://github.com/juju/juju/pull/23751): human review and migration/controller QA remain; required CI passes. |
-| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | [#23838](https://github.com/juju/juju/pull/23838), head `5c6eb270e6`: Codex findings answered; evaluate Van Cleef issue and suggestions. Human review and fresh-install QA remain; rerun Actions aggregate passes with some jobs skipped. |
+| [`4.1-install-dependencies`](upstream/4.1-install-dependencies/status.md) | [#23838](https://github.com/juju/juju/pull/23838), head `57e2ea08c3`: feedback answered and manual QA reported passed; human review and documentation/aggregate CI failures remain. |
 | [`4.1-into-4.2`](upstream/4.1-into-4.2/status.md) | Landed upstream; retain recorded QA and PoC reconciliation limitations. |
 | [`4.1-keymanager-insert-id`](upstream/4.1-keymanager-insert-id/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lease-migration-tests`](upstream/4.1-lease-migration-tests/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -486,14 +554,15 @@ The five landed-batch rows also record local PoC reconciliation on
 | [`4.1-local-secret-revisions`](upstream/4.1-local-secret-revisions/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-lookup-key-not-null`](upstream/4.1-lookup-key-not-null/status.md) | [#23724](https://github.com/juju/juju/pull/23724): await requested human review; required CI passes. Reconcile the independent INT-key guard with exposure when they meet. |
 | [`4.1-lxd-default-bases`](upstream/4.1-lxd-default-bases/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-model-config-precedence`](upstream/4.1-model-config-precedence/status.md) | [#23683](https://github.com/juju/juju/pull/23683): Simon approved; required CI passes, but the GitHub review gate remains. |
+| [`4.1-model-config-precedence`](upstream/4.1-model-config-precedence/status.md) | [#23683](https://github.com/juju/juju/pull/23683) landed; compare its view and import changes with the PoC equivalent before reconciliation. The owner-uncertain record still shows an open snapshot. |
 | [`4.1-nullable-primary-keys`](upstream/4.1-nullable-primary-keys/status.md) | [#23710](https://github.com/juju/juju/pull/23710): Simon approved and required CI passes; await the remaining review gate. Land charm before exposure. |
 | [`4.1-objectstore-conflicts`](upstream/4.1-objectstore-conflicts/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
 | [`4.1-operation-query-portability`](upstream/4.1-operation-query-portability/status.md) | [#23693](https://github.com/juju/juju/pull/23693), head `9b2e784d3c`: Simon's direct-query request implemented and answered; manual QA and reviewer confirmation remain. |
-| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | H2 driver/schema plumbing is pushed and focused PostgreSQL acceptance passed; independent H3b generation is in progress. Full schemas, suite enablement and CI remain incomplete; see the [integration plan](upstream/4.1-postgresql-tests/integration-plan.md). |
+| [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | H2 previously passed focused PostgreSQL acceptance. The authorized local rebuild is at `11282b0728` on the ordered layout; H3b generation, full-schema acceptance, suite enablement and CI remain incomplete. See the [integration plan](upstream/4.1-postgresql-tests/integration-plan.md). |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | [#23755](https://github.com/juju/juju/pull/23755), head `226d85ae23`: guidance moved and reviewer replies published; await human re-review. |
 | [`4.1-removal-force-boolean`](upstream/4.1-removal-force-boolean/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | Move-only prerequisite at `9da8100e16`, on refreshed upstream `b36eefc4b3`; pushed to the fork with approval, local PR draft not published. |
+| [`4.1-schema-dependency-order`](upstream/4.1-schema-dependency-order/status.md) | [#23890](https://github.com/juju/juju/pull/23890), head `b622931495`: bot feedback answered, SQL CI, Jenkins and reported live comparison passed; human review remains. Land before schema layout. |
+| [`4.1-schema-layout`](upstream/4.1-schema-layout/status.md) | Draft [#23907](https://github.com/juju/juju/pull/23907), head `9c8f98cd16`, is stacked on #23890 for comparison. Reconcile with the landed parent before final review; skipped checks are not passes. |
 | [`4.1-postgresql-tests-ci`](upstream/4.1-postgresql-tests-ci/status.md) | Reservation head pushed to the fork with approval; no CI implementation. |
 | [`4.1-postgresql-tests-integration`](upstream/4.1-postgresql-tests-integration/status.md) | Reservation head pushed to the fork with approval; exact initial pending-PR inventory recorded, no combined-fix implementation. |
 | [`4.1-secret-latest-revision`](upstream/4.1-secret-latest-revision/status.md) | Pending; coordinate with the remote-secret review before dispatch. |
@@ -504,13 +573,14 @@ The five landed-batch rows also record local PoC reconciliation on
 | [`4.1-ssh-host-key-conflict`](upstream/4.1-ssh-host-key-conflict/status.md) | [#23807](https://github.com/juju/juju/pull/23807): follow-up and responses published; Simon approved, but GitHub review gate, failed CI and live QA, including Kubernetes, remain. |
 | [`4.1-storage-filesystem-attachment-row`](upstream/4.1-storage-filesystem-attachment-row/status.md) | Merge hold: attachment invariant, duplicate rejection and migration QA need a decision. |
 | [`4.1-unitstate-relation-key`](upstream/4.1-unitstate-relation-key/status.md) | [#23769](https://github.com/juju/juju/pull/23769): current-head human approval and passing required CI; GitHub review gate remains. Forward-port and reconcile the PoC workaround after landing. |
-| [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | [#23784](https://github.com/juju/juju/pull/23784): human review, no-CA QA and multi-certificate integration coverage remain; required CI passes. |
+| [`4.1-x16-grouped-columns`](upstream/4.1-x16-grouped-columns/status.md) | [#23784](https://github.com/juju/juju/pull/23784): human review and multi-certificate integration coverage remain; required CI passes. No-CA manual QA is not required; state tests cover absent and empty certificates. |
 | [`dqlite-returning-errors`](upstream/dqlite-returning-errors/status.md) | Unclaimed dependency follow-up; select release/backport before implementation. |
-| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | Reserved, low-priority test-only follow-up. |
+| [`4.1-controller-presence-test`](upstream/4.1-controller-presence-test/status.md) | [#23885](https://github.com/juju/juju/pull/23885): bot suggestions answered; human review remains. Read the Docs recovered. |
+| [`4.1-lease-migration-timestamps`](upstream/4.1-lease-migration-timestamps/status.md) | [#23884](https://github.com/juju/juju/pull/23884): bot suggestion answered and deferred; human review and failed Read the Docs status remain. Production lease-expiry behavior is separate. |
 | [`relation-hook-context-snapshot`](upstream/relation-hook-context-snapshot/status.md) | High-priority unclaimed correctness concern; trigger-only proposal has an unresolved cross-unit ABA gap. Agree design and deterministic reproduction before dispatch; incident cause remains unproven. |
 | [`sqlair-agent-guidance`](upstream/sqlair-agent-guidance/status.md) | Independent `AGENTS.md` proposal [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194); checks pass, human review pending. |
 | [`sqlair-decision-records`](upstream/sqlair-decision-records/status.md) | Planned canonical/sqlair `docs/decisions/` log with backfill; independent future proposal, no longer carried by the placeholder branches. Unclaimed. |
-| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Primary proposal [canonical/sqlair#195](https://github.com/canonical/sqlair/pull/195): always emit `$N`. Human review remains; spelling CI depends on the existing `security.md` fix in [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194). Rerun against the updated base after it lands. Real-dqlite validation and issue reply recorded. |
+| [`sqlair-dollar-placeholders`](upstream/sqlair-dollar-placeholders/status.md) | Primary proposal [canonical/sqlair#195](https://github.com/canonical/sqlair/pull/195): always emit `$N`. Two current-head human approvals; spelling CI depends on the existing `security.md` fix in [canonical/sqlair#194](https://github.com/canonical/sqlair/pull/194). Rerun against the updated base after it lands. Real-dqlite validation and issue reply recorded. |
 | [Juju empty-collection membership (X2)](upstream/sqlair-empty-in/status.md) | Planned Juju caller-level portability commit in PostgreSQL enablement (H3.1), not sqlair rendering or a mandatory separate PR. Required before affected H4 acceptance. Record path retained. |
 | [`sqlair-placeholder-style`](upstream/sqlair-placeholder-style/status.md) | Published comparison branch `placeholder-style-option` (per-`DB` style option), linked from the primary PR; no PR planned unless maintainers choose it. |
 
@@ -567,7 +637,8 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | X3/X4, other upserts | Sequence allocation landed in #23731. Inventory any other remaining operations before dispatch; do not recreate that fix or combine unrelated conflict paths. |
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
-| Controller presence test flake | Unclaimed test-only follow-up: synchronise the immediate broken-connection test with worker completion. See the evidence below. |
+| Controller presence test flake | Claimed and published as [#23885](https://github.com/juju/juju/pull/23885); see the branch record and evidence below. |
+| Crossmodel-relation egress watcher test flake | Jenkins build 40941 timed out in `TestWatchRelationEgressNetworks` while waiting for changestream idle after setup step 5. This is separate from the CIDR ordering fix in #23805. A local race run at `-count=20` passed; investigate the watcher harness/transaction sequencing and establish reproducible stress evidence before dispatch. |
 
 ### Controller presence test flake (2026-11-18)
 
