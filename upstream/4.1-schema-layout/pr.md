@@ -21,6 +21,10 @@ Update imports, embeds, generation destinations, patch discovery, workflow
 paths and documentation. The move itself preserves patch ordering, hash
 inputs and relocated file contents.
 
+The assembled controller and model patch statements, including triggers,
+remain identical to #23890 in content and order. The layout move does not
+change the patch hash chains.
+
 Make the existing dialect explicit so a PostgreSQL schema can sit beside it
 without treating schema correctness as a testing-only concern. Keep this
 mechanical prerequisite independent of SQL conversion, PostgreSQL output,
@@ -50,8 +54,66 @@ combined PR so the files are renamed once in the final diff?
 
 ## QA steps
 
+Compare the complete assembled patch sequences against the ordering commit.
+From a checkout containing both commits, with Go installed:
+
+```sh
+set -e
+export QA_ROOT="$(mktemp -d)"
+git --no-pager worktree add --detach "$QA_ROOT/order" b622931495f0fb3a2242418c82e2fcb152183354
+git --no-pager worktree add --detach "$QA_ROOT/layout" 9c8f98cd16289cb0e17b9be9ac587d59a683b285
+cat > "$QA_ROOT/patches.go" <<'EOF'
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"os"
+
+	coreschema "github.com/juju/juju/core/database/schema"
+	"github.com/juju/juju/domain/schema"
+)
+
+func statements(s *coreschema.Schema) []string {
+	patches := s.Patches()
+	result := make([]string, len(patches))
+	for i, patch := range patches {
+		result[i] = coreschema.Stmt(patch)
+	}
+	return result
+}
+
+func main() {
+	output := struct {
+		Controller []string `json:"controller"`
+		Model      []string `json:"model"`
+	}{statements(schema.ControllerDDL()), statements(schema.ModelDDL())}
+	if err := json.NewEncoder(os.Stdout).Encode(output); err != nil {
+		log.Fatal(err)
+	}
+}
+EOF
+(cd "$QA_ROOT/order" && go run "$QA_ROOT/patches.go") > "$QA_ROOT/order.json"
+(cd "$QA_ROOT/layout" && go run "$QA_ROOT/patches.go") > "$QA_ROOT/layout.json"
+cmp "$QA_ROOT/order.json" "$QA_ROOT/layout.json"
+git --no-pager diff --exit-code b622931495f0fb3a2242418c82e2fcb152183354 9c8f98cd16289cb0e17b9be9ac587d59a683b285 -- core/database/schema
+```
+
+Expect both comparisons to produce no output. The JSON arrays preserve patch
+boundaries and order, including generated triggers; the second comparison
+checks that the hash implementation is unchanged. Together they establish
+that the patch hash chains are unchanged. Remove the temporary worktrees and
+comparison files:
+
+```sh
+git --no-pager worktree remove "$QA_ROOT/order"
+git --no-pager worktree remove "$QA_ROOT/layout"
+rm "$QA_ROOT/patches.go" "$QA_ROOT/order.json" "$QA_ROOT/layout.json"
+rmdir "$QA_ROOT"
+```
+
 Check generation writes only to the relocated asset tree. With the normal Go
-build prerequisites installed, run from the repository root:
+build prerequisites installed, run from the layout checkout:
 
 ```sh
 go generate ./domain/schema/...
