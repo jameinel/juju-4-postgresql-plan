@@ -5,9 +5,10 @@
 ## Current state and next actions
 
 2026-11-20: The user reported completing the manual QA in [pr.md](pr.md)
-and updated its commands. The revised PR description is prepared locally;
-publication to [#23693](https://github.com/juju/juju/pull/23693) awaits
-approval. The user did not provide separate command output in this session.
+and updated its commands. With user approval, the revised description was
+published to [#23693](https://github.com/juju/juju/pull/23693) and verified
+against the local draft. The user did not provide separate command output in
+this session.
 
 2026-11-17: The user authorized this session to take over the clean worktree
 and approved an approximate static-query estimator in response to Simon.
