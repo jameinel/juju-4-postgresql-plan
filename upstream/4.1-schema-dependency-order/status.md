@@ -7,7 +7,10 @@
 ## Current state
 
 On 2026-11-20, the related layout branch was rebuilt on top of
-`b622931495` as `9c8f98cd16` and pushed with approval. See its
+`b622931495` as `9c8f98cd16` and pushed with approval. Draft
+[juju/juju#23907](https://github.com/juju/juju/pull/23907) is available for
+review alongside this PR. With separate approval, updated and verified
+this PR's description to link the draft. See its
 [status](../4.1-schema-layout/status.md) for validation and publication
 state. The old independent layout tip is preserved separately.
 

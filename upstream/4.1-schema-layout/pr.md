@@ -1,8 +1,8 @@
 # Local PR draft
 
-Destination: `juju/juju`, base `4.1`, head `jameinel:4.1-schema-layout`,
-draft PR. The local and fork heads are `9c8f98cd16`, based on `b622931495`.
-PR creation requires separate explicit approval. No PR has been published.
+Published draft: https://github.com/juju/juju/pull/23907
+Base: `4.1`; head: `jameinel:4.1-schema-layout` at `9c8f98cd16`, based on
+`b622931495`. The body below matches the published description.
 
 Title: `refactor(schema): order and relocate schema definitions`
 
@@ -65,7 +65,7 @@ git worktree add --detach "$QA_ROOT/order" "$ORDER"
 git worktree add --detach "$QA_ROOT/layout" "$LAYOUT"
 ```
 
-Compare filenames and contents, then inspect the assembly and hash code:
+Compare filenames and contents, and check the hash code:
 
 ```sh
 diff -ru "$QA_ROOT/order/domain/schema/controller" \
@@ -73,14 +73,19 @@ diff -ru "$QA_ROOT/order/domain/schema/controller" \
 diff -ru "$QA_ROOT/order/domain/schema/model" \
     "$QA_ROOT/layout/domain/schema/dqlite/model"
 git diff "$ORDER" "$LAYOUT" -- core/database/schema
+```
+
+Expect all three comparisons to produce no output. The directory diffs show
+any missing or changed SQL files and trigger sources.
+
+Inspect the schema assembly changes separately:
+
+```sh
 git diff "$ORDER" "$LAYOUT" -- \
     domain/schema/controller.go domain/schema/model.go
 ```
 
-Expect no output from the directory and hash-code comparisons. The directory
-diffs show any missing or changed SQL files and trigger sources. Inspect the
-last diff and confirm schema assembly changes only asset paths. Remove the
-temporary checkouts:
+Expect a diff that changes only asset paths. Remove the temporary checkouts:
 
 ```sh
 git worktree remove "$QA_ROOT/order"

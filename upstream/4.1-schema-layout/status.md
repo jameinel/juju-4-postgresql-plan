@@ -14,9 +14,10 @@ ordering head `b622931495f0fb3a2242418c82e2fcb152183354`:
 `4.1-schema-layout-before-order`. With explicit approval, pushed the new
 head to `jameinel/juju:4.1-schema-layout` with a lease against
 `9da8100e161f59ce5a86485e0725db1b8101154d` and verified the remote head.
-No PR exists; PR creation requires separate approval.
+With separate approval, created draft [juju/juju#23907](https://github.com/juju/juju/pull/23907)
+and verified its base, head and [description](pr.md).
 
-The [PR draft](pr.md) targets upstream `4.1` while
+The draft PR targets upstream `4.1` while
 [schema dependency ordering](../4.1-schema-dependency-order/status.md)
 remains open, so reviewers can compare the combined ordering and layout
 diff with the primary ordering-only proposal. It is not a request to merge
@@ -140,7 +141,6 @@ directory (`schema-layout-*.log`). No PostgreSQL execution was claimed.
 
 ## Next actions
 
-1. Obtain separate approval for any PR creation; the local [PR draft](pr.md)
-   contains proposed functional QA, not a claim that bootstrap was run.
+1. Monitor review of the ordering PR and the linked layout draft.
 2. After ordering and layout land, move infrastructure-only commits onto
    the updated stock upstream base.

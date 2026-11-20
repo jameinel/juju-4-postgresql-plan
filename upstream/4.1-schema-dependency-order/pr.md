@@ -137,5 +137,6 @@ None.
 
 ## Links
 
-Related: [separate dqlite schema-layout move](https://github.com/jameinel/juju/compare/b36eefc4b34badcdef972c859e96ccb974c592e2...9da8100e161f59ce5a86485e0725db1b8101154d).
-The independent layout and ordering changes will need reconciliation.
+Related: draft #23907 builds on this PR and adds the dqlite schema-layout
+move. It shows the combined rename so reviewers can compare landing the
+changes separately with landing them together.
