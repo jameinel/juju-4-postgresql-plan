@@ -20,6 +20,17 @@ the separate task owns its deliberate patch-order/hash-chain changes.
 
 ## Starting point and boundaries
 
+Current starting point, 2026-11-20: user-authorized local rebuild at
+`11282b07285ebaeeebac6288a17f3304cb04b63e`, above layout
+`9c8f98cd16289cb0e17b9be9ac587d59a683b285` and ordered sources
+`b622931495f0fb3a2242418c82e2fcb152183354`, on stock base
+`59dcd6d951814fa098a11ca3be103314bb6894e8`. The source-order prerequisite
+is integrated; preserve this baseline's bytes and ordering. Automatic
+FK relocation is archived outside the active branch. The branch record
+owns rebuild evidence and the remaining H3 gates.
+
+Historical dispatch baseline, 2026-11-14:
+
 Work in `../4.1-postgresql-tests`, branch `4.1-postgresql-tests`, from
 H2 `57f02035c70aac8435c28341b9175980a9014ff5`. That worktree was clean
 when prepared. Recheck its head, dirty files and reservation before edits;

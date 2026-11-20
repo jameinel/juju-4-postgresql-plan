@@ -5,39 +5,50 @@
 
 ## Current state and next actions
 
-Observed 2026-11-18. Branch `4.1-postgresql-tests`, worktree
+Observed 2026-11-20. Branch `4.1-postgresql-tests`, worktree
 `../4.1-postgresql-tests`.
 
-- Implementation/evidence owner: `1182cd49-fff3-42a1-b3ef-bf58b866213c`.
-  Design/planning continuation: `5eb9907f-1835-4e64-98a2-d54e0aa2461d`.
-- Code HEAD: `c59a24d92ab167313f4393e0651f5ca76c1efcc4`; upstream base:
-  `d380e5e4fba4c9918a0774638ffa3138aeece73e`. The last recorded GitHub
-  branch head matches code HEAD; no PR is recorded.
-- The worktree contains an uncommitted same-patch FK relocation checkpoint.
-  Preserve it pending reconciliation, but do not extend it: the selected
-  design is [explicit upstream source ordering](#source-order-not-automatic-relocation).
+- User-authorized rebuild: `b3089f76-ea48-49bf-89e5-dc39370b855e`.
+  Previous H3 implementation/evidence owner:
+  `1182cd49-fff3-42a1-b3ef-bf58b866213c`; design/planning continuation:
+  `5eb9907f-1835-4e64-98a2-d54e0aa2461d`.
+- Local code HEAD: `11282b07285ebaeeebac6288a17f3304cb04b63e`; layout parent:
+  `9c8f98cd16289cb0e17b9be9ac587d59a683b285`; ordered-source prerequisite:
+  `b622931495f0fb3a2242418c82e2fcb152183354`; stock upstream base:
+  `59dcd6d951814fa098a11ca3be103314bb6894e8`.
+- The worktree is clean. Four harness commits were replayed onto the user's
+  rebuilt layout, followed by a fixture-only adaptation. The sole rebase
+  conflict retained the source-order documentation in `patch.go` alongside
+  the named-source API.
+- The obsolete dirty FK-relocation checkpoint is archived, not reapplied.
+  The generator requires source-ordered tables and keys and does not relocate
+  constraints. See [rebuild evidence](#ordered-layout-rebuild-2026-11-20).
+- Nothing was pushed. The last recorded GitHub head is `c59a24d92a`; remote
+  state was not refreshed and no PR is recorded.
 
 | Stage | State |
 |---|---|
-| H1: central backend configuration | Pushed as `985463ee4d`. |
-| H2: PostgreSQL driver/schema plumbing | Pushed as `a80e0b835b`. |
+| H1: central backend configuration | Replayed locally as `b45c7d089e`; previously pushed as `985463ee4d`. |
+| H2: PostgreSQL driver/schema plumbing | Replayed locally as `90964d6723`; previously pushed as `a80e0b835b`. |
 | H3a: source/PoC audit | Complete; shared-source blockers identified below. |
-| H3b: generation | Named sources (`79a21a0148`) and strict foundation (`c59a24d92a`) pushed; full translation is incomplete. |
+| H3b: generation | Named sources (`accc28f454`) and strict foundation (`b20b4d0715`) replayed locally; ordered-layout fixtures in `11282b0728`. Full translation is incomplete. |
 | H3c: full-schema acceptance | Not implemented. No complete generated PostgreSQL assets or constructors. |
 | H3.1: empty-collection membership | Planned Juju portability commit in PostgreSQL enablement, not a mandatory separate PR; required before affected H4 acceptance. |
 | H2.1 / H4 | Sqlair adoption and shared-suite enablement remain separate gates. |
 
-The branch starts from stock 4.1 plus layout `468bbf32ae`; it contains no
-PoC ancestry or unpublished shared-source fixes. Independent H3b work is
-approved while source blockers remain. Focused checks do not establish H3
-completion; see [evidence and limits](#evidence-and-limits). Further
-publication requires separate approval.
+The branch starts from stock 4.1 plus the explicit source-order cleanup and
+layout `9c8f98cd16`; it contains no PoC ancestry or other pending shared-source
+fixes. Independent H3b work is approved while source blockers remain.
+Focused checks do not establish H3 completion; see
+[evidence and limits](#evidence-and-limits). Further publication requires
+separate approval.
 
 Next actions:
 
-1. Leave [source-order cleanup](../4.1-schema-dependency-order/status.md)
-   to the user's separate thread. Consume its explicit order when
-   integrated; do not build a generic relocation solver.
+1. Consume the integrated
+   [source-order cleanup](../4.1-schema-dependency-order/status.md) as the
+   prerequisite baseline. Reject new unresolved dependencies; do not build
+   a generic relocation solver or modify the shared sources here.
 2. Continue independent H3b work on identity/changelog allocation, clocks,
    used views/expressions/indexes/triggers, complete assets, PostgreSQL
    constructors and generation/freshness wiring. Translate actual assembled
@@ -104,7 +115,12 @@ PoC reference `f3340c67107829347ee750f7e40e806e563411e9`. The assembled
 inventory was unchanged at the current base. These are source/design
 findings, not live upstream review status or complete PostgreSQL acceptance.
 
-### Complete assembled inputs
+### Historical complete assembled inputs
+
+This inventory and its digests describe the pre-ordering H2 baseline.
+The rebuilt branch uses `9c8f98cd16` as its preservation baseline; source
+bytes and generated triggers match that parent exactly. Do not use the
+historical filenames, patch positions or ordered digests as current values.
 
 The inventory calls the actual `ControllerDDL()` and `ModelDDL()` at
 `4.1-beta3`, rather than treating SQL files as the complete schemas. Every
@@ -288,12 +304,12 @@ transaction-time clock substitution.
   identical files, replaces files atomically and removes only owned stale
   files; unowned files, symlinks and unsafe paths reject.
 
-**Current generation limit:** controller `0003-changelog.sql` and model
-`0001-changelog.sql` reject `INTEGER PRIMARY KEY` allocation. Both changelog
-schemas use `AUTOINCREMENT`, as do controller `0013-autocert-cache.sql`
-and `0021-user-ssh-keys.sql`. Views, Go-built triggers, check constraints,
+**Current generation limit:** controller `0030-changelog.sql` and model
+`0010-changelog.sql` reject `INTEGER PRIMARY KEY` allocation. Both changelog
+schemas use `AUTOINCREMENT`, as do controller `0150-autocert-cache.sql`
+and `0230-user-ssh-keys.sql`. Views, Go-built triggers, check constraints,
 partial/expression indexes and used expressions still need implementation.
-For example, `0004-controller.sql` and `0015-user.sql` contain non-plain
+For example, `0040-controller.sql` and `0170-user.sql` contain non-plain
 indexes. Supporting hypothetical SQL forms is not a goal.
 
 The incomplete generator is deliberately not wired into normal generation
@@ -305,9 +321,9 @@ freshness checking to `tests/suites/static_analysis/schema.sh` and preserve
 `make rebuild-ddl` / `generate/ddlgen` behavior. The [H3 contract](h3-plan.md)
 owns CLI commands and full acceptance.
 
-### Uncommitted FK checkpoint
+### Archived FK checkpoint
 
-The dirty worktree adds deterministic same-patch forward-FK relocation.
+The former dirty worktree added deterministic same-patch forward-FK relocation.
 It installs each constraint as soon as its target table and matching key
 exist, including keys supplied by a later plain unique index. Constraints
 are nondeferrable. While a key is pending, only supported table/index
@@ -316,9 +332,70 @@ creation may intervene; unresolved references fail at patch end.
 This cannot handle actual cross-patch dependencies or an unrelated seed
 insert before the target table, as occurs in controller `0007-model.sql`.
 It also does not implement runtime `PRAGMA defer_foreign_keys` behavior.
-Preserve the checkpoint, then reconcile unnecessary relocation after the
-separate source-order cleanup; its fixture success is not a reason to
-expand or adopt that design.
+The rebuild archived this checkpoint without applying it. Its fixture
+success is not a reason to expand or adopt that design.
+
+## Ordered-layout rebuild (2026-11-20)
+
+The user committed the rebuilt layout as `9c8f98cd16` and authorized the
+rebase. `git range-diff` shows unchanged H1, H2 and strict-generator patches;
+the named-source commit differs only in conflict context because the
+source-order comment is retained. Follow-up `11282b0728` updates the actual
+lease/changelog filenames and requires the lease output to exist before
+checking its foreign keys. Two added fixtures reject forward tables and
+later unique-index keys even when they appear in the same patch.
+
+Preserved local refs:
+
+- `backup/4.1-postgresql-tests-before-ordered-layout-20261120`:
+  `c59a24d92ab167313f4393e0651f5ca76c1efcc4`.
+- `backup/4.1-postgresql-tests-fk-checkpoint-20261120`:
+  `439311de5f4547dc41a54bd93b7614f4a0df48fa`, the stash commit containing
+  the original five-file dirty checkpoint. The stash was not popped.
+
+The patch is also retained as
+`files/postgresql-tests-obsolete-fk-relocation.patch` in the rebuild session.
+No CI/integration refs or other owners' worktrees were changed. Their
+reservations remain separate; local CI/integration refs were not recreated.
+
+Validation at `11282b0728`:
+
+- SQLite and real dqlite passed race-enabled generator, schema, schema-core,
+  agentbinary, driver/error, central configuration and shared database-helper
+  suites. Both selections retained an invalid unused PostgreSQL URL.
+  Initial generator failures were stale filename expectations; the final
+  generator runs passed without weakening the incomplete-generation gate.
+- The broad selection was
+  `./generate/pgschemagen ./generate/ddlgen ./domain/schema/...`
+  `./domain/agentbinary/... ./core/database/...`
+  `./internal/database/testconfig ./internal/database/testing`
+  `./internal/database/drivererrors ./internal/database/postgresql/...`,
+  with `-race -p 2 -count=1 -timeout 120s`. SQLite used `go test`;
+  real dqlite used `make run-go-tests`. Final generator/schema reruns
+  cover the fixture adaptation.
+- Race-compiled domain-schema binaries passed bounded stress for
+  `Test(DependencyOrder|PatchSources|ControllerSchema|ModelSchema)Suite`:
+  `timeout 91s stress -p 2 -count 10 -timeout 30s`, ten completed runs
+  on each backend, zero failures.
+- `go generate ./domain/schema` produced no source or trigger drift.
+  `git diff 9c8f98cd16 -- domain/schema/dqlite` is empty. Named-source
+  tests verify that the compiled constructors expose the same ordered
+  patches and exact file bytes.
+- Scoped `golangci-lint`, `txncheck`, `gci` and `git diff --check` passed.
+  The IDE build succeeded with limited diagnostics; CLI race compilation
+  is the meaningful build evidence for these ignored worktree paths.
+
+Logs are in the rebuild session's `files/` directory:
+`ordered-layout-sqlite.log`, `ordered-layout-dqlite.log`,
+`ordered-layout-{sqlite,dqlite}-generator-final.log`,
+`ordered-layout-stress-{sqlite,dqlite}.log`, `ordered-layout-lint.log`,
+`ordered-layout-txncheck.log` and `ordered-layout-regeneration.log`.
+Temporary stress binaries were removed.
+
+No central PostgreSQL test URL was configured, so actual PostgreSQL
+driver/schema execution was not repeated. Full pre-check, complete generated
+schemas, H4, CI and combined-fix acceptance remain unvalidated. This rebuild
+does not implement the remaining H3 translation work.
 
 ## Evidence and limits
 
@@ -328,8 +405,8 @@ CI and the complete-job timing gate remain unvalidated.
 
 | Checkpoint | Evidence | Limits |
 |---|---|---|
-| Current uncommitted FK checkpoint, above `c59a24d92a` | Generator/schema race suites on SQLite and real dqlite; PostgreSQL existing/forward-FK fixtures; scoped lint, formatting and whitespace checks. Fixtures cover immediate failures, rollback, cycles, composite keys, cascades, `SET NULL` and nondeferrable metadata. | No full pre-check or vulnerability scan. Bounded real-dqlite race stress completed 54 runs without failure; two runs remained active at the outer timeout. Not full-schema acceptance. |
-| Current committed tree, checked during the rebase before its message-only rewrite | Focused H1/H2 and generator/schema suites on SQLite/real dqlite; PostgreSQL driver/schema and existing-FK fixtures; generator lint. Assembled-schema audit matched byte-for-byte; trigger regeneration had no drift. | Full pre-check and stress were not repeated for the rebase. |
+| Archived FK checkpoint, above `c59a24d92a` | Generator/schema race suites on SQLite and real dqlite; PostgreSQL existing/forward-FK fixtures; scoped lint, formatting and whitespace checks. Fixtures cover immediate failures, rollback, cycles, composite keys, cascades, `SET NULL` and nondeferrable metadata. | No full pre-check or vulnerability scan. Bounded real-dqlite race stress completed 54 runs without failure; two runs remained active at the outer timeout. Not full-schema acceptance. |
+| Historical `c59a24d92a` tree, checked during the previous rebase before its message-only rewrite | Focused H1/H2 and generator/schema suites on SQLite/real dqlite; PostgreSQL driver/schema and existing-FK fixtures; generator lint. Assembled-schema audit matched byte-for-byte; trigger regeneration had no drift. | Full pre-check and stress were not repeated for that rebase. |
 | Earlier named-source/strict-generator snapshots | SQLite/real-dqlite race suites; source/version/post-patch and freshness mutation fixtures; full pre-check including lint/schema/txncheck; source-byte and trigger-preservation checks. | Pre-check does not cover subsequent FK changes. Snapshot fingerprints identify the tested files; no complete PostgreSQL schema was generated. |
 | H2 baseline `57f02035c7` | PostgreSQL 16.15 driver/schema tests cover binding/preparation, typed values, constraints, transactions/retries, cancellation, hash compatibility and atomic/concurrent application. Driver/schema race stress each completed 20 runs without failures; full pre-check passed. SQLite/real-dqlite regression suites also passed with an invalid unused PostgreSQL URL. | Lower-level plumbing, not native sqlair, domain-suite or complete-job acceptance. Optional vulnerability scan was disabled. |
 

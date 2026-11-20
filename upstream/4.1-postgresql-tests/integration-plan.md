@@ -10,9 +10,11 @@ layout, CI and integration reservations are unchanged. The
 [Branch status](status.md) | [Dashboard](../../UPSTREAM-PLAN.md) |
 [SQL-regression contract](../../PLAN.md)
 
-Checkpoint status, 2026-11-14: H2 and H3's named-source foundation are
-committed/pushed through `6e6887c24e`; independent generator work is
-validated locally but uncommitted. H3 remains incomplete. The
+Checkpoint status, 2026-11-20: the harness was rebuilt locally on ordered
+sources `b622931495` plus layout `9c8f98cd16`, through `11282b0728`.
+The four H1/H2/named-source/strict-generator commits were replayed, with a
+fixture-only follow-up. Automatic FK relocation was archived, not carried
+forward. Nothing from this rebuild was pushed; H3 remains incomplete. The
 [branch record](status.md) owns current progress and evidence; the
 [H3 dispatch plan](h3-plan.md) defines acceptance.
 H2.1 below tracks adoption of the separately developed sqlair placeholder
@@ -46,17 +48,17 @@ rerun on the refreshed base.
 ```text
 upstream/4.1
   |
-  +-- 4.1-schema-dependency-order       independent source-order cleanup
-  |
-  +-- 4.1-schema-layout                 independent prerequisite PR
+  +-- 4.1-schema-dependency-order       source-order prerequisite
         |
-        +-- 4.1-postgresql-tests        schema generator + shared SQL harness
+        +-- 4.1-schema-layout           mechanical layout prerequisite
               |
-              +-- 4.1-postgresql-tests-ci    PostgreSQL job and CI wiring
+              +-- 4.1-postgresql-tests        schema generator + shared SQL harness
                     |
-                    +-- 4.1-postgresql-tests-integration
-                          + exact pending SQL/schema fix heads
-                          + regenerated PostgreSQL output
+                    +-- 4.1-postgresql-tests-ci    PostgreSQL job and CI wiring
+                          |
+                          +-- 4.1-postgresql-tests-integration
+                                + exact pending SQL/schema fix heads
+                                + regenerated PostgreSQL output
 ```
 
 The integration line is disposable, not a fourth mergeable feature. The layout
@@ -71,6 +73,13 @@ without importing pending SQL fixes. The harness generator remains strict
 and source-ordered rather than implementing a general dependency relocation
 pass. Reconcile this cleanup with the layout move when they meet; neither
 independent source branch is authorized to change the other's worktree.
+
+On 2026-11-20 the user supplied a committed layout rebuilt on the ordered
+source branch and authorized rebuilding the harness on that local stack.
+The graph above reflects this integrated prerequisite. Source cleanup and
+layout remain separately owned concerns; this is not permission to change
+their publication or landing policy. Preservation checks use the integrated
+layout parent as their baseline, rather than the pre-ordering hash chain.
 
 Create local CI/integration refs after the initial harness checkpoint to reserve
 the agreed workstreams. Initially those refs contain no CI or combined-fix
