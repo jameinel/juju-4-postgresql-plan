@@ -55,24 +55,38 @@ combined PR so the files are renamed once in the final diff?
 ## QA steps
 
 From a checkout containing both commits, compare the controller and model
-asset trees with the ordering commit:
+assets with the ordering commit. Create temporary checkouts:
 
 ```sh
-set -e
 ORDER=b622931495f0fb3a2242418c82e2fcb152183354
 LAYOUT=9c8f98cd16289cb0e17b9be9ac587d59a683b285
-test "$(git --no-pager rev-parse "$ORDER:domain/schema/controller")" = \
-     "$(git --no-pager rev-parse "$LAYOUT:domain/schema/dqlite/controller")"
-test "$(git --no-pager rev-parse "$ORDER:domain/schema/model")" = \
-     "$(git --no-pager rev-parse "$LAYOUT:domain/schema/dqlite/model")"
-git --no-pager diff --exit-code "$ORDER" "$LAYOUT" -- core/database/schema
-git --no-pager diff "$ORDER" "$LAYOUT" -- \
+QA_ROOT="$(mktemp -d)"
+git worktree add --detach "$QA_ROOT/order" "$ORDER"
+git worktree add --detach "$QA_ROOT/layout" "$LAYOUT"
+```
+
+Compare filenames and contents, then inspect the assembly and hash code:
+
+```sh
+diff -ru "$QA_ROOT/order/domain/schema/controller" \
+    "$QA_ROOT/layout/domain/schema/dqlite/controller"
+diff -ru "$QA_ROOT/order/domain/schema/model" \
+    "$QA_ROOT/layout/domain/schema/dqlite/model"
+git diff "$ORDER" "$LAYOUT" -- core/database/schema
+git diff "$ORDER" "$LAYOUT" -- \
     domain/schema/controller.go domain/schema/model.go
 ```
 
-Expect the tree and hash-implementation comparisons to succeed without
-output. The trees include filenames, SQL contents and trigger sources.
-Inspect the final diff and confirm schema assembly changes only asset paths.
+Expect no output from the directory and hash-code comparisons. The directory
+diffs show any missing or changed SQL files and trigger sources. Inspect the
+last diff and confirm schema assembly changes only asset paths. Remove the
+temporary checkouts:
+
+```sh
+git worktree remove "$QA_ROOT/order"
+git worktree remove "$QA_ROOT/layout"
+rmdir "$QA_ROOT"
+```
 
 With the normal Go build prerequisites installed, regenerate triggers and the
 exported schema from a clean layout checkout:
@@ -80,7 +94,7 @@ exported schema from a clean layout checkout:
 ```sh
 go generate ./domain/schema/...
 make rebuild-export
-git --no-pager diff --exit-code
+git diff --exit-code
 test ! -d domain/schema/controller
 test ! -d domain/schema/model
 ```
