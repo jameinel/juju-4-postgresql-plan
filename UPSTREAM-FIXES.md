@@ -642,6 +642,15 @@ See the [branch record](upstream/4.1-sqlite-integers/status.md#integer-schema-re
 
 See the [branch record](upstream/4.1-pr-description-guidance/status.md#separate-agent-workflow-guidance).
 
+## PoC schema alignment (2026-11-20)
+
+The local PoC restack adapted the ordering and layout proposals at
+`b622931495` and `9c8f98cd16`, with strict source-order generation verified
+through `09=893eb9105d`. See the
+[alignment record](stages/02-schema-move.md#final-integration-and-acceptance-2026-11-20)
+for provenance, validation and coverage limits. This does not establish
+reconciliation of U7 with the landed #23683; that comparison remains pending.
+
 ## PoC reconciliation onto d380e5e4fb (2026-11-18)
 
 Inputs: upstream `4.1` was fetched and pinned at `d380e5e4fb`; old base

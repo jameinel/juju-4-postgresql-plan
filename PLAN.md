@@ -132,8 +132,8 @@ Both 142-package race-enabled sweeps passed with `-p 4`: real dqlite in
 Source ordering changes hashes; layout preserves its parent's patch bytes
 and hashes. The upstream base remains `d380e5e4fb`; independently owned
 branches and historical databases are unchanged. No publication is
-authorized. The assigned task record owns detailed evidence; the coordinator
-still needs to link it from the concurrently edited UPSTREAM-FIXES.md.
+authorized. The assigned task record owns detailed evidence and is linked
+from [UPSTREAM-FIXES.md](UPSTREAM-FIXES.md#poc-schema-alignment-2026-11-20).
 
 ## Milestones
 
@@ -285,11 +285,9 @@ without coordination.
 Next:
 
 1. Review the local [`02-04-schema-alignment` result](stages/02-schema-move.md#02-04-schema-alignment)
-   and its dated final-tip acceptance. Refresh the coordinator-owned
-   provenance register without overwriting its current dirty edit, then
-   obtain separate exact-content approval before publication. Do not
-   import the separately owned PostgreSQL harness or redistribute Stage 9
-   checkpoints as part of this task.
+   and its dated final-tip acceptance, then obtain separate exact-content
+   approval before publication. Do not import the separately owned PostgreSQL
+   harness or redistribute Stage 9 checkpoints as part of this task.
 2. Agree the workload, scale, repetitions and acceptance thresholds for the
    [comparison contract](BENCHMARKS.md) before running performance work.
    [D54 run 6](stages/09-bootstrap.md#run-6-approved-remainder-of-d54-2026-11-18)

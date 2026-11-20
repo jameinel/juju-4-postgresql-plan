@@ -557,7 +557,7 @@ The five landed-batch rows also record local PoC reconciliation on
 | [`4.1-model-config-precedence`](upstream/4.1-model-config-precedence/status.md) | [#23683](https://github.com/juju/juju/pull/23683) landed; compare its view and import changes with the PoC equivalent before reconciliation. The owner-uncertain record still shows an open snapshot. |
 | [`4.1-nullable-primary-keys`](upstream/4.1-nullable-primary-keys/status.md) | [#23710](https://github.com/juju/juju/pull/23710): Simon approved and required CI passes; await the remaining review gate. Land charm before exposure. |
 | [`4.1-objectstore-conflicts`](upstream/4.1-objectstore-conflicts/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
-| [`4.1-operation-query-portability`](upstream/4.1-operation-query-portability/status.md) | [#23693](https://github.com/juju/juju/pull/23693), head `9b2e784d3c`: Simon's direct-query request implemented and answered; manual QA and reviewer confirmation remain. |
+| [`4.1-operation-query-portability`](upstream/4.1-operation-query-portability/status.md) | [#23693](https://github.com/juju/juju/pull/23693), head `9b2e784d3c`: Simon's direct-query request implemented and answered; the user reported manual QA passed. Reviewer confirmation remains. |
 | [`4.1-postgresql-tests`](upstream/4.1-postgresql-tests/status.md) | H2 previously passed focused PostgreSQL acceptance. The authorized local rebuild is at `11282b0728` on the ordered layout; H3b generation, full-schema acceptance, suite enablement and CI remain incomplete. See the [integration plan](upstream/4.1-postgresql-tests/integration-plan.md). |
 | [`4.1-pr-description-guidance`](upstream/4.1-pr-description-guidance/status.md) | [#23755](https://github.com/juju/juju/pull/23755), head `226d85ae23`: guidance moved and reviewer replies published; await human re-review. |
 | [`4.1-removal-force-boolean`](upstream/4.1-removal-force-boolean/status.md) | Landed upstream; see the record and finding register for QA and PoC reconciliation. |
@@ -638,7 +638,7 @@ split conflicts by operation and preserve retries, idempotency and errors.
 | U11 watcher follow-up | Per-offer-connection remote watcher scoping is separate from #23688's offered-application scope. Agree the event/isolation contract and tests before dispatch. |
 | X33 stored-bytes follow-up | A stored-bytes metric such as `pg_column_size` needs backend-aware state code; #23693's text-size work does not implement it. Scope separately, not as a mechanical rewrite. |
 | Controller presence test flake | Claimed and published as [#23885](https://github.com/juju/juju/pull/23885); see the branch record and evidence below. |
-| Crossmodel-relation egress watcher test flake | Jenkins build 40941 timed out in `TestWatchRelationEgressNetworks` while waiting for changestream idle after setup step 5. This is separate from the CIDR ordering fix in #23805. A local race run at `-count=20` passed; investigate the watcher harness/transaction sequencing and establish reproducible stress evidence before dispatch. |
+| Crossmodel-relation egress watcher test timeout | Jenkins build 40941 timed out in `TestWatchRelationEgressNetworks` while waiting for changestream idle after setup step 5. A local race run at `-count=20` passed; the cause and any relationship to #23805 remain unconfirmed. Investigate the watcher harness/transaction sequencing and establish reproducible stress evidence before dispatch. |
 
 ### Controller presence test flake (2026-11-18)
 

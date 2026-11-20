@@ -146,9 +146,9 @@ Final evidence is in the same session's `files/`: `final-top/`,
 `final-sql-lint-pinned.log`, `final-generation*.log` and
 `postgresql-final-{before,after}.log`.
 
-Planning changes remain uncommitted. `UPSTREAM-FIXES.md` already has another
-session's dirty edit and was not modified; the coordinator should link this
-dated provenance/acceptance record there. No publication, live bootstrap,
+At handoff, the planning changes were uncommitted and another session's dirty
+`UPSTREAM-FIXES.md` edit was left untouched. The coordinator subsequently
+linked this record from the register. No publication, live bootstrap,
 benchmark, HA work or unrelated checkpoint redistribution was performed.
 
 Outcome: the PoC uses the same source organization as the current upstream
