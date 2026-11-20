@@ -114,24 +114,26 @@ The locally verified reference heads are `b622931495` and `9c8f98cd16`;
 layout is now stacked on ordering. Their records describe publication and
 review, not completed PoC integration.
 
-The PoC already has the directory move, but still uses the old source
-filenames/order and PostgreSQL dependency relocation. Amend D10: split and
-order the shared definitions at source, then make `pgschemagen` preserve
-that order and reject unresolved dependencies instead of repairing them.
+The PoC source ordering/layout and strict PostgreSQL generation are
+implemented locally through `09=893eb9105d`. D10 is amended: definitions
+are split and ordered at source, then `pgschemagen` preserves that order
+and rejects unresolved dependencies instead of repairing them.
 Patch-level grouping cycles do not imply cycles in the underlying object
 graph. Keep genuine dialect translation, exact-match overrides and the
 existing changelog visibility contract.
 
 The bounded [`02-04-schema-alignment` task](stages/02-schema-move.md#02-04-schema-alignment)
 owns the implementation and acceptance contract across Stages 2 and 4,
-including replay of later schema fixes and overrides. On 2026-11-20 the
-user selected planning and task definition only; implementation/restacking
-requires a subsequent dispatch. Do not change the current upstream base,
-PoC tips, databases or independently owned upstream branches in this
-planning session. Source ordering changes hashes; layout alone must not.
-Use fresh approved disposable databases for implementation validation,
-preserve historical evidence, and claim alignment only at a verified final
-PoC tip.
+including replay of later schema fixes and overrides. Planning was
+initially authorized alone; the subsequent dispatch implemented and
+validated the task on 2026-11-20, using only approved fresh test namespaces.
+Both 142-package race-enabled sweeps passed with `-p 4`: real dqlite in
+7m34s and PostgreSQL in 16m12s, retaining existing skips/deferred coverage.
+Source ordering changes hashes; layout preserves its parent's patch bytes
+and hashes. The upstream base remains `d380e5e4fb`; independently owned
+branches and historical databases are unchanged. No publication is
+authorized. The assigned task record owns detailed evidence; the coordinator
+still needs to link it from the concurrently edited UPSTREAM-FIXES.md.
 
 ## Milestones
 
@@ -269,11 +271,11 @@ without coordination.
 | - | Plan documents | plan repository `main` | in review |
 | 00 | [Base fixes](stages/00-base-fixes.md) | `pg-poc/00-base-fixes` | done, in review |
 | 01 | [PostgreSQL provisioning script](stages/01-provision.md) | `pg-poc/01-provision` | in review (also carries the D52 cleanup tool) |
-| 02 | [Source ordering and schema layout](stages/02-schema-move.md) | `pg-poc/02-schema-move` | Original move in review; `02-04-schema-alignment` defined, not implemented |
+| 02 | [Source ordering and schema layout](stages/02-schema-move.md) | `pg-poc/02-schema-move` | Source ordering/layout implemented; final-tip alignment validated at `09=893eb9105d`, local only |
 | 03 | [PG driver, placeholder rewriting, errors](stages/03-driver.md) | `pg-poc/03-driver` | in review |
-| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | done, in review; D56 implemented and restacked; strict source-ordered generation pending `02-04-schema-alignment` |
+| 04 | [PG schema generation](stages/04-schemagen.md) | `pg-poc/04-schemagen` | Strict source-order validation at `5832c5c9b8`; D56 and later overrides preserved; validated through `09=893eb9105d`, local only |
 | 05 | [Query portability fixes](stages/05-queries.md) | `pg-poc/05-queries` | X37/X38, U11, 05-SECRET-X16, 05-BOOT-FIXES, 05-X16-rest, 05-unitstate-relation-key, 05-lease-db-time, U24 and U25 done; U15 cherry-picked (D43), U16 reconciled with upstream |
-| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Rebased onto `d380e5e4fb`; both 142-package selections passed at `09=68a0a25a99`, with recorded skips and deferred coverage. Static-analysis cleanup is complete at `09=a1a9610167`. No new skips. 06-test-levels and 06-schema-skip remain |
+| 06 | [PG test harness](stages/06-test-harness.md) | `pg-poc/06-test-harness` | Both 142-package selections passed again at `09=893eb9105d` after schema alignment, with existing skips/deferred coverage. Earlier full static-analysis pass remains revision-specific. 06-test-levels and 06-schema-skip remain |
 | 07 | [`db-backend` / `db-url` config plumbing](stages/07-config.md) | `pg-poc/07-config` | in review |
 | 08 | [PG dbaccessor worker and bootstrap](stages/08-dbaccessor.md) | `pg-poc/08-dbaccessor` | implementation tasks done (bootstrap layer, 08-tracker, 08-worker, 08-upgrade-selector, 08-delete, 08-cleanup-tool and 08-delete-locks committed); per-process test lock key added (N17) |
 | 09 | [Single-controller functionality and comparison](stages/09-bootstrap.md) | `pg-poc/09-bootstrap` | Scoped D54 run 6 passed on PostgreSQL and dqlite at `a1a9610167`, including normal teardown and namespace isolation; disposable cleanup complete. Token design investigation stays separate. Four review checkpoints await redistribution; comparison not started |
@@ -282,12 +284,12 @@ without coordination.
 
 Next:
 
-1. Dispatch [`02-04-schema-alignment`](stages/02-schema-move.md#02-04-schema-alignment)
-   when implementation is authorized. Reconcile source ordering/layout,
-   preserve later PoC corrections and retire generator dependency
-   relocation; do not import the separately owned PostgreSQL harness.
-   Its acceptance gates are new work, not established by the previous
-   schema or D54 results.
+1. Review the local [`02-04-schema-alignment` result](stages/02-schema-move.md#02-04-schema-alignment)
+   and its dated final-tip acceptance. Refresh the coordinator-owned
+   provenance register without overwriting its current dirty edit, then
+   obtain separate exact-content approval before publication. Do not
+   import the separately owned PostgreSQL harness or redistribute Stage 9
+   checkpoints as part of this task.
 2. Agree the workload, scale, repetitions and acceptance thresholds for the
    [comparison contract](BENCHMARKS.md) before running performance work.
    [D54 run 6](stages/09-bootstrap.md#run-6-approved-remainder-of-d54-2026-11-18)
@@ -342,7 +344,18 @@ Next:
 Stage 5 fixes are validated on PostgreSQL at the 09 tip, not at 05:
 `JUJU_POSTGRESQL_TEST_URL` has no effect before the Stage 6 harness.
 
-Current local tips (2026-11-18, base `d380e5e4fb`, local only):
+Current local tips (2026-11-20, base `d380e5e4fb`, local only):
+`00=eb241e7bc7`, `01=14abbf3201`, `02=24450383b5`, `03=5a19411afd`,
+`04=5832c5c9b8`, `05=8018adefce`, `06=5fc2a29785`, `07=797f37b005`,
+`08=7d44e4df90`, `09=893eb9105d`. Recovery tags
+`pg-poc-before-schema-alignment-a1a9610167/00-base-fixes` through
+`/09-bootstrap` preserve all ten pre-alignment tips. The source-order
+parent of the mechanical layout is tagged
+`pg-poc-schema-alignment-source-order` (`dda958e1a5`). Every adjacent
+stage's ancestry is verified; schema and full-sweep acceptance is in the
+[alignment record](stages/02-schema-move.md#final-integration-and-acceptance-2026-11-20).
+
+Previous local tips (2026-11-18, base `d380e5e4fb`):
 `00=eb241e7bc7`, `01=14abbf3201`, `02=db349a2433`, `03=3df21588fc`,
 `04=3cec77ac4a`, `05=815db8ae37`, `06=5ae72ebf74`, `07=e8ab655255`,
 `08=dcd03ff354`, `09=a1a9610167`. Recovery tags

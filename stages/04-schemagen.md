@@ -6,8 +6,10 @@ Branch `pg-poc/04-schemagen`, on `pg-poc/03-driver`.
 
 [`02-04-schema-alignment`](02-schema-move.md#02-04-schema-alignment)
 defines the bounded integration task and acceptance gates. Planning only
-is authorized so far. The current generator still implements the historical
-relocation pass below; strict generation is not implemented or verified.
+was the initial authorization; the later implementation dispatch is
+complete locally. Strict generation is committed at `04=5832c5c9b8` and
+validated after replay through `09=893eb9105d`. The historical relocation
+pass below is no longer used.
 
 After the shared source-order cleanup and mechanical layout move are
 reconciled, translate the complete assembled patches in source order,
@@ -27,12 +29,34 @@ shared-defect overrides, add upgrade support or adopt the independently
 owned PostgreSQL harness.
 
 The numbered steps, relocation tests and old override filenames below
-describe the existing implementation and its evidence. D10/D15 and the
-linked task supersede their ordering/naming contracts for the next
-implementation. Update the live override inventory after reconciliation;
-do not rewrite historical results as if they used the new layout.
+describe the historical implementation and its evidence. D10/D15 and the
+linked task supersede their ordering/naming contracts. See the linked
+task for source provenance, final-schema parity, both race-enabled
+142-package sweeps, stress, build, lint and PostgreSQL cleanup evidence.
+Historical results were not rerun under their old revision labels.
 
-## Existing implementation and evidence
+## Current override inventory
+
+The final top has seven override files, applied before strict validation.
+Their raw `-auto.sql` baselines and PostgreSQL outputs were regenerated.
+
+| Namespace | Old override | Current override | Retained purpose |
+|---|---|---|---|
+| Controller | `0007-model.diff` | `0170-user.diff` | Predicate-free LEFT JOIN translation |
+| Controller | `0019-model-last-login.diff` | `0210-model-last-login.diff` | Grouped last-login view |
+| Model | `0012-secret.diff` | `0220-unit.diff` | Two predicate-free model joins |
+| Model | `0014-constraint.diff` | `0050-model.diff` | Nullable `allocate_public_ip` boolean |
+| Model | `0014-constraint.diff` | `0160-constraint.diff` | Three explicit identity `rowid` columns |
+| Model | `0018-machine.diff`, `0020-unit.diff` | `0290-agent-version.diff` | Two predicate-free CROSS JOIN translations |
+| Model | `0034-cross-model-relation.diff` | `0360-cross-model-relation.diff` | Duplicate FK name |
+
+At Stage 4, `0032-offer.diff` was also consolidated into `0360`. The
+existing Stage 5 removal replayed as `62abb7d31c`, deleting only its
+obsolete `1` to `'1'` relation-status comparison. The duplicate-FK-name
+hunk remains. Shared-defect overrides retain their D55 upstream/removal
+obligations; this alignment does not claim their defects are fixed.
+
+## Historical implementation and evidence
 
 - Goal: generate `domain/schema/postgresql/` from the dqlite patches with a
   reusable tool.
@@ -83,11 +107,11 @@ do not rewrite historical results as if they used the new layout.
   commit/object inventories and verification reports are in the
   [historical schema generation record](../history/schema-generation.md).
 - Current contracts:
-  - The translator, trigger functions, ordering, checked-in diff overrides,
+  - The translator, trigger functions, strict ordering validation, diff overrides,
     freshness checks, embedding and backend selectors already exist.
     Work here should be a named correction, not a new implementation.
-    `02-04-schema-alignment` is the named replacement of relocation with
-    strict source-order validation; other contracts remain unchanged.
+    `02-04-schema-alignment` replaced relocation with strict source-order
+    validation; other contracts remain unchanged.
   - `ControllerDDL()` / `ModelDDL()` remain dqlite. Stage 8 must select
     backend-aware DDL for runtime callers. On the current top, D11's
     dialect interface lives in `core/database/dialect`; the historical
