@@ -190,11 +190,14 @@ Run focused schema suites through H2's isolated PostgreSQL helper, not
 - Timestamp defaults, identity allocation and explicit-ID behavior,
   deferred foreign keys and `_pkey`/unique classification work through
   actual storage and consumers, not only generated-text comparisons.
-- Changelog IDs cannot become visible out of commit order and cause a
-  watermark reader to miss a later commit. Exercise two transactions,
-  rollback/gaps, explicit IDs and independent schemas. A bare sequence
-  does not establish this contract; any advisory-lock design needs
+- Automatically allocated changelog IDs cannot become visible out of commit
+  order and cause a watermark reader to miss a later commit. Exercise two
+  transactions, rollback/gaps, explicit IDs and independent schemas. A bare
+  sequence does not establish this contract; any advisory-lock design needs
   deterministic readiness, cancellation and bounded race/stress coverage.
+  On 2026-11-20 the user confirmed that explicit IDs remain supported even
+  below a prior watermark; audit their callers and lifecycle before H4 because
+  such writes can be missed by an active watermark reader.
 - Concurrent application, partial failure and cancellation leave atomic
   bookkeeping and only owned-schema cleanup. No stale-schema sweep.
 

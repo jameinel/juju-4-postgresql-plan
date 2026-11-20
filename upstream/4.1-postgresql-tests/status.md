@@ -16,10 +16,11 @@ Observed 2026-11-20. Branch `4.1-postgresql-tests`, worktree
   `9c8f98cd16289cb0e17b9be9ac587d59a683b285`; ordered-source prerequisite:
   `b622931495f0fb3a2242418c82e2fcb152183354`; stock upstream base:
   `59dcd6d951814fa098a11ca3be103314bb6894e8`.
-- The worktree is clean. Four harness commits were replayed onto the user's
-  rebuilt layout, followed by a fixture-only adaptation. The sole rebase
-  conflict retained the source-order documentation in `patch.go` alongside
-  the named-source API.
+- The worktree has uncommitted H3b index and changelog allocator changes;
+  see [the continuation](#h3b-index-and-changelog-continuation-2026-11-20).
+  Four harness commits were replayed onto the user's rebuilt layout, followed
+  by a fixture-only adaptation. The sole rebase conflict retained the
+  source-order documentation in `patch.go` alongside the named-source API.
 - The obsolete dirty FK-relocation checkpoint is archived, not reapplied.
   The generator requires source-ordered tables and keys and does not relocate
   constraints. See [rebuild evidence](#ordered-layout-rebuild-2026-11-20).
@@ -49,11 +50,11 @@ Next actions:
    [source-order cleanup](../4.1-schema-dependency-order/status.md) as the
    prerequisite baseline. Reject new unresolved dependencies; do not build
    a generic relocation solver or modify the shared sources here.
-2. Continue independent H3b work on identity/changelog allocation, clocks,
-   used views/expressions/indexes/triggers, complete assets, PostgreSQL
-   constructors and generation/freshness wiring. Translate actual assembled
-   constructs, not arbitrary SQLite SQL. Keep shared fixes separate and
-   revalidate them at the combined-fix checkpoint.
+2. Continue independent H3b work on general identity allocation, clocks, used
+   views/expressions/indexes/triggers, complete assets, PostgreSQL constructors
+   and generation/freshness wiring. Audit explicit changelog ID writers before
+   H4. Translate actual assembled constructs, not arbitrary SQLite SQL. Keep
+   shared fixes separate and revalidate them at the combined-fix checkpoint.
 3. Coordinate [H2.1 sqlair adoption](integration-plan.md#h21-adopt-upstream-sqlair-placeholders)
    with the [placeholder comparison](../../investigations/sqlair-placeholders.md).
    Do not assume `WithDialect(PostgreSQL)` or choose a dependency here.
@@ -86,6 +87,48 @@ Next actions:
 - Complete SQL-owning coverage and the end-to-end job budget remain
   unvalidated: under 30 minutes, preferably under 15, including setup,
   compilation and cleanup. Focused timings do not establish that gate.
+
+## H3b index and changelog continuation (2026-11-20)
+
+User-authorized continuation in session
+`e6e4abae-2994-4f26-b10f-e2d7899a00e1`, on HEAD `11282b0728` with
+uncommitted code in `generate/pgschemagen/`. No other checkout, branch,
+publication or shared planning record was changed.
+
+- Translate the used singleton `((1))` expression and simple partial index
+  predicates, validating columns and literal types. Partial or expression
+  unique indexes do not become foreign-key target keys. Unsupported forms
+  remain errors, including `CREATE INDEX IF NOT EXISTS`.
+- Translate the exact `change_log.id INTEGER PRIMARY KEY AUTOINCREMENT`
+  form with an owned sequence and per-schema transaction advisory lock.
+  Allocate automatic IDs only after acquiring the lock. Preserve explicit
+  IDs and advance the sequence for explicit higher values. Reject an
+  added default on the changelog ID; PostgreSQL would evaluate it before
+  the trigger and defeat allocation ordering.
+- The user confirmed that commit-order visibility applies to automatically
+  allocated IDs. Preserve explicit IDs even below a prior watermark, but
+  audit their callers before H4: `stream.selectQuery` reads only IDs above
+  the watermark, so a lower explicit ID can be missed. Generated changelog
+  triggers omit IDs and model import excludes operational changelog rows;
+  this is not yet a complete explicit-writer audit.
+- Both complete generated schemas remain unavailable. The actual controller
+  first rejects a `CHECK` in `0060-cloud.sql`; the model first rejects a view
+  in `0060-objectstore-metadata.sql`. Non-changelog integer identity,
+  general triggers/views, dependency and name-collision validation for
+  generated functions/triggers, and the shared-source blockers below remain.
+
+Verification on the dirty tree: SQLite and real dqlite generator package
+tests passed with `-race`; PostgreSQL index and changelog suites passed five
+times with `-race` against newly created, test-owned schemas. The PostgreSQL
+race binary completed ten bounded stress runs at `-p 2` with no failures.
+The tests cover inserts and updates against partial/singleton uniqueness,
+NULLs, foreign-key target rejection, explicit IDs, rollback gaps, concurrent
+commit visibility, independent schemas and cancellation. The cancellation
+test waits for PostgreSQL to remove the blocked advisory-lock request before
+releasing the first transaction: a canceled client call can return before
+server-side cancellation completes. Focused golangci-lint, txncheck, gci
+and `git diff --check` passed. Full schema/H3c, H4, CI and full pre-check
+were not run.
 
 ## Source order, not automatic relocation
 
@@ -304,13 +347,13 @@ transaction-time clock substitution.
   identical files, replaces files atomically and removes only owned stale
   files; unowned files, symlinks and unsafe paths reject.
 
-**Current generation limit:** controller `0030-changelog.sql` and model
-`0010-changelog.sql` reject `INTEGER PRIMARY KEY` allocation. Both changelog
-schemas use `AUTOINCREMENT`, as do controller `0150-autocert-cache.sql`
+**Current generation limit:** after the uncommitted changelog/index work
+above, controller `0060-cloud.sql` rejects a `CHECK` constraint and model
+`0060-objectstore-metadata.sql` rejects a view. General integer primary key
+allocation is still unsupported for controller `0150-autocert-cache.sql`
 and `0230-user-ssh-keys.sql`. Views, Go-built triggers, check constraints,
-partial/expression indexes and used expressions still need implementation.
-For example, `0040-controller.sql` and `0170-user.sql` contain non-plain
-indexes. Supporting hypothetical SQL forms is not a goal.
+other index forms and used expressions still need implementation. Supporting
+hypothetical SQL forms is not a goal.
 
 The incomplete generator is deliberately not wired into normal generation
 or static checks. Once complete, existing `go generate ./domain/schema`
