@@ -4,7 +4,7 @@
 
 ## Current state and next actions
 
-Observed 2026-11-16. The user authorised this session to take over and
+Observed 2026-11-20. The user authorised this session to take over and
 extend the patch to the egress getter; earlier ingress-only scope is
 superseded for this branch.
 
@@ -15,6 +15,16 @@ superseded for this branch.
 - Local head: `62a12cdc6a82db6539c4100a3aee09bb234f326f`.
 - Remote branch head: `62a12cdc6a82db6539c4100a3aee09bb234f326f`.
 - Phase: follow-up, PR title/description and review reply published.
+
+Jenkins build 40941 ran PR 23805 at local head
+`62a12cdc6a82db6539c4100a3aee09bb234f326f`. The only reported test failure
+was `TestWatcherSuite/TestWatchRelationEgressNetworks`, timing out while
+waiting for the changestream to become idle after setup step 5. The failure
+is in the watcher test harness and not in the CIDR ordering query or contract.
+A local `-race -count=20` run of that test passed. It is therefore recorded
+as separate watcher-test flake follow-up in `UPSTREAM-PLAN.md`, not as a fix
+to this PR. No code change was made on this branch. The PR should be rerun
+before merge if Jenkins remains the only unmet CI gate.
 
 [#23805](https://github.com/juju/juju/pull/23805): Simon Richardson
 approved the published head without explicitly answering the historical
