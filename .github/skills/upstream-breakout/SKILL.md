@@ -94,18 +94,22 @@ the PostgreSQL PoC is evidence, not a required design or runtime dependency.
 
 ## Finish the breakout
 
-Before the final handoff, make one local commit on the planning branch in
-the shared planning checkout, separate from the upstream code commit.
-Include only this task's planning changes, such as the reservation, branch
-record, and prepared review artifacts. Record progress as you go, but batch
-these edits into the final planning commit rather than committing each step.
+Record progress and drafts as you go without committing intermediate planning
+changes. Once the breakout is finished, the upstream code is pushed, and the
+approved PR is published and verified, make one local planning commit in the
+shared planning checkout, separate from the upstream code commit. Include only
+this task's planning changes, such as the reservation, branch record, and
+review artifacts. If approval, push or publication is pending or blocked,
+leave the planning changes uncommitted and report them at handoff; do not
+publish without the required approval.
 
-Follow `AGENTS.md`: coordinate a short exclusive Git-write window, inspect
-the index before staging, and stage and commit only explicitly named, owned
-files. Use a conventional commit message and the required co-author trailer.
-If the commit is blocked, report what is still uncommitted. Do not push the
-planning commit without explicit approval of the commit, destination, and
-action.
+Follow `AGENTS.md`: commits containing only the breakout's owned directory
+do not need the shared commit lock; commits containing shared files do.
+Inspect the index before staging and use an explicit path-limited commit to
+preserve other sessions' staged work. Use a conventional commit message and
+the required co-author trailer. If the commit is blocked, report what is
+still uncommitted. Do not push the planning commit without explicit approval
+of the commit, destination, and action.
 
 Report the worktree, upstream branch and code commit, planning commit,
 validation, PR link if published, and remaining review/CI/QA actions.

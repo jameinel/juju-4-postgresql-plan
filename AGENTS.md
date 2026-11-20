@@ -77,15 +77,29 @@ discrepancy. Historical evidence does not establish later-head acceptance.
 
 Unrelated dirty planning files are expected during concurrent work. Preserve
 them and continue within your assigned files unless they conflict with the
-task. Workers may commit their own planning changes.
+task. Workers should record their progress, decisions and drafts as they go,
+but leave intermediate planning changes uncommitted. Batch them into one
+planning commit after the current breakout or review work is finished and
+its intended upstream push and approved PR or reply publication are complete.
+If approval or publication is pending, leave the planning changes uncommitted
+and report them at handoff. This does not delay code commits needed for the
+upstream push, or authorize publication without approval.
 
-Coordinate a short exclusive Git-write window for staging, committing,
-pulling and pushing this shared checkout. Git's per-command index lock does
-not make a sequence of staging and committing atomic. Inspect the index
-before staging; if another session has staged work, wait and coordinate.
-Stage and commit only explicitly named, owned files. Never use `git add .`,
-`git add -A`, or `git commit -a` here. Do not reset another session's index,
-switch branches or change ownership to make a commit convenient.
+Breakout owners may commit their own `upstream/<branch>/` planning files
+without the shared commit lock. Coordinate a short exclusive Git-write
+window when committing shared files, and for pulling or pushing this shared
+checkout. Coordinate pulls with active writers; the shared-file lock alone
+does not exclude commits to owned directories.
+
+Git's per-command index lock does not make staging and committing atomic.
+Inspect the index before staging, stage only explicitly named, owned files,
+and use `git commit --only -- <paths>` with those explicit paths so another
+session's staged changes cannot enter the commit. This applies to shared-file
+commits too, since owned-directory commits may run concurrently. If a Git
+operation conflicts with another writer, inspect the state and retry or
+coordinate; do not reset another session's index. Never use `git add .`,
+`git add -A`, or `git commit -a` here. Do not switch branches or change
+ownership to make a commit convenient.
 
 Use conventional commits and the required co-author trailer. Before any
 push or GitHub publication, show the exact content/commit, destination and

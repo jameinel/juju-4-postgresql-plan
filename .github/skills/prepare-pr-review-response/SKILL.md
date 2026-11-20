@@ -161,6 +161,10 @@ where practical without harming readability.
   dated head, review disposition, evidence and next actions. Notify the
   coordinator of changed scope, new findings or cross-branch effects; shared
   dashboards and PoC stage progress are not routine review-worker edits.
-  Retain ownership while blocked. Follow AGENTS.md's shared Git rules:
-  coordinate index/commit operations and stage only explicitly named files,
-  preserving other sessions' dirty or staged work.
+  Retain ownership while blocked. Record thoughts and progress as you go,
+  but leave intermediate planning changes uncommitted. Once the review work
+  and any intended upstream push and approved publications are complete and
+  verified, batch the planning changes into one local commit. If approval,
+  push or publication is pending or blocked, leave them uncommitted and
+  report them at handoff. Follow AGENTS.md's shared Git rules and preserve
+  other sessions' dirty or staged work.
