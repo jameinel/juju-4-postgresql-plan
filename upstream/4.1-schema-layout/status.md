@@ -6,6 +6,41 @@
 
 ## Current state
 
+On 2026-11-20, rebuilt the layout branch as one commit on the published
+ordering head `b622931495f0fb3a2242418c82e2fcb152183354`:
+`9c8f98cd16289cb0e17b9be9ac587d59a683b285`. The dedicated
+`../4.1-schema-layout` worktree is clean. The previous local tip
+`4d92bd9501ea8ee00b799eda6761b01614aef630` is retained as
+`4.1-schema-layout-before-order`. With explicit approval, pushed the new
+head to `jameinel/juju:4.1-schema-layout` with a lease against
+`9da8100e161f59ce5a86485e0725db1b8101154d` and verified the remote head.
+No PR exists; PR creation requires separate approval.
+
+The [PR draft](pr.md) targets upstream `4.1` while
+[schema dependency ordering](../4.1-schema-dependency-order/status.md)
+remains open, so reviewers can compare the combined ordering and layout
+diff with the primary ordering-only proposal. It is not a request to merge
+both PRs as independent changes. Native GitHub stack registration cannot
+represent these cross-fork heads.
+
+At this tree all 104 moved assets are exact Git renames of the ordering
+parent. Patch discovery sorts unchanged filenames and hashes patch contents,
+not paths. `go generate ./domain/schema/...` and `make rebuild-export`
+produced no generated changes. SQLFluff 3.0.7 passed the CI glob; `gci`,
+scoped `golangci-lint`, repository `txncheck` and `git diff --check` passed.
+
+Race-enabled SQLite and real dqlite suites passed for
+`./domain/schema/... ./core/database/... ./domain/agentbinary/...
+./domain/modelmigration/... ./generate/ddlgen ./domain/sequence/state
+./domain/controllernode/state`. SQLite used `go test -race -p 2 -count=1
+-timeout 120s`; dqlite used `make run-go-tests` with the same packages and
+test arguments. Race-compiled `domain/sequence/state` tests passed ten
+bounded stress runs on each backend. The cumulative-upgrade tests skipped
+because no post-patches are registered; full pre-check, live bootstrap and
+PostgreSQL execution were not run.
+
+### Previous independent layout state, 2026-11-19
+
 On 2026-11-19 the user authorized takeover by session
 `da709086-878a-463e-988a-dd325a2f386f` and chose the existing `dqlite`
 directory name. The dedicated `../4.1-schema-layout` worktree and tracking
@@ -98,8 +133,7 @@ directory (`schema-layout-*.log`). No PostgreSQL execution was claimed.
 
 ## Next actions
 
-1. Review the local [PR draft](pr.md); its functional controller QA is
-   reproducible guidance, not a claim that bootstrap was run here.
-2. Obtain explicit approval before opening a PR or publishing further changes.
-3. After layout lands, move infrastructure-only commits onto the updated
-   stock upstream base and retire this prerequisite branch when appropriate.
+1. Obtain separate approval for any PR creation; the local [PR draft](pr.md)
+   contains proposed functional QA, not a claim that bootstrap was run.
+2. After ordering and layout land, move infrastructure-only commits onto
+   the updated stock upstream base.

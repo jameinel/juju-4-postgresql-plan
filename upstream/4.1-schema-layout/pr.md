@@ -1,25 +1,40 @@
 # Local PR draft
 
-Destination: `juju/juju`, base `4.1`, head `jameinel:4.1-schema-layout`.
-The local head is `4d92bd9501`; the fork remains at `9da8100e16`.
-Push and PR creation require separate explicit approvals. No PR has been
-published.
+Destination: `juju/juju`, base `4.1`, head `jameinel:4.1-schema-layout`,
+draft PR. The local and fork heads are `9c8f98cd16`, based on `b622931495`.
+PR creation requires separate explicit approval. No PR has been published.
 
-Title: `refactor(schema): move dqlite ddl under domain/schema/dqlite`
+Title: `refactor(schema): order and relocate schema definitions`
 
 ---
 
-Move controller and model SQL patches, trigger packages and historical release
-DDL under `domain/schema/dqlite`. Keep schema assembly APIs, patch ordering,
-hash inputs and all relocated file contents unchanged. Update imports, embeds,
-generation destinations, patch discovery, workflow paths and documentation.
-Update SQL lint to find the relocated patches.
+Order controller and model schema definitions so foreign-key targets and view
+sources exist before their consumers. Split out shared prerequisites where
+whole-file ordering cannot satisfy the dependencies. Give each base patch a
+distinct numeric position, spaced by ten, to leave room for future insertions
+without renumbering later files, where schema evolution permits. Add a guard
+for table keys, view dependencies and trigger dependencies.
+
+Move the ordered SQL patches and trigger packages under
+`domain/schema/dqlite`, and relocate generated release-DDL output paths.
+Update imports, embeds, generation destinations, patch discovery, workflow
+paths and documentation. The move itself preserves patch ordering, hash
+inputs and relocated file contents.
 
 Make the existing dialect explicit so a PostgreSQL schema can sit beside it
 without treating schema correctness as a testing-only concern. Keep this
 mechanical prerequisite independent of SQL conversion, PostgreSQL output,
 driver support, backend selection and shared SQL fixes. The dqlite schema
 is also used by the SQLite test backend.
+
+The ordering changes the 4.1 beta base-schema hash chain. Earlier 4.1 beta
+databases cannot upgrade in place across the change. Released 4.0 models
+continue to reach 4.1 through migration; historical release DDL is unchanged.
+
+This draft contains both commits from #23890 and the layout follow-up, so the
+combined diff shows the renames together. #23890 is the primary proposal.
+Should the changes be reviewed and landed separately, or would reviewers
+prefer this combined PR so the files are renamed once in the final diff?
 
 ## Checklist
 
@@ -73,8 +88,8 @@ for the relocation. No CLI/API workflow changes.
 
 ## Links
 
-Related: juju/juju#23890 orders schema definitions by dependency. These
-independent changes touch the same SQL files and require reconciliation.
+Alternative ordering-only proposal: #23890. Its QA steps also describe a
+before-and-after comparison of the controller and model database schemas.
 
 ~Issue: no issue reference.~
 

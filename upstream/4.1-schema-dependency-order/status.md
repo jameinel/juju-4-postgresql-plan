@@ -6,6 +6,11 @@
 
 ## Current state
 
+On 2026-11-20, the related layout branch was rebuilt on top of
+`b622931495` as `9c8f98cd16` and pushed with approval. See its
+[status](../4.1-schema-layout/status.md) for validation and publication
+state. The old independent layout tip is preserved separately.
+
 On 2026-11-19, after the user requested a rebase and squash, the local
 branch was rebased onto upstream `4.1` at
 `59dcd6d951814fa098a11ca3be103314bb6894e8` and squashed into
