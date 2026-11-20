@@ -6,6 +6,85 @@
 
 ## Current state
 
+On 2026-11-19, after the user requested a rebase and squash, the local
+branch was rebased onto upstream `4.1` at
+`59dcd6d951814fa098a11ca3be103314bb6894e8` and squashed into
+`b622931495f0fb3a2242418c82e2fcb152183354`. With user approval, pushed
+that head with an explicit lease on
+`b675f721280ff1c6207e7562dfcfa9b7879478ca`; the PR and remote head were
+verified. Published the separately approved PR description and verified it
+byte-for-byte against [the local draft](pr.md).
+
+The rebase automatically carried the upstream `v_model_config` correction
+into the relocated `0290-agent-version.sql`; that view was compared
+byte-for-byte with upstream. Apart from that upstream fix and removal of
+one pre-existing trailing space from a comment, the schema/agentbinary diff
+against the previous PR head is unchanged. The trailing-space cleanup makes
+the current-base `git diff --check` pass despite rename detection.
+
+At the rewritten head, race-enabled SQLite and real-dqlite schema, schema
+core, generator, modelconfig, modelimport, export, recovery and agentbinary
+suites passed. SQLFluff 3.0.7, scoped Go lint, `txncheck`, `git diff
+--check` and export regeneration with no generated diff passed. The
+user reported rerunning the live QA on this base/head and confirmed that the
+schema diff contains only the known comment whitespace difference. This
+session did not independently repeat that QA. The full pre-check and 4.0
+migration were not run.
+
+The approved [review reply](reply-van-cleef.md) was
+[published and verified](https://github.com/juju/juju/pull/23890#issuecomment-7025477696).
+At 18:53 EST on 2026-11-19, GitHub reported the PR mergeable and awaiting
+review; SQL CI had passed, with unit tests and the LXD charms smoke test
+still running.
+
+### Previous review state
+
+Review takeover authorized by the user on 2026-11-19, session
+`da709086-878a-463e-988a-dd325a2f386f`. Local follow-up commit
+`b675f721280ff1c6207e7562dfcfa9b7879478ca` was pushed to the fork and
+verified as the PR head on 2026-11-19. The then-approved PR description was
+published and verified byte-for-byte against its local draft.
+With the user's permission, amended the unpublished follow-up solely to
+correct malformed commit-message line breaks; the tested tree is unchanged.
+
+The follow-up spaces base SQL filenames by ten, preserves the existing
+patch sequence, removes leading blank lines from 11 files to fix SQLFluff,
+limits the FK-check database to one connection, and documents filename
+ordering. Against the preceding head, all 71 renamed files are detected as
+renames; against the original base, some heavily rearranged files are not.
+Comparison of all 73 ordered SQL patches found no other byte changes.
+
+Validation at this local tree: SQLite and real-dqlite race-enabled schema,
+schema-core and agentbinary suites passed; SQLFluff 3.0.7, scoped
+golangci-lint, txncheck, gci and `git diff --check` passed. `make
+rebuild-export` produced no generated diff. CI had not yet run at preparation.
+The SQL CI job failed on the earlier published head because of the 11 blank
+lines. At 23:18 UTC, the new head's `check-multi-juju` status reported a
+failure; GitHub Actions check runs had not yet appeared. The user supplied
+Jenkins output identifying a merge conflict, and GitHub reports the PR as
+`CONFLICTING`. A merge-tree check against upstream `59dcd6d951` reports
+modify/delete on `domain/schema/model/sql/0027-agent-version.sql`: upstream
+modified it while this branch renamed and rearranged it. Do not select either
+whole file without reconciling the definitions.
+Full pre-check, repeated live QA, and 4.0 migration were not run for the
+follow-up. The previously accepted live schema comparison used `c8282cf`;
+workload deployment and normal teardown were not established by that run.
+
+At that point the Van Cleef reply was held because its approved CI sentence
+had become stale after the `check-multi-juju` failure.
+The renumbering broadens path changes and affects schema-layout and
+independently reviewed schema branches; reconcile their file moves on
+integration without selecting whole files.
+
+The user chose the existing `dqlite` layout name and authorized this session
+to take over the independent layout preparation on 2026-11-19. Its existing
+remote commit and local PR draft are recorded in
+[the layout status](../4.1-schema-layout/status.md); no layout PR is published.
+Its local follow-up fixes the moved SQL lint path and is not pushed. The
+ordering PR draft now links the separately published layout-only diff.
+
+Previous state, 2026-11-18:
+
 Owner/session: `298b7b55-c2d5-4ee7-ba8c-573f1ced04fc`, authorized
 takeover and exclusive reservation window confirmed by the user on
 2026-11-18. Branch/worktree: `4.1-schema-dependency-order`,

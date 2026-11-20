@@ -6,6 +6,37 @@
 
 ## Current state
 
+On 2026-11-19 the user authorized takeover by session
+`da709086-878a-463e-988a-dd325a2f386f` and chose the existing `dqlite`
+directory name. The dedicated `../4.1-schema-layout` worktree and tracking
+branch were restored from the existing remote head. The clean local head is
+`4d92bd9501ea8ee00b799eda6761b01614aef630`; the remote still points to
+`9da8100e161f59ce5a86485e0725db1b8101154d`. No PR exists. The
+[PR draft](pr.md) is prepared for review; push and PR creation require
+separate approvals.
+
+The follow-up fixes the SQL CI glob: the prior command returned exit 2
+because it did not match the relocated directories. SQLFluff 3.0.7 with
+the updated glob passed all 31 controller and 38 model SQL files. The
+changed upstream agent-version SQL also passed SQLFluff separately.
+`git diff --check` passed.
+
+The current upstream `4.1` head was
+`59dcd6d951814fa098a11ca3be103314bb6894e8`, 111 commits beyond the
+layout branch's base. A read-only Git merge-tree assessment of that head
+with `4d92bd9501` was clean, including the upstream modification to
+`model/sql/0027-agent-version.sql`. The merged tree has not been built or
+tested; earlier Go validation below applies only to `9da8100e16`. Refresh
+the upstream and PR state before publication, and verify CI on the actual
+merge result. No rebase or new push was performed.
+
+The independent [schema dependency-order PR](../4.1-schema-dependency-order/status.md)
+also renumbers and rearranges these files. Its draft references the existing
+layout comparison, but neither PR incorporates the other. Reconcile the
+two changes at integration. The PostgreSQL test worktree remains untouched.
+
+### Previous state, 2026-11-12
+
 Owner/session: `0ec926e6-3858-4f43-bc9c-658024127e88`, assigned by the user
 on 2026-11-12. Local branch `4.1-schema-layout` and worktree
 `../4.1-schema-layout` were created from refreshed upstream `4.1`, base

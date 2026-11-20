@@ -1,9 +1,9 @@
 # Local PR draft
 
 Destination: `juju/juju`, base `4.1`, head `jameinel:4.1-schema-layout`.
-Branch `9da8100e16` was pushed to the fork with explicit approval on
-2026-11-12. Action after separate explicit approval: create the PR.
-No PR has been published.
+The local head is `4d92bd9501`; the fork remains at `9da8100e16`.
+Push and PR creation require separate explicit approvals. No PR has been
+published.
 
 Title: `refactor(schema): move dqlite ddl under domain/schema/dqlite`
 
@@ -13,11 +13,13 @@ Move controller and model SQL patches, trigger packages and historical release
 DDL under `domain/schema/dqlite`. Keep schema assembly APIs, patch ordering,
 hash inputs and all relocated file contents unchanged. Update imports, embeds,
 generation destinations, patch discovery, workflow paths and documentation.
+Update SQL lint to find the relocated patches.
 
 Make the existing dialect explicit so a PostgreSQL schema can sit beside it
 without treating schema correctness as a testing-only concern. Keep this
 mechanical prerequisite independent of SQL conversion, PostgreSQL output,
-driver support, backend selection and shared SQL fixes.
+driver support, backend selection and shared SQL fixes. The dqlite schema
+is also used by the SQLite test backend.
 
 ## Checklist
 
@@ -34,7 +36,7 @@ build prerequisites installed, run from the repository root:
 
 ```sh
 go generate ./domain/schema/...
-git diff --exit-code -- domain/schema/dqlite
+git --no-pager diff --exit-code -- domain/schema/dqlite
 test ! -d domain/schema/controller
 test ! -d domain/schema/model
 ```
@@ -70,6 +72,9 @@ Update schema package documentation, schema agent guidance and path references
 for the relocation. No CLI/API workflow changes.
 
 ## Links
+
+Related: juju/juju#23890 orders schema definitions by dependency. These
+independent changes touch the same SQL files and require reconciliation.
 
 ~Issue: no issue reference.~
 

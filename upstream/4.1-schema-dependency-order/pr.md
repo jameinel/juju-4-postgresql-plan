@@ -8,6 +8,11 @@ before the view. Split out shared prerequisites where whole-file ordering
 cannot satisfy the dependency graph. Preserve the existing definitions,
 seed data and generated triggers.
 
+Give each base patch a distinct numeric position in the dependency order.
+Number files in steps of ten so future prerequisites can be inserted into
+available gaps without renumbering subsequent files, where schema evolution
+permits.
+
 This also adds a schema-order guard that checks table keys, view dependencies
 and trigger dependencies, including references within a single patch. It uses
 SQLite's schema metadata and resolver, not PostgreSQL-specific SQL or runtime
@@ -36,8 +41,8 @@ base. Create separate checkouts and binary directories:
 export ORIGINAL="$PWD"
 export DEPS="$PWD/_deps"
 export QA_ROOT="$(mktemp -d)"
-git --no-pager worktree add --detach "$QA_ROOT/before" d380e5e4fba4c9918a0774638ffa3138aeece73e
-git --no-pager worktree add --detach "$QA_ROOT/after" c8282cfab478973d6d92727b2b19c3980f68f84b
+git --no-pager worktree add --detach "$QA_ROOT/before" 59dcd6d951814fa098a11ca3be103314bb6894e8
+git --no-pager worktree add --detach "$QA_ROOT/after" b622931495f0fb3a2242418c82e2fcb152183354
 ln -s "$DEPS" "$QA_ROOT/before/_deps"
 ln -s "$DEPS" "$QA_ROOT/after/_deps"
 ```
@@ -103,20 +108,11 @@ Expect the same functional results. Compare the schema captures:
 diff -u "$QA_ROOT/schema-order-before.schema" "$QA_ROOT/schema-order-after.schema"
 ```
 
-Expected diff:
+Expect only the following changed comment line:
 
 ```diff
---- schema-order-before.schema	2026-11-18 21:57:24.241065869 -0500
-+++ schema-order-after.schema	2026-11-18 21:58:53.346070621 -0500
-@@ -8400,7 +8400,7 @@
-     END) AS subject_id,
-     -- scope_id is the natural id of the scope entity (uuid for model)
-     -- relations are not processed here - their scope_id is the relation key
 -    -- which needs to be composed in code. 
 +    -- which needs to be composed in code.
-     (CASE
-         WHEN sp.scope_type_id = 0 THEN scu.name
-         WHEN sp.scope_type_id = 1 THEN sca.name
 ```
 
 The definitions should match apart from the removed trailing space in a
@@ -141,4 +137,5 @@ None.
 
 ## Links
 
-None.
+Related: [separate dqlite schema-layout move](https://github.com/jameinel/juju/compare/b36eefc4b34badcdef972c859e96ccb974c592e2...9da8100e161f59ce5a86485e0725db1b8101154d).
+The independent layout and ordering changes will need reconciliation.
